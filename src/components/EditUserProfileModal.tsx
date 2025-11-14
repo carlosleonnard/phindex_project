@@ -125,9 +125,9 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
             <p className="text-xs text-muted-foreground">Front photo is required, profile photo is optional</p>
             
             <div className="grid grid-cols-2 gap-3">
-              {/* Foto de Frente */}
+              {/* Front Photo */}
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Foto de Frente *</Label>
+                <Label className="text-sm text-muted-foreground">Front Photo *</Label>
                 <Card
                   className={`border-2 border-dashed transition-colors p-4 text-center cursor-pointer ${
                     dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
@@ -146,10 +146,10 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
                     onChange={(e) => handleFileSelect(e, 'front')}
                   />
                   {formData.frontImageUrl ? (
-                    <div className="relative inline-block">
+                     <div className="relative inline-block">
                        <img 
                          src={formData.frontImageUrl} 
-                         alt="Preview Frente" 
+                         alt="Front Preview"
                          className="w-20 h-19 rounded-lg mx-auto object-cover"
                          style={{ aspectRatio: '640/607' }}
                        />
@@ -177,9 +177,9 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
                 </Card>
               </div>
 
-              {/* Foto de Perfil */}
+              {/* Profile Photo */}
               <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Foto de Perfil</Label>
+                <Label className="text-sm text-muted-foreground">Profile Photo</Label>
                 <Card
                   className={`border-2 border-dashed transition-colors p-4 text-center cursor-pointer ${
                     dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
@@ -198,10 +198,10 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
                     onChange={(e) => handleFileSelect(e, 'profile')}
                   />
                   {formData.profileImageUrl ? (
-                    <div className="relative inline-block">
+                     <div className="relative inline-block">
                        <img 
                          src={formData.profileImageUrl} 
-                         alt="Preview Perfil" 
+                         alt="Profile Preview"
                          className="w-20 h-19 rounded-lg mx-auto object-cover"
                          style={{ aspectRatio: '640/607' }}
                        />
@@ -231,9 +231,9 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
             </div>
           </div>
 
-          {/* Campo sim/não para perfil anônimo */}
+          {/* Anonymous profile yes/no field */}
           <div className="space-y-2">
-            <Label htmlFor="anonymousSelect">Esta é uma pessoa anônima (não famosa)? *</Label>
+            <Label htmlFor="anonymousSelect">Is this an anonymous person (not famous)? *</Label>
             <select
               id="anonymousSelect"
               value={formData.isAnonymous === true ? "sim" : formData.isAnonymous === false ? "nao" : ""}
@@ -241,15 +241,15 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
               className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               required
             >
-              <option value="" disabled>Selecionar</option>
-              <option value="sim">Sim</option>
-              <option value="nao">Não</option>
+              <option value="" disabled>Select</option>
+              <option value="sim">Yes</option>
+              <option value="nao">No</option>
             </select>
           </div>
 
-          {/* Informações básicas */}
+          {/* Basic information */}
           <div className="space-y-2">
-            <Label htmlFor="name">Nome *</Label>
+            <Label htmlFor="name">Name *</Label>
             <Input
               id="name"
               value={formData.name}
@@ -260,14 +260,14 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="height">Altura (metros) *</Label>
+              <Label htmlFor="height">Height (meters) *</Label>
               <Input
                 id="height"
                 type="number"
                 step="0.01"
                 min="0.5"
                 max="3"
-                placeholder="ex: 1.75"
+                placeholder="e.g.: 1.75"
                 value={formData.height}
                 onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
                 required
@@ -275,7 +275,7 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="country">País *</Label>
+              <Label htmlFor="country">Country *</Label>
               <select
                 id="country"
                 value={formData.country}
@@ -283,7 +283,7 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
                 className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 required
               >
-                <option value="">Selecionar país</option>
+                <option value="">Select country</option>
                 <option value="Brasil">Brasil</option>
                 <option value="Estados Unidos">Estados Unidos</option>
                 <option value="Canadá">Canadá</option>
@@ -313,7 +313,7 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="gender">Gênero *</Label>
+              <Label htmlFor="gender">Gender *</Label>
               <select
                 id="gender"
                 value={formData.gender}
@@ -321,15 +321,15 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
                 className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 required
               >
-                <option value="">Selecionar</option>
-                <option value="Masculino">Masculino</option>
-                <option value="Feminino">Feminino</option>
-                <option value="Outro">Outro</option>
+                <option value="">Select</option>
+                <option value="Masculino">Male</option>
+                <option value="Feminino">Female</option>
+                <option value="Outro">Other</option>
               </select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">Categoria *</Label>
+              <Label htmlFor="category">Category *</Label>
               <select
                 id="category"
                 value={formData.category}
@@ -338,7 +338,7 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
                 disabled={formData.isAnonymous === true}
                 required
               >
-                <option value="">Selecionar categoria</option>
+                <option value="">Select category</option>
                 <option value="User Profiles">User Profiles</option>
                 <option value="Pop Culture">Pop Culture</option>
                 <option value="Music and Entertainment">Music and Entertainment</option>
@@ -353,14 +353,14 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="ancestry">Ancestralidade Conhecida *</Label>
+            <Label htmlFor="ancestry">Known Ancestry *</Label>
             <CountrySelector
               selectedCountries={formData.ancestry}
               onCountriesChange={(countries) => setFormData(prev => ({ ...prev, ancestry: countries }))}
-              placeholder="Digite para buscar países de ancestralidade..."
+              placeholder="Type to search ancestry countries..."
               maxCountries={5}
             />
-            <p className="text-xs text-muted-foreground">Selecione até 5 países que representam a ancestralidade conhecida</p>
+            <p className="text-xs text-muted-foreground">Select up to 5 countries that represent the known ancestry</p>
           </div>
 
           <div className="flex gap-2 pt-4">
@@ -370,14 +370,14 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
               className="flex-1"
               onClick={onClose}
             >
-              Cancelar
+              Cancel
             </Button>
             <Button
               type="submit"
               className="flex-1 bg-gradient-primary hover:shadow-button transition-all duration-300"
               disabled={updateProfile.isPending || isUploading}
             >
-              {updateProfile.isPending || isUploading ? 'Salvando...' : 'Salvar'}
+              {updateProfile.isPending || isUploading ? 'Saving...' : 'Save'}
             </Button>
           </div>
         </form>

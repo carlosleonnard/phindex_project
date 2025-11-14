@@ -522,10 +522,7 @@ export type Database = {
         Args: { comment_id_param: string }
         Returns: undefined
       }
-      generate_random_nickname: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_random_nickname: { Args: never; Returns: string }
       generate_unique_slug: {
         Args: { profile_id?: string; profile_name: string }
         Returns: string
@@ -551,10 +548,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
