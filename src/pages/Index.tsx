@@ -18,6 +18,7 @@ import { Header } from "@/components/Header"; // Cabeçalho fixo
 import { Footer } from "@/components/Footer"; // Rodapé
 import { AppSidebar } from "@/components/AppSidebar"; // Barra lateral de navegação
 import { AddProfileModal } from "@/components/AddProfileModal"; // Modal de criação de perfil
+import { WorldMapGame } from "@/components/WorldMapGame"; // Jogo de adivinhação de origem
 // Hook customizado para gerenciar perfis de usuário
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 // Componentes de UI do sistema de design
@@ -86,26 +87,9 @@ const Index = () => {
           {/* Sidebar */}
           <AppSidebar />
 
-          {/* Welcome Banner */}
+          {/* Map Game */}
           <div className="mb-8">
-            <Card className="bg-primary/10 border-primary/20">
-              <div className="p-6">
-                <h1 className="text-3xl font-bold text-foreground mb-4">Welcome to Phenotype Index</h1>
-                <div className="space-y-3 text-muted-foreground">
-                  <p className="text-base leading-relaxed">
-                    Create new profiles for community voting and track voted results in real-time. You can add photos of
-                    yourself and famous people.
-                  </p>
-                  <p className="text-sm">
-                    Contact{" "}
-                    <a href="mailto:contact@phenotypeindex.com" className="text-primary hover:underline font-medium">
-                      contact@phenotypeindex.com
-                    </a>{" "}
-                    for corrections, bugs or improvement suggestions.
-                  </p>
-                </div>
-              </div>
-            </Card>
+            <WorldMapGame />
           </div>
 
           {/* Main Content */}
