@@ -105,20 +105,8 @@ export const useMapGame = () => {
         })
       );
 
-      // Filter profiles that have at least one vote
-      const validProfiles = profilesWithVotes.filter(p => p.mostVotedPhenotype !== null);
-      
-      if (validProfiles.length === 0) {
-        toast({
-          title: "No voted profiles",
-          description: "There are no profiles with votes yet.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      setGameProfiles(validProfiles);
+      // Use all profiles, even without votes
+      setGameProfiles(profilesWithVotes);
       setCurrentProfileIndex(0);
       setScore(0);
       setGameEnded(false);
@@ -143,18 +131,24 @@ export const useMapGame = () => {
     if (feedback !== null || gameEnded) return; // Prevent multiple clicks
 
     const currentProfile = gameProfiles[currentProfileIndex];
-    if (!currentProfile || !currentProfile.mostVotedPhenotype) return;
+    if (!currentProfile) return;
 
-    // Check if the selected region contains the profile's phenotype
-    const subregions = REGION_MAPPING[selectedRegion] || [];
-    const isCorrect = subregions.some(subregion => 
-      currentProfile.mostVotedPhenotype?.toLowerCase().includes(subregion.toLowerCase())
-    );
-
-    setFeedback(isCorrect ? 'correct' : 'wrong');
-
-    if (isCorrect) {
+    // If profile has no votes, accept any answer as correct
+    if (!currentProfile.mostVotedPhenotype) {
+      setFeedback('correct');
       setScore(score + 1);
+    } else {
+      // Check if the selected region contains the profile's phenotype
+      const subregions = REGION_MAPPING[selectedRegion] || [];
+      const isCorrect = subregions.some(subregion => 
+        currentProfile.mostVotedPhenotype?.toLowerCase().includes(subregion.toLowerCase())
+      );
+
+      setFeedback(isCorrect ? 'correct' : 'wrong');
+
+      if (isCorrect) {
+        setScore(score + 1);
+      }
     }
 
     // Move to next profile after delay
