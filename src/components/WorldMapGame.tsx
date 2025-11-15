@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { useMapGame } from "@/hooks/use-map-game";
 import { Loader2, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
 
 export const WorldMapGame = () => {
+  const { user } = useAuth();
   const {
     currentProfile,
     currentProfileIndex,
@@ -16,6 +18,10 @@ export const WorldMapGame = () => {
     checkAnswer,
     resetGame
   } = useMapGame();
+
+  if (!user) {
+    return null;
+  }
 
   if (isLoading) {
     return (
@@ -66,20 +72,20 @@ export const WorldMapGame = () => {
   }
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30">
-      <div className="p-6">
+    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 max-w-3xl mx-auto">
+      <div className="p-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-foreground mb-1">
+            <h2 className="text-xl font-bold text-foreground mb-1">
               Guess the Origin
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Click on the region where this person's phenotype is from
             </p>
           </div>
           <div className="text-right">
-            <Badge variant="secondary" className="text-lg px-4 py-2">
+            <Badge variant="secondary" className="text-sm px-3 py-1">
               Score: {score} / {totalProfiles}
             </Badge>
             <p className="text-xs text-muted-foreground mt-1">
@@ -88,10 +94,10 @@ export const WorldMapGame = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-2 gap-4">
           {/* Profile Image */}
-          <div className="space-y-4">
-            <Card className={`overflow-hidden transition-all duration-300 ${
+          <div className="space-y-3">
+            <Card className={`overflow-hidden transition-all duration-300 max-w-[250px] mx-auto ${
               feedback === 'correct' ? 'ring-4 ring-green-500' : 
               feedback === 'wrong' ? 'ring-4 ring-red-500' : ''
             }`}>
@@ -104,7 +110,7 @@ export const WorldMapGame = () => {
               </div>
             </Card>
             {feedback && (
-              <div className={`text-center text-lg font-semibold ${
+              <div className={`text-center text-sm font-semibold ${
                 feedback === 'correct' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {feedback === 'correct' ? '✓ Correct!' : '✗ Wrong!'}
@@ -112,78 +118,61 @@ export const WorldMapGame = () => {
             )}
           </div>
 
-          {/* World Map */}
-          <div className="flex items-center justify-center">
-            <svg viewBox="0 0 1000 500" className="w-full h-auto max-h-[500px]">
-              {/* Europe */}
-              <g 
-                onClick={() => checkAnswer('Europe')}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <rect x="420" y="80" width="120" height="100" fill="hsl(var(--primary))" opacity="0.6" rx="8" />
-                <text x="480" y="135" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">
-                  Europe
-                </text>
-              </g>
-
-              {/* Africa */}
-              <g 
-                onClick={() => checkAnswer('Africa')}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <rect x="420" y="200" width="140" height="150" fill="hsl(var(--primary))" opacity="0.6" rx="8" />
-                <text x="490" y="280" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">
-                  Africa
-                </text>
-              </g>
-
-              {/* Middle East */}
-              <g 
-                onClick={() => checkAnswer('Middle East')}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <rect x="560" y="140" width="130" height="110" fill="hsl(var(--primary))" opacity="0.6" rx="8" />
-                <text x="625" y="200" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold">
-                  Middle East
-                </text>
-              </g>
-
-              {/* Asia */}
-              <g 
-                onClick={() => checkAnswer('Asia')}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <rect x="690" y="80" width="180" height="180" fill="hsl(var(--primary))" opacity="0.6" rx="8" />
-                <text x="780" y="175" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">
-                  Asia
-                </text>
-              </g>
-
-              {/* Americas */}
-              <g 
-                onClick={() => checkAnswer('Americas')}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <rect x="150" y="100" width="140" height="280" fill="hsl(var(--primary))" opacity="0.6" rx="8" />
-                <text x="220" y="245" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">
-                  Americas
-                </text>
-              </g>
-
-              {/* Oceania */}
-              <g 
-                onClick={() => checkAnswer('Oceania')}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <rect x="780" y="300" width="150" height="100" fill="hsl(var(--primary))" opacity="0.6" rx="8" />
-                <text x="855" y="355" textAnchor="middle" fill="white" fontSize="18" fontWeight="bold">
-                  Oceania
-                </text>
-              </g>
-
-              {/* Background ocean */}
-              <rect x="0" y="0" width="1000" height="500" fill="hsl(var(--muted))" opacity="0.3" className="-z-10" />
-            </svg>
+          {/* Region Buttons */}
+          <div className="flex flex-col gap-2 justify-center">
+            <Button
+              onClick={() => checkAnswer('Europe')}
+              variant="outline"
+              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={feedback !== null}
+            >
+              Europe
+            </Button>
+            
+            <Button
+              onClick={() => checkAnswer('Africa')}
+              variant="outline"
+              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={feedback !== null}
+            >
+              Africa
+            </Button>
+            
+            <Button
+              onClick={() => checkAnswer('Middle East')}
+              variant="outline"
+              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={feedback !== null}
+            >
+              Middle East
+            </Button>
+            
+            <Button
+              onClick={() => checkAnswer('Asia')}
+              variant="outline"
+              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={feedback !== null}
+            >
+              Asia
+            </Button>
+            
+            <Button
+              onClick={() => checkAnswer('Americas')}
+              variant="outline"
+              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={feedback !== null}
+            >
+              Americas
+            </Button>
+            
+            <Button
+              onClick={() => checkAnswer('Oceania')}
+              variant="outline"
+              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={feedback !== null}
+            >
+              Oceania
+            </Button>
           </div>
         </div>
       </div>
