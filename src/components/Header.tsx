@@ -7,7 +7,7 @@
  */
 
 // Ícones do Lucide React (biblioteca de ícones SVG otimizada)
-import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu } from "lucide-react";
+import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu, Trophy } from "lucide-react";
 // Componentes de UI reutilizáveis do sistema de design
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,6 +253,14 @@ export const Header = () => {
 
             <div className="flex items-center gap-3">
               <AddProfileModal />
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => navigate('/leaderboard')}
+                title="Leaderboard"
+              >
+                <Trophy className="h-4 w-4" />
+              </Button>
               <Button 
                 variant="outline" 
                 size="icon"
