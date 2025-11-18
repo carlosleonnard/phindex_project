@@ -211,6 +211,33 @@ export type Database = {
           },
         ]
       }
+      game_results: {
+        Row: {
+          created_at: string
+          difficulty: string
+          id: string
+          score: number
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty: string
+          id?: string
+          score: number
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          id?: string
+          score?: number
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           comment_id: string | null

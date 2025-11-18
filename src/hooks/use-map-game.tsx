@@ -10,6 +10,15 @@ interface GameProfile {
   mostVotedPhenotype: string | null;
 }
 
+interface GameStats {
+  totalGames: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  accuracyPercentage: number;
+}
+
+type Difficulty = 'easy' | 'medium' | 'hard';
+
 const REGION_MAPPING: Record<string, string[]> = {
   "Europe": [
     "Eastern Europe",
@@ -54,13 +63,62 @@ export const useMapGame = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [correctRegion, setCorrectRegion] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [stats, setStats] = useState<GameStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const { toast } = useToast();
+
+  const getQuestionsCount = (diff: Difficulty): number => {
+    switch (diff) {
+      case 'easy': return 3;
+      case 'medium': return 5;
+      case 'hard': return 10;
+      default: return 5;
+    }
+  };
+
+  const fetchUserStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: results, error } = await supabase
+        .from('game_results')
+        .select('score, total_questions')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      if (results && results.length > 0) {
+        const totalGames = results.length;
+        const totalCorrect = results.reduce((sum, r) => sum + r.score, 0);
+        const totalQuestions = results.reduce((sum, r) => sum + r.total_questions, 0);
+        const accuracyPercentage = totalQuestions > 0 
+          ? Math.round((totalCorrect / totalQuestions) * 100) 
+          : 0;
+
+        setStats({
+          totalGames,
+          totalCorrect,
+          totalQuestions,
+          accuracyPercentage
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
 
   const fetchRandomProfiles = async () => {
     try {
       setIsLoading(true);
       
-      // Fetch 5 random profiles
+      const questionsCount = getQuestionsCount(difficulty);
+      
+      // Fetch random profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
         .select('id, name, front_image_url, slug')
@@ -77,9 +135,9 @@ export const useMapGame = () => {
         return;
       }
 
-      // Get random 5 profiles
+      // Get random profiles based on difficulty
       const shuffled = profiles.sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.min(5, profiles.length));
+      const selected = shuffled.slice(0, Math.min(questionsCount, profiles.length));
 
       // Fetch most voted primary geographic for each profile
       const profilesWithVotes = await Promise.all(
@@ -126,7 +184,8 @@ export const useMapGame = () => {
 
   useEffect(() => {
     fetchRandomProfiles();
-  }, []);
+    fetchUserStats();
+  }, [difficulty]);
 
   const getCorrectRegion = (phenotype: string): string | null => {
     for (const [region, subregions] of Object.entries(REGION_MAPPING)) {
@@ -182,7 +241,38 @@ export const useMapGame = () => {
     }, 1500);
   };
 
+  const saveGameResult = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('game_results')
+        .insert({
+          user_id: user.id,
+          score: score,
+          total_questions: gameProfiles.length,
+          difficulty: difficulty
+        });
+
+      if (error) throw error;
+      
+      // Refresh stats after saving
+      await fetchUserStats();
+    } catch (error) {
+      console.error('Error saving game result:', error);
+      toast({
+        title: "Error saving result",
+        description: "Failed to save your game result.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const resetGame = () => {
+    if (gameEnded && gameProfiles.length > 0) {
+      saveGameResult();
+    }
     fetchRandomProfiles();
   };
 
@@ -199,6 +289,13 @@ export const useMapGame = () => {
     }
   };
 
+  // Save result when game ends
+  useEffect(() => {
+    if (gameEnded && gameProfiles.length > 0) {
+      saveGameResult();
+    }
+  }, [gameEnded]);
+
   return {
     currentProfile: gameProfiles[currentProfileIndex] || null,
     currentProfileIndex,
@@ -208,6 +305,10 @@ export const useMapGame = () => {
     isLoading,
     feedback,
     correctRegion,
+    difficulty,
+    stats,
+    isLoadingStats,
+    setDifficulty,
     checkAnswer,
     resetGame,
     skipProfile

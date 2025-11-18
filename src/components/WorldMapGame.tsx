@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMapGame } from "@/hooks/use-map-game";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, Trophy, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const WorldMapGame = () => {
   const { user } = useAuth();
@@ -16,6 +17,10 @@ export const WorldMapGame = () => {
     isLoading,
     feedback,
     correctRegion,
+    difficulty,
+    stats,
+    isLoadingStats,
+    setDifficulty,
     checkAnswer,
     resetGame,
     skipProfile
@@ -37,6 +42,8 @@ export const WorldMapGame = () => {
   }
 
   if (gameEnded) {
+    const accuracy = totalProfiles > 0 ? Math.round((score / totalProfiles) * 100) : 0;
+    
     return (
       <Card className="p-8 bg-gradient-to-br from-primary/10 to-accent/5">
         <div className="text-center space-y-6">
@@ -45,7 +52,36 @@ export const WorldMapGame = () => {
             <p className="text-xl text-muted-foreground">
               Your Score: <span className="text-primary font-bold text-3xl">{score}</span> / {totalProfiles}
             </p>
+            <p className="text-lg text-muted-foreground mt-2">
+              Accuracy: <span className="font-semibold text-foreground">{accuracy}%</span>
+            </p>
           </div>
+          
+          {stats && (
+            <Card className="p-4 bg-background/50">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Trophy className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Overall Statistics</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Total Games</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.totalGames}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Overall Accuracy</p>
+                  <p className="text-2xl font-bold text-primary">{stats.accuracyPercentage}%</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-muted-foreground">Total Correct / Questions</p>
+                  <p className="text-xl font-semibold text-foreground">
+                    {stats.totalCorrect} / {stats.totalQuestions}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
+          
           <div className="space-y-2">
             <p className="text-lg text-muted-foreground">
               {score === totalProfiles && "Perfect score! Amazing! 🎉"}
@@ -76,23 +112,44 @@ export const WorldMapGame = () => {
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 max-w-3xl mx-auto">
       <div className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-foreground mb-1">
-              Guess the Origin
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Click on the region where this person's phenotype is from
-            </p>
+        {/* Header with Difficulty Selector */}
+        <div className="mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-foreground mb-1">
+                Guess the Origin
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Click on the region where this person's phenotype is from
+              </p>
+            </div>
+            <div className="text-right">
+              <Badge variant="secondary" className="text-sm px-3 py-1">
+                Score: {score} / {totalProfiles}
+              </Badge>
+              <p className="text-xs text-muted-foreground mt-1">
+                Profile {currentProfileIndex + 1} of {totalProfiles}
+              </p>
+            </div>
           </div>
-          <div className="text-right">
-            <Badge variant="secondary" className="text-sm px-3 py-1">
-              Score: {score} / {totalProfiles}
-            </Badge>
-            <p className="text-xs text-muted-foreground mt-1">
-              Profile {currentProfileIndex + 1} of {totalProfiles}
-            </p>
+
+          {/* Difficulty Selector and Stats */}
+          <div className="flex items-center justify-between gap-4">
+            <Tabs value={difficulty} onValueChange={(value) => setDifficulty(value as 'easy' | 'medium' | 'hard')}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="easy" className="text-xs">Easy (3)</TabsTrigger>
+                <TabsTrigger value="medium" className="text-xs">Medium (5)</TabsTrigger>
+                <TabsTrigger value="hard" className="text-xs">Hard (10)</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {stats && !isLoadingStats && (
+              <div className="flex items-center gap-2 text-xs">
+                <Target className="h-4 w-4 text-primary" />
+                <span className="text-muted-foreground">Accuracy:</span>
+                <span className="font-semibold text-primary">{stats.accuracyPercentage}%</span>
+              </div>
+            )}
           </div>
         </div>
 
