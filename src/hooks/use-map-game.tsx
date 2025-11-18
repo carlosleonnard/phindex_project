@@ -141,7 +141,7 @@ export const useMapGame = () => {
       // Check if the selected region contains the profile's phenotype
       const subregions = REGION_MAPPING[selectedRegion] || [];
       const isCorrect = subregions.some(subregion => 
-        currentProfile.mostVotedPhenotype?.toLowerCase().includes(subregion.toLowerCase())
+        subregion.toLowerCase() === currentProfile.mostVotedPhenotype?.toLowerCase()
       );
 
       setFeedback(isCorrect ? 'correct' : 'wrong');
