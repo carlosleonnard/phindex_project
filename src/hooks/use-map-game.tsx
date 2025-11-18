@@ -53,6 +53,7 @@ export const useMapGame = () => {
   const [gameEnded, setGameEnded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [correctRegion, setCorrectRegion] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchRandomProfiles = async () => {
@@ -127,6 +128,15 @@ export const useMapGame = () => {
     fetchRandomProfiles();
   }, []);
 
+  const getCorrectRegion = (phenotype: string): string | null => {
+    for (const [region, subregions] of Object.entries(REGION_MAPPING)) {
+      if (subregions.some(sub => sub.toLowerCase() === phenotype.toLowerCase())) {
+        return region;
+      }
+    }
+    return null;
+  };
+
   const checkAnswer = (selectedRegion: string) => {
     if (feedback !== null || gameEnded) return; // Prevent multiple clicks
 
@@ -136,6 +146,7 @@ export const useMapGame = () => {
     // If profile has no votes, accept any answer as correct
     if (!currentProfile.mostVotedPhenotype) {
       setFeedback('correct');
+      setCorrectRegion(null);
       setScore(score + 1);
     } else {
       // Check if the selected region contains the profile's phenotype
@@ -145,6 +156,13 @@ export const useMapGame = () => {
       );
 
       setFeedback(isCorrect ? 'correct' : 'wrong');
+      
+      // Store the correct region if wrong
+      if (!isCorrect) {
+        setCorrectRegion(getCorrectRegion(currentProfile.mostVotedPhenotype));
+      } else {
+        setCorrectRegion(null);
+      }
 
       if (isCorrect) {
         setScore(score + 1);
@@ -154,6 +172,7 @@ export const useMapGame = () => {
     // Move to next profile after delay
     setTimeout(() => {
       setFeedback(null);
+      setCorrectRegion(null);
       
       if (currentProfileIndex + 1 >= gameProfiles.length) {
         setGameEnded(true);
@@ -175,6 +194,7 @@ export const useMapGame = () => {
     gameEnded,
     isLoading,
     feedback,
+    correctRegion,
     checkAnswer,
     resetGame
   };
