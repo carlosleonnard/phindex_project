@@ -18,7 +18,6 @@ import { Header } from "@/components/Header"; // Cabeçalho fixo
 import { Footer } from "@/components/Footer"; // Rodapé
 import { AppSidebar } from "@/components/AppSidebar"; // Barra lateral de navegação
 import { AddProfileModal } from "@/components/AddProfileModal"; // Modal de criação de perfil
-import { WorldMapGame } from "@/components/WorldMapGame"; // Jogo de adivinhação de origem
 // Hook customizado para gerenciar perfis de usuário
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 // Componentes de UI do sistema de design
@@ -87,14 +86,8 @@ const Index = () => {
           {/* Sidebar */}
           <AppSidebar />
 
-          {/* Map Game */}
-          <div className="mb-8">
-            <WorldMapGame />
-          </div>
-
           {/* Main Content */}
-          <div className="bg-slate-100">
-            {/* Popular Celebrities Section */}
+          <div className="bg-slate-100">{/* Popular Celebrities Section */}
             <div className="mb-12">
               <div className="relative p-6">
                 <div className="relative z-10">
