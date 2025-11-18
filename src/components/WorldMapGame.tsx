@@ -15,6 +15,7 @@ export const WorldMapGame = () => {
     gameEnded,
     isLoading,
     feedback,
+    correctRegion,
     checkAnswer,
     resetGame
   } = useMapGame();
@@ -114,6 +115,11 @@ export const WorldMapGame = () => {
                 feedback === 'correct' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {feedback === 'correct' ? '✓ Correct!' : '✗ Wrong!'}
+                {feedback === 'wrong' && correctRegion && (
+                  <div className="text-xs mt-1 text-muted-foreground">
+                    Correct answer: {correctRegion}
+                  </div>
+                )}
               </div>
             )}
           </div>
