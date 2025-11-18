@@ -27,6 +27,7 @@ import PhenotypeFlowPage from "./pages/PhenotypeFlowPage"; // Página do fluxo d
 import Settings from "./pages/Settings"; // Página de configurações do usuário
 import Contact from "./pages/Contact"; // Página de contato
 import FAQ from "./pages/FAQ"; // Página de perguntas frequentes
+import Leaderboard from "./pages/Leaderboard"; // Página de leaderboard
 import NotFound from "./pages/NotFound"; // Página 404 para rotas não encontradas
 
 /**
@@ -87,6 +88,9 @@ const App = () => (
           
           {/* ROTA ESTÁTICA: Página de perguntas frequentes */}
           <Route path="/faq" element={<FAQ />} />
+          
+          {/* ROTA ESTÁTICA: Leaderboard global */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
           
           {/* ROTA CATCH-ALL: Captura qualquer URL não definida acima e mostra 404 */}
           {/* IMPORTANTE: Esta deve sempre ser a última rota para funcionar corretamente */}
