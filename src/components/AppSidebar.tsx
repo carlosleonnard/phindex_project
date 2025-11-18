@@ -16,7 +16,8 @@ import {
   GitBranch,
   HelpCircle,
   LogOut,
-  Mail
+  Mail,
+  Map
 } from "lucide-react";
 
 export const AppSidebar = () => {
@@ -118,6 +119,19 @@ export const AppSidebar = () => {
           <div>
             <h3 className="text-xl font-semibold mb-6 text-phindex-dark">CATEGORIES</h3>
             <div className="space-y-4">
+              {/* Guess the Origin Game */}
+              <button
+                className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
+                  location.pathname === "/" 
+                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20" 
+                    : "hover:bg-muted/50"
+                }`}
+                onClick={() => navigate("/")}
+              >
+                <Map className="h-5 w-5" style={{ color: 'hsl(var(--category-primary))' }} />
+                <span className="text-base">Guess the Origin</span>
+              </button>
+              
               {/* Community Section */}
               <button
                 className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
