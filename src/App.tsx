@@ -19,7 +19,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 // Importa todas as páginas da aplicação
 import Index from "./pages/Index"; // Página inicial com lista de perfis
-import GuessTheOrigin from "./pages/GuessTheOrigin"; // Jogo de adivinhar origem
 import ProfileDetail from "./pages/ProfileDetail"; // Página de detalhes de um perfil específico
 import UserProfileDetail from "./pages/UserProfileDetail"; // Página de perfil de usuário
 import RegionPage from "./pages/RegionPage"; // Página filtrada por região geográfica
@@ -62,11 +61,8 @@ const App = () => (
       <BrowserRouter>
         {/* Container de todas as rotas da aplicação */}
         <Routes>
-          {/* ROTA INICIAL: Jogo de adivinhar origem */}
-          <Route path="/" element={<GuessTheOrigin />} />
-          
-          {/* ROTA: Lista de perfis */}
-          <Route path="/profiles" element={<Index />} />
+          {/* ROTA INICIAL: Página principal com lista de perfis */}
+          <Route path="/" element={<Index />} />
           
           {/* ROTA DINÂMICA: Detalhes de perfil por ID específico */}
           <Route path="/profile/:id" element={<ProfileDetail />} />
