@@ -17,7 +17,8 @@ export const WorldMapGame = () => {
     feedback,
     correctRegion,
     checkAnswer,
-    resetGame
+    resetGame,
+    skipProfile
   } = useMapGame();
 
   if (!user) {
@@ -178,6 +179,15 @@ export const WorldMapGame = () => {
               disabled={feedback !== null}
             >
               Oceania
+            </Button>
+
+            <Button
+              onClick={skipProfile}
+              variant="ghost"
+              className="w-full mt-2 text-muted-foreground hover:text-foreground"
+              disabled={feedback !== null}
+            >
+              Skip
             </Button>
           </div>
         </div>

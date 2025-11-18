@@ -186,6 +186,19 @@ export const useMapGame = () => {
     fetchRandomProfiles();
   };
 
+  const skipProfile = () => {
+    if (feedback !== null || gameEnded) return;
+    
+    setFeedback(null);
+    setCorrectRegion(null);
+    
+    if (currentProfileIndex + 1 >= gameProfiles.length) {
+      setGameEnded(true);
+    } else {
+      setCurrentProfileIndex(currentProfileIndex + 1);
+    }
+  };
+
   return {
     currentProfile: gameProfiles[currentProfileIndex] || null,
     currentProfileIndex,
@@ -196,6 +209,7 @@ export const useMapGame = () => {
     feedback,
     correctRegion,
     checkAnswer,
-    resetGame
+    resetGame,
+    skipProfile
   };
 };
