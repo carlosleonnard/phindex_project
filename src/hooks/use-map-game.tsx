@@ -87,7 +87,7 @@ export const useMapGame = () => {
           const { data: votes } = await supabase
             .from('votes')
             .select('classification')
-            .eq('profile_id', profile.slug)
+            .eq('profile_id', profile.id)
             .eq('characteristic_type', 'Primary Geographic');
 
           // Count votes for each classification
