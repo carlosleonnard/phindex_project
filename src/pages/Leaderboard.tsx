@@ -11,7 +11,7 @@ export default function Leaderboard() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <div className="flex">
+      <div className="flex flex-1">
         <AppSidebar />
         <main className="flex-1 lg:ml-80 container mx-auto px-4 py-8 mt-16">
         <div className="max-w-4xl mx-auto">
