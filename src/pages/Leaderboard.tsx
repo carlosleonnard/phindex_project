@@ -21,7 +21,7 @@ export default function Leaderboard() {
           </div>
           
           <p className="text-muted-foreground mb-8">
-            Top players ranked by total correct answers across all difficulty levels.
+            All players ranked by total correct answers across all difficulty levels in the Guess the Origin game.
           </p>
 
           {isLoading ? (
@@ -66,23 +66,30 @@ export default function Leaderboard() {
                         )}
                       </div>
 
-                      {/* Player Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-lg text-foreground truncate">
-                          {entry.nickname}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {entry.totalGames} game{entry.totalGames !== 1 ? 's' : ''} played
-                        </p>
-                      </div>
+                       {/* Player Info */}
+                       <div className="flex-1 min-w-0">
+                         <p className="font-semibold text-lg text-foreground truncate">
+                           {entry.nickname}
+                         </p>
+                         <p className="text-sm text-muted-foreground">
+                           {entry.totalGames} game{entry.totalGames !== 1 ? 's' : ''} played
+                         </p>
+                       </div>
 
                        {/* Stats */}
-                       <div className="flex items-center gap-6">
+                       <div className="flex items-center gap-4">
                          <div className="text-right">
-                           <p className="text-3xl font-bold text-primary">
+                           <p className="text-2xl font-bold text-primary">
                              {entry.totalCorrect}
                            </p>
-                           <p className="text-xs text-muted-foreground">correct answers</p>
+                           <p className="text-xs text-muted-foreground">total correct</p>
+                         </div>
+                         
+                         <div className="text-right">
+                           <p className="text-lg font-semibold text-foreground">
+                             {entry.totalCorrect}/{entry.totalQuestions}
+                           </p>
+                           <p className="text-xs text-muted-foreground">correct/total</p>
                          </div>
                          
                          <div className="text-right">
