@@ -1,5 +1,6 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { AppSidebar } from "@/components/AppSidebar";
 import { useLeaderboard } from "@/hooks/use-leaderboard";
 import { Trophy, Target, Award } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,9 @@ export default function Leaderboard() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-8 mt-16">
+      <div className="flex">
+        <AppSidebar />
+        <main className="flex-1 lg:ml-80 container mx-auto px-4 py-8 mt-16">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3 mb-8">
             <Trophy className="w-8 h-8 text-primary" />
@@ -99,7 +102,8 @@ export default function Leaderboard() {
             </div>
           )}
         </div>
-      </main>
+        </main>
+      </div>
       <Footer />
     </div>
   );
