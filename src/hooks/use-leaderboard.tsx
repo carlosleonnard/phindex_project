@@ -42,12 +42,15 @@ export const useLeaderboard = () => {
 
       if (profilesError) throw profilesError;
 
-      // Create leaderboard entries
-      const leaderboard: LeaderboardEntry[] = profiles?.map((profile) => {
-        const stats = userStats.get(profile.id)!;
+      // Create a map of profiles for quick lookup
+      const profilesMap = new Map(profiles?.map(p => [p.id, p.nickname]) || []);
+
+      // Create leaderboard entries for all users, even those without profiles
+      const leaderboard: LeaderboardEntry[] = Array.from(userStats.entries()).map(([userId, stats]) => {
+        const nickname = profilesMap.get(userId) || `Player ${userId.slice(0, 8)}`;
         return {
-          userId: profile.id,
-          nickname: profile.nickname,
+          userId,
+          nickname,
           totalGames: stats.totalGames,
           totalCorrect: stats.totalCorrect,
           totalQuestions: stats.totalQuestions,
@@ -55,7 +58,7 @@ export const useLeaderboard = () => {
             ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100)
             : 0,
         };
-      }) || [];
+      });
 
       // Sort by total correct answers first, then by accuracy percentage
       leaderboard.sort((a, b) => {
