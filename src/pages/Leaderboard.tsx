@@ -21,7 +21,7 @@ export default function Leaderboard() {
           </div>
           
           <p className="text-muted-foreground mb-8">
-            Top players by accuracy across all difficulty levels in the Guess the Origin game.
+            Top players ranked by total correct answers across all difficulty levels.
           </p>
 
           {isLoading ? (
@@ -76,25 +76,25 @@ export default function Leaderboard() {
                         </p>
                       </div>
 
-                      {/* Stats */}
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <div className="flex items-center gap-2">
-                            <Target className="w-4 h-4 text-primary" />
-                            <span className="text-2xl font-bold text-primary">
-                              {entry.accuracyPercentage}%
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">accuracy</p>
-                        </div>
-                        
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-foreground">
-                            {entry.totalCorrect}/{entry.totalQuestions}
-                          </p>
-                          <p className="text-xs text-muted-foreground">correct</p>
-                        </div>
-                      </div>
+                       {/* Stats */}
+                       <div className="flex items-center gap-6">
+                         <div className="text-right">
+                           <p className="text-3xl font-bold text-primary">
+                             {entry.totalCorrect}
+                           </p>
+                           <p className="text-xs text-muted-foreground">correct answers</p>
+                         </div>
+                         
+                         <div className="text-right">
+                           <div className="flex items-center gap-2">
+                             <Target className="w-4 h-4 text-accent" />
+                             <span className="text-lg font-semibold text-foreground">
+                               {entry.accuracyPercentage}%
+                             </span>
+                           </div>
+                           <p className="text-xs text-muted-foreground">accuracy</p>
+                         </div>
+                       </div>
                     </div>
                   </CardContent>
                 </Card>

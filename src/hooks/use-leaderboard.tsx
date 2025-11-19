@@ -57,12 +57,12 @@ export const useLeaderboard = () => {
         };
       }) || [];
 
-      // Sort by accuracy first, then by total games
+      // Sort by total correct answers first, then by accuracy percentage
       leaderboard.sort((a, b) => {
-        if (b.accuracyPercentage !== a.accuracyPercentage) {
-          return b.accuracyPercentage - a.accuracyPercentage;
+        if (b.totalCorrect !== a.totalCorrect) {
+          return b.totalCorrect - a.totalCorrect;
         }
-        return b.totalGames - a.totalGames;
+        return b.accuracyPercentage - a.accuracyPercentage;
       });
 
       return leaderboard;
