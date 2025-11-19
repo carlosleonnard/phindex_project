@@ -47,7 +47,7 @@ export const useLeaderboard = () => {
 
       // Create leaderboard entries for all users, even those without profiles
       const leaderboard: LeaderboardEntry[] = Array.from(userStats.entries()).map(([userId, stats]) => {
-        const nickname = profilesMap.get(userId) || `Player ${userId.slice(0, 8)}`;
+        const nickname = profilesMap.get(userId) || "Anonymous Player";
         return {
           userId,
           nickname,
