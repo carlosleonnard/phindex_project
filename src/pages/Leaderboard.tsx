@@ -39,25 +39,20 @@ export default function Leaderboard() {
               {leaderboard.map((entry, index) => (
                 <Card 
                   key={entry.userId}
-                  className={`transition-all hover:shadow-lg ${
-                    index === 0 ? 'border-primary/50 bg-primary/5' :
-                    index === 1 ? 'border-accent/50 bg-accent/5' :
-                    index === 2 ? 'border-muted/50 bg-muted/5' :
-                    ''
-                  }`}
+                  className="transition-all hover:shadow-lg bg-primary/10 border-primary/20"
                 >
                   <CardContent className="py-4">
                     <div className="flex items-center gap-4">
                       {/* Rank */}
                       <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center">
                         {index === 0 && (
-                          <Trophy className="w-8 h-8 text-primary" />
+                          <Trophy className="w-8 h-8 text-yellow-500" />
                         )}
                         {index === 1 && (
-                          <Award className="w-7 h-7 text-accent" />
+                          <Award className="w-7 h-7 text-gray-400" />
                         )}
                         {index === 2 && (
-                          <Award className="w-6 h-6 text-muted-foreground" />
+                          <Award className="w-6 h-6 text-amber-600" />
                         )}
                         {index > 2 && (
                           <span className="text-2xl font-bold text-muted-foreground">
