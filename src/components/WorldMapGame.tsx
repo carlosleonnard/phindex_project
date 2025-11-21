@@ -176,17 +176,15 @@ export const WorldMapGame = () => {
         <div className="grid md:grid-cols-[1fr_1fr] gap-3">
           {/* Profile Image */}
           <div className="space-y-2">
-            <Card className={`overflow-hidden transition-all duration-300 w-full max-h-[300px] ${
+            <Card className={`overflow-hidden transition-all duration-300 max-h-[300px] ${
               feedback === 'correct' ? 'ring-4 ring-green-500' : 
               feedback === 'wrong' ? 'ring-4 ring-red-500' : ''
             }`}>
-              <div className="aspect-square relative max-h-[300px]">
-                <img
-                  src={currentProfile.front_image_url}
-                  alt={currentProfile.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              <img
+                src={currentProfile.front_image_url}
+                alt={currentProfile.name}
+                className="w-full h-full object-cover aspect-square"
+              />
             </Card>
             {feedback && (
               <div className={`text-center text-sm font-semibold ${
