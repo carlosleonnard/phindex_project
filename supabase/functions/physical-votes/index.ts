@@ -33,9 +33,21 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Get profileId and userId from either query params or request body
     const url = new URL(req.url);
-    const profileId = url.searchParams.get('profileId');
-    const userId = url.searchParams.get('userId'); // Optional for user votes
+    let profileId = url.searchParams.get('profileId');
+    let userId = url.searchParams.get('userId');
+
+    // If not in query params, check request body
+    if (!profileId) {
+      try {
+        const body = await req.json();
+        profileId = body.profileId;
+        userId = body.userId;
+      } catch {
+        // If both fail, profileId will still be null
+      }
+    }
 
     if (!profileId) {
       return new Response(
