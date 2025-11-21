@@ -124,10 +124,10 @@ export const WorldMapGame = () => {
   }
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 w-full">
-      <div className="p-6">
+    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 w-full max-w-4xl mx-auto">
+      <div className="p-4">
         {/* Header with Difficulty Selector */}
-        <div className="mb-4 space-y-3">
+        <div className="mb-3 space-y-2">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground mb-1">
@@ -173,9 +173,9 @@ export const WorldMapGame = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-[1fr_1fr] gap-6">
+        <div className="grid md:grid-cols-[1fr_1fr] gap-4">
           {/* Profile Image */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Card className={`overflow-hidden transition-all duration-300 ${
               feedback === 'correct' ? 'ring-4 ring-green-500' : 
               feedback === 'wrong' ? 'ring-4 ring-red-500' : ''
@@ -201,7 +201,7 @@ export const WorldMapGame = () => {
           </div>
 
           {/* Region Buttons */}
-          <div className="flex flex-col gap-2.5 justify-center">
+          <div className="flex flex-col gap-2 justify-center">
             <Button
               onClick={() => handleRegionClick('Europe')}
               variant="outline"
