@@ -95,7 +95,7 @@ const Index = () => {
           {/* Main Content */}
           <div className="bg-slate-100">
             {/* Popular Celebrities Section */}
-            <div className="mb-12">
+            <div className="mb-6">
               <div className="relative p-6">
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
@@ -176,7 +176,7 @@ const Index = () => {
             </div>
 
             {/* Recent Celebrities Section */}
-            <div className="mb-12">
+            <div className="mb-6">
               <div className="relative p-6">
                 <div className="relative z-10">
                   <div className="flex items-center gap-3 mb-2">
@@ -250,7 +250,7 @@ const Index = () => {
             </div>
 
             {/* Top User Profiles Section */}
-            <div className="mb-12">
+            <div className="mb-6">
               <div className="relative p-6">
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-2">
