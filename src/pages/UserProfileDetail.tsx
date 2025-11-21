@@ -131,7 +131,10 @@ export default function UserProfileDetail() {
           <div className="mb-6">
             <Breadcrumbs 
               items={[
-                { label: 'Community', href: '/category/community' },
+                { 
+                  label: profile.category, 
+                  href: `/category/${profile.category.toLowerCase().replace(/\s+/g, '-')}` 
+                },
                 { label: profile.name }
               ]}
               className="mb-4"
