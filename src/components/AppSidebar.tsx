@@ -16,7 +16,8 @@ import {
   GitBranch,
   HelpCircle,
   LogOut,
-  Mail
+  Mail,
+  Award
 } from "lucide-react";
 
 export const AppSidebar = () => {
@@ -174,6 +175,18 @@ export const AppSidebar = () => {
           <div>
             <h3 className="text-xl font-semibold mb-6 text-phindex-dark">MORE INFO</h3>
             <div className="space-y-4">
+              <button
+                className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
+                  location.pathname === '/leaderboard'
+                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20" 
+                    : "hover:bg-muted/50"
+                }`}
+                onClick={() => navigate('/leaderboard')}
+              >
+                <Award className="h-5 w-5" color="#007a75" />
+                <span className="text-base">Leaderboard</span>
+              </button>
+
               <button
                 className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
                 onClick={() => navigate('/phenotype-flow')}
