@@ -124,8 +124,8 @@ export const WorldMapGame = () => {
   }
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 w-full max-w-5xl mx-auto">
-      <div className="p-4">
+    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 w-full">
+      <div className="p-5">
         {/* Header with Difficulty Selector */}
         <div className="mb-3 space-y-2">
           <div className="flex items-center justify-between">
@@ -173,7 +173,7 @@ export const WorldMapGame = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-[1fr_1fr] gap-4">
+        <div className="grid md:grid-cols-[400px_1fr] gap-6 items-start">
           {/* Profile Image */}
           <div className="space-y-2">
             <Card className={`overflow-hidden transition-all duration-300 ${
