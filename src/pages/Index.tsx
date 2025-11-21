@@ -92,11 +92,6 @@ const Index = () => {
             <WorldMapGame />
           </div>
 
-          {/* Separator */}
-          <div className="px-6 mb-8">
-            <Separator className="bg-border" />
-          </div>
-
           {/* Main Content */}
           <div className="bg-slate-100">
             {/* Popular Celebrities Section */}
@@ -178,11 +173,6 @@ const Index = () => {
                   </Carousel>
                 </div>
               </div>
-            </div>
-
-            {/* Separator */}
-            <div className="px-6 mb-8">
-              <Separator className="bg-border" />
             </div>
 
             {/* Recent Celebrities Section */}
@@ -340,11 +330,6 @@ const Index = () => {
                   </Carousel>
                 </div>
               </div>
-            </div>
-
-            {/* Separator */}
-            <div className="px-6 mb-8">
-              <Separator className="bg-border" />
             </div>
 
             {/* Recent Profiles Section */}
