@@ -19,7 +19,6 @@ import { Footer } from "@/components/Footer"; // Rodapé
 import { AppSidebar } from "@/components/AppSidebar"; // Barra lateral de navegação
 import { AddProfileModal } from "@/components/AddProfileModal"; // Modal de criação de perfil
 import { WorldMapGame } from "@/components/WorldMapGame"; // Jogo de adivinhação de origem
-import { Breadcrumbs } from "@/components/Breadcrumbs"; // Breadcrumbs para navegação
 // Hook customizado para gerenciar perfis de usuário
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 // Componentes de UI do sistema de design
@@ -87,11 +86,6 @@ const Index = () => {
         <div className="lg:ml-80 pt-20">
           {/* Sidebar */}
           <AppSidebar />
-
-          {/* Breadcrumbs */}
-          <div className="mb-6">
-            <Breadcrumbs items={[{ label: "Home" }]} />
-          </div>
 
           {/* Map Game */}
           <div className="mb-8">
