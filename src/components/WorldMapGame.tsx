@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMapGame } from "@/hooks/use-map-game";
-import { Loader2, RotateCcw, Trophy, Target, LogIn } from "lucide-react";
+import { Loader2, RotateCcw, Trophy, Target, LogIn, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,7 @@ export const WorldMapGame = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showProfileImage, setShowProfileImage] = useState(false);
   const {
     currentProfile,
     currentProfileIndex,
@@ -173,19 +174,31 @@ export const WorldMapGame = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-[1fr_1fr] gap-3">
+        <div className="space-y-3">
           {/* Profile Image */}
           <div className="space-y-2">
-            <Card className={`overflow-hidden transition-all duration-300 w-full max-h-[300px] ${
+            <Card className={`overflow-hidden transition-all duration-300 w-full max-w-md mx-auto ${
               feedback === 'correct' ? 'ring-4 ring-green-500' : 
               feedback === 'wrong' ? 'ring-4 ring-red-500' : ''
             }`}>
-              <div className="aspect-square relative max-h-[300px]">
+              <div className="aspect-square relative max-h-[350px]">
                 <img
-                  src={currentProfile.front_image_url}
+                  src={showProfileImage && currentProfile.profile_image_url 
+                    ? currentProfile.profile_image_url 
+                    : currentProfile.front_image_url}
                   alt={currentProfile.name}
                   className="w-full h-full object-cover"
                 />
+                {currentProfile.profile_image_url && (
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-80 hover:opacity-100"
+                    onClick={() => setShowProfileImage(!showProfileImage)}
+                  >
+                    <ChevronRight className={`h-4 w-4 transition-transform ${showProfileImage ? 'rotate-180' : ''}`} />
+                  </Button>
+                )}
               </div>
             </Card>
             {feedback && (
@@ -203,11 +216,11 @@ export const WorldMapGame = () => {
           </div>
 
           {/* Region Buttons */}
-          <div className="flex flex-col gap-1.5 justify-center">
+          <div className="grid grid-cols-2 gap-1.5 max-w-md mx-auto">
             <Button
               onClick={() => handleRegionClick('Europe')}
               variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
             >
               Europe
@@ -216,7 +229,7 @@ export const WorldMapGame = () => {
             <Button
               onClick={() => handleRegionClick('Africa')}
               variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
             >
               Africa
@@ -225,7 +238,7 @@ export const WorldMapGame = () => {
             <Button
               onClick={() => handleRegionClick('Middle East')}
               variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
             >
               Middle East
@@ -234,7 +247,7 @@ export const WorldMapGame = () => {
             <Button
               onClick={() => handleRegionClick('Asia')}
               variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
             >
               Asia
@@ -243,7 +256,7 @@ export const WorldMapGame = () => {
             <Button
               onClick={() => handleRegionClick('Americas')}
               variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
             >
               Americas
@@ -252,7 +265,7 @@ export const WorldMapGame = () => {
             <Button
               onClick={() => handleRegionClick('Oceania')}
               variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+              className="justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
             >
               Oceania
@@ -261,7 +274,7 @@ export const WorldMapGame = () => {
             <Button
               onClick={skipProfile}
               variant="ghost"
-              className="w-full mt-2 text-muted-foreground hover:text-foreground"
+              className="col-span-2 text-muted-foreground hover:text-foreground"
               disabled={feedback !== null}
             >
               Skip

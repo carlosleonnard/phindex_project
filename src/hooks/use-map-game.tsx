@@ -6,6 +6,7 @@ interface GameProfile {
   id: string;
   name: string;
   front_image_url: string;
+  profile_image_url: string | null;
   slug: string;
   mostVotedPhenotype: string | null;
 }
@@ -121,7 +122,7 @@ export const useMapGame = () => {
       // Fetch random profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
-        .select('id, name, front_image_url, slug')
+        .select('id, name, front_image_url, profile_image_url, slug')
         .limit(100);
 
       if (profilesError) throw profilesError;
