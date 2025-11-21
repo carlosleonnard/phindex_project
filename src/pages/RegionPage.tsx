@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User } from "lucide-react";
+import { ArrowLeft, User, Globe } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useGeographicRegionProfiles } from "@/hooks/use-geographic-region-profiles";
 import { Link } from "react-router-dom";
 import { Calendar } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { EmptyState } from "@/components/EmptyState";
 
 /**
  * PROFILES BY REGION PAGE
@@ -104,8 +106,15 @@ const RegionPage = () => {
           {/* Sidebar */}
           <AppSidebar />
 
-          {/* Fixed back button above profile */}
-          <div className="sticky top-20 z-40 mb-6">
+          {/* Breadcrumbs and back button */}
+          <div className="mb-6">
+            <Breadcrumbs 
+              items={[
+                { label: 'Regions', href: '/' },
+                { label: regionDisplayName || 'Region' }
+              ]}
+              className="mb-4"
+            />
             <Button 
               onClick={() => navigate("/")} 
               variant="secondary"
@@ -157,15 +166,19 @@ const RegionPage = () => {
 
                 {/* Check if there are profiles to display */}
                 {!profiles || profiles.length === 0 ? (
-                  <div className="text-center py-12">
-                    <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">
-                      No profiles found
-                    </h3>
-                    <p className="text-muted-foreground">
-                      There are no profiles registered for {regionDisplayName} region.
-                    </p>
-                  </div>
+                  <EmptyState
+                    icon={Globe}
+                    title="No profiles in this region yet"
+                    description={`Be the first to add a profile from ${regionDisplayName}. Help build our global phenotype community!`}
+                    action={{
+                      label: "Add Profile",
+                      onClick: () => navigate('/') // User can add from home
+                    }}
+                    secondaryAction={{
+                      label: "Explore Other Regions",
+                      onClick: () => navigate('/')
+                    }}
+                  />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {profiles.map((profile) => (

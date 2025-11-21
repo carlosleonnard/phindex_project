@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Users, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,8 @@ import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ProfileCard } from "@/components/ProfileCard";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { EmptyState } from "@/components/EmptyState";
 
 interface Profile {
   id: string;
@@ -104,8 +106,15 @@ export default function CategoryPage() {
           {/* Sidebar */}
           <AppSidebar />
 
-          {/* Fixed back button above profile */}
-          <div className="sticky top-20 z-40 mb-6">
+          {/* Breadcrumbs and back button */}
+          <div className="mb-6">
+            <Breadcrumbs 
+              items={[
+                { label: 'Categories', href: '/' },
+                { label: categoryName }
+              ]}
+              className="mb-4"
+            />
             <Button 
               onClick={() => navigate("/")} 
               variant="secondary"
@@ -189,17 +198,19 @@ export default function CategoryPage() {
                 ))}
               </div>
             ) : (
-              <Card className="bg-gradient-card border-phindex-teal/20">
-                <CardContent className="text-center py-12">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    No profiles found
-                  </h3>
-                  <p className="text-muted-foreground">
-                    There are no profiles registered in this category yet.
-                  </p>
-                </CardContent>
-              </Card>
+              <EmptyState
+                icon={Plus}
+                title="No profiles in this category yet"
+                description={`Be the first to add a ${categoryName.toLowerCase()} profile. Help expand our phenotype database!`}
+                action={{
+                  label: "Add Profile",
+                  onClick: () => navigate('/')
+                }}
+                secondaryAction={{
+                  label: "Browse All Categories",
+                  onClick: () => navigate('/')
+                }}
+              />
             )}
           </div>
         </div>

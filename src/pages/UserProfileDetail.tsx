@@ -13,6 +13,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { CommentsSection } from "@/components/CommentsSection";
 import { VoteModal } from "@/components/VoteModal";
 import { PhysicalCharacteristicVoting } from "@/components/PhysicalCharacteristicVoting";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 import { useAuth } from "@/hooks/use-auth";
 import { useVoting } from "@/hooks/use-voting";
@@ -125,6 +126,17 @@ export default function UserProfileDetail() {
         <div className="lg:ml-80 pt-20">
           {/* Sidebar */}
           <AppSidebar />
+
+          {/* Breadcrumbs */}
+          <div className="mb-6">
+            <Breadcrumbs 
+              items={[
+                { label: 'Community', href: '/category/community' },
+                { label: profile.name }
+              ]}
+              className="mb-4"
+            />
+          </div>
 
           {/* Main Content */}
           <div>
