@@ -13,6 +13,8 @@
 // Ícone de voto da biblioteca Lucide React
 import { Vote, Plus } from "lucide-react";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 // Componentes de layout da aplicação
 import { Header } from "@/components/Header"; // Cabeçalho fixo
 import { Footer } from "@/components/Footer"; // Rodapé
@@ -33,9 +35,48 @@ import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { profiles: userProfiles, profilesByVotes } = useUserProfiles();
   const [showCelebrityModal, setShowCelebrityModal] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+
+  // Prefetch vote data on hover for faster loading
+  const prefetchVoteData = (profileId: string) => {
+    // Prefetch votes
+    queryClient.prefetchQuery({
+      queryKey: ['votes', profileId],
+      queryFn: async () => {
+        const { data } = await supabase
+          .from('votes')
+          .select('classification, user_id')
+          .eq('profile_id', profileId)
+          .eq('characteristic_type', 'phenotype');
+        return data;
+      },
+      staleTime: 30000,
+    });
+
+    // Prefetch vote counts
+    queryClient.prefetchQuery({
+      queryKey: ['vote-counts', profileId],
+      queryFn: async () => {
+        const [geographic, phenotype] = await Promise.all([
+          supabase
+            .from('votes')
+            .select('characteristic_type, classification')
+            .eq('profile_id', profileId)
+            .in('characteristic_type', ['Primary Geographic', 'Secondary Geographic', 'Tertiary Geographic']),
+          supabase
+            .from('votes')
+            .select('characteristic_type, classification')
+            .eq('profile_id', profileId)
+            .in('characteristic_type', ['Primary Phenotype', 'Secondary Phenotype', 'Tertiary Phenotype'])
+        ]);
+        return { geographic: geographic.data, phenotype: phenotype.data };
+      },
+      staleTime: 30000,
+    });
+  };
 
   // Mapeamento de códigos de países para códigos de 3 letras
   const countryCodes: Record<string, string> = {
@@ -130,6 +171,7 @@ const Index = () => {
                                 <div
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
+                                  onMouseEnter={() => prefetchVoteData(profile.id)}
                                 >
                                    <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
                                      <div className="relative mb-1">
@@ -204,6 +246,7 @@ const Index = () => {
                                 <div
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
+                                  onMouseEnter={() => prefetchVoteData(profile.id)}
                                 >
                                    <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
                                      <div className="relative mb-1">
@@ -285,6 +328,7 @@ const Index = () => {
                                 <div
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
+                                  onMouseEnter={() => prefetchVoteData(profile.id)}
                                 >
                                    <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
                                      <div className="relative mb-1">
@@ -357,6 +401,7 @@ const Index = () => {
                                 <div
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
+                                  onMouseEnter={() => prefetchVoteData(profile.id)}
                                 >
                                    <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
                                      <div className="relative mb-1">
