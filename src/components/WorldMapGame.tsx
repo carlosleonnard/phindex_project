@@ -46,10 +46,10 @@ export const WorldMapGame = () => {
 
   if (isLoading) {
     return (
-      <Card className="p-8">
+      <Card className="p-4">
         <div className="flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-3 text-muted-foreground">Loading game...</span>
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading game...</span>
         </div>
       </Card>
     );
@@ -59,7 +59,7 @@ export const WorldMapGame = () => {
     const accuracy = totalProfiles > 0 ? Math.round((score / totalProfiles) * 100) : 0;
     
     return (
-      <Card className="p-8 bg-gradient-to-br from-primary/10 to-accent/5">
+      <Card className="p-4 bg-gradient-to-br from-primary/10 to-accent/5">
         <div className="text-center space-y-6">
           <div>
             <h2 className="text-4xl font-bold text-foreground mb-2">Game Over!</h2>
@@ -114,10 +114,10 @@ export const WorldMapGame = () => {
 
   if (!currentProfile) {
     return (
-      <Card className="p-8">
+      <Card className="p-4">
         <div className="text-center">
-          <p className="text-muted-foreground mb-4">No profiles available to play</p>
-          <Button onClick={resetGame}>Try Again</Button>
+          <p className="text-sm text-muted-foreground mb-3">No profiles available to play</p>
+          <Button onClick={resetGame} size="sm">Try Again</Button>
         </div>
       </Card>
     );
@@ -125,12 +125,12 @@ export const WorldMapGame = () => {
 
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 max-w-3xl mx-auto">
-      <div className="p-4">
+      <div className="p-3">
         {/* Header with Difficulty Selector */}
-        <div className="mb-4 space-y-3">
+        <div className="mb-3 space-y-2">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-foreground mb-1">
+              <h2 className="text-lg font-bold text-foreground mb-0.5">
                 Guess the Origin
               </h2>
               <p className="text-xs text-muted-foreground">
@@ -173,10 +173,10 @@ export const WorldMapGame = () => {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-3">
           {/* Profile Image */}
-          <div className="space-y-3">
-            <Card className={`overflow-hidden transition-all duration-300 max-w-[250px] mx-auto ${
+          <div className="space-y-2">
+            <Card className={`overflow-hidden transition-all duration-300 max-w-[200px] mx-auto ${
               feedback === 'correct' ? 'ring-4 ring-green-500' : 
               feedback === 'wrong' ? 'ring-4 ring-red-500' : ''
             }`}>

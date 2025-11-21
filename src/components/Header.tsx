@@ -175,14 +175,14 @@ export const Header = () => {
       <header className="fixed top-0 z-50 w-full border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         {/* Desktop Header */}
         {!isTabletOrMobile && (
-          <div className="px-4 h-16 flex items-center justify-between">
+          <div className="px-4 h-14 flex items-center justify-between">
             <div className="flex items-center gap-6 lg:w-80 lg:justify-center">
               <div className="flex items-center gap-3">
                 <Link to="/" className="cursor-pointer">
                   <img 
                     src="/phindex-uploads/39fe11bc-0ec1-4dad-8877-0789763891df.png" 
                     alt="Phindex Logo" 
-                    className="h-12 object-contain"
+                    className="h-10 object-contain"
                   />
                 </Link>
               </div>
@@ -190,10 +190,10 @@ export const Header = () => {
 
             <div className="flex-1 max-w-2xl mx-8 lg:mr-4">
               <div className="relative" ref={searchRef}>
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input 
                   placeholder="Look for famous people, characters, athletes..." 
-                  className="pl-12 h-12 bg-muted/30 border-border/30 focus:border-primary/50 rounded-full text-base"
+                  className="pl-10 h-10 bg-muted/30 border-border/30 focus:border-primary/50 rounded-full text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onFocus={() => searchTerm && setIsSearchOpen(searchResults.length > 0)}
@@ -294,7 +294,7 @@ export const Header = () => {
 
         {/* Mobile/Tablet Header */}
         {isTabletOrMobile && (
-          <div className="px-4 h-16 flex items-center justify-between">
+          <div className="px-4 h-14 flex items-center justify-between">
             {/* Left side - Menu button and Logo */}
             <div className="flex items-center gap-3">
               <Button

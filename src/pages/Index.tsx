@@ -82,28 +82,28 @@ const Index = () => {
     <div className="min-h-screen bg-slate-100 overflow-x-hidden">
       <Header />
 
-      <div className="container px-4 max-w-none">
-        <div className="lg:ml-80 pt-20">
+      <div className="container px-3 max-w-none">
+        <div className="lg:ml-80 pt-16">
           {/* Sidebar */}
           <AppSidebar />
 
           {/* Map Game */}
-          <div className="mb-8">
+          <div className="mb-4">
             <WorldMapGame />
           </div>
 
           {/* Main Content */}
           <div className="bg-slate-100">
             {/* Popular Celebrities Section */}
-            <div className="mb-6">
-              <div className="relative p-6">
+            <div className="mb-3">
+              <div className="relative p-3">
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                        <Vote className="h-4 w-4 text-primary" />
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/20">
+                        <Vote className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <h2 className="text-2xl font-bold text-foreground">Popular Celebrities</h2>
+                      <h2 className="text-xl font-bold text-foreground">Popular Celebrities</h2>
                     </div>
                     <Button
                       variant="default"
@@ -115,7 +115,7 @@ const Index = () => {
                       Add
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Use Phindex to discover and classify the most voted public figures in our phenotype community
                   </p>
 
@@ -131,9 +131,9 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                   <div className="flex flex-col items-center p-0.5 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-0.5">
+                                       <div className="w-28 h-28 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
                                           <img
                                             src={profile.front_image_url}
                                             alt={profile.name}
@@ -176,16 +176,16 @@ const Index = () => {
             </div>
 
             {/* Recent Celebrities Section */}
-            <div className="mb-6">
-              <div className="relative p-6">
+            <div className="mb-3">
+              <div className="relative p-3">
                 <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                      <Vote className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/20">
+                      <Vote className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-bold text-foreground">Recent Celebrities</h2>
+                    <h2 className="text-xl font-bold text-foreground">Recent Celebrities</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Most recently added celebrities to our Phenotype Index
                   </p>
 
@@ -205,9 +205,9 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                   <div className="flex flex-col items-center p-0.5 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-0.5">
+                                       <div className="w-28 h-28 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
                                           <img
                                             src={profile.front_image_url}
                                             alt={profile.name}
@@ -245,20 +245,20 @@ const Index = () => {
             </div>
 
             {/* Separator */}
-            <div className="px-6 mb-8">
+            <div className="px-3 mb-4">
               <Separator className="bg-border" />
             </div>
 
             {/* Top User Profiles Section */}
-            <div className="mb-6">
-              <div className="relative p-6">
+            <div className="mb-3">
+              <div className="relative p-3">
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                        <Vote className="h-4 w-4 text-primary" />
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/20">
+                        <Vote className="h-3.5 w-3.5 text-primary" />
                       </div>
-                      <h2 className="text-2xl font-bold text-foreground">Top User Profiles</h2>
+                      <h2 className="text-xl font-bold text-foreground">Top User Profiles</h2>
                     </div>
                     <Button
                       variant="default"
@@ -270,7 +270,7 @@ const Index = () => {
                       Add
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Most voted user-created profiles in our Phenotype Index
                   </p>
 
@@ -286,9 +286,9 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                   <div className="flex flex-col items-center p-0.5 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-0.5">
+                                       <div className="w-28 h-28 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
                                           <img
                                             src={profile.front_image_url}
                                             alt={profile.name}
@@ -333,16 +333,16 @@ const Index = () => {
             </div>
 
             {/* Recent Profiles Section */}
-            <div className="mb-12">
-              <div className="relative p-6">
+            <div className="mb-6">
+              <div className="relative p-3">
                 <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                      <Vote className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/20">
+                      <Vote className="h-3.5 w-3.5 text-primary" />
                     </div>
-                    <h2 className="text-2xl font-bold text-foreground">Recent Profiles</h2>
+                    <h2 className="text-xl font-bold text-foreground">Recent Profiles</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Latest community profiles added to the Phenotype Index
                   </p>
 
@@ -358,9 +358,9 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                   <div className="flex flex-col items-center p-0.5 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-0.5">
+                                       <div className="w-28 h-28 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
                                          <img
                                            src={profile.front_image_url}
                                            alt={profile.name}
