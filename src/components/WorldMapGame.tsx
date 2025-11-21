@@ -1,13 +1,18 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMapGame } from "@/hooks/use-map-game";
-import { Loader2, RotateCcw, Trophy, Target } from "lucide-react";
+import { Loader2, RotateCcw, Trophy, Target, LogIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoginModal } from "@/components/LoginModal";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export const WorldMapGame = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const {
     currentProfile,
     currentProfileIndex,
@@ -26,9 +31,18 @@ export const WorldMapGame = () => {
     skipProfile
   } = useMapGame();
 
-  if (!user) {
-    return null;
-  }
+  const handleRegionClick = (region: string) => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please sign in with Google to play the game",
+        variant: "destructive",
+      });
+      setShowLoginModal(true);
+      return;
+    }
+    checkAnswer(region);
+  };
 
   if (isLoading) {
     return (
@@ -122,6 +136,12 @@ export const WorldMapGame = () => {
               <p className="text-xs text-muted-foreground">
                 Click on the region where this person's phenotype is from
               </p>
+              {!user && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg">
+                  <LogIn className="h-4 w-4" />
+                  <span>Sign in with Google to save your score</span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <Badge variant="secondary" className="text-sm px-3 py-1">
@@ -185,7 +205,7 @@ export const WorldMapGame = () => {
           {/* Region Buttons */}
           <div className="flex flex-col gap-2 justify-center">
             <Button
-              onClick={() => checkAnswer('Europe')}
+              onClick={() => handleRegionClick('Europe')}
               variant="outline"
               className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
@@ -194,7 +214,7 @@ export const WorldMapGame = () => {
             </Button>
             
             <Button
-              onClick={() => checkAnswer('Africa')}
+              onClick={() => handleRegionClick('Africa')}
               variant="outline"
               className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
@@ -203,7 +223,7 @@ export const WorldMapGame = () => {
             </Button>
             
             <Button
-              onClick={() => checkAnswer('Middle East')}
+              onClick={() => handleRegionClick('Middle East')}
               variant="outline"
               className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
@@ -212,7 +232,7 @@ export const WorldMapGame = () => {
             </Button>
             
             <Button
-              onClick={() => checkAnswer('Asia')}
+              onClick={() => handleRegionClick('Asia')}
               variant="outline"
               className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
@@ -221,7 +241,7 @@ export const WorldMapGame = () => {
             </Button>
             
             <Button
-              onClick={() => checkAnswer('Americas')}
+              onClick={() => handleRegionClick('Americas')}
               variant="outline"
               className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
@@ -230,7 +250,7 @@ export const WorldMapGame = () => {
             </Button>
             
             <Button
-              onClick={() => checkAnswer('Oceania')}
+              onClick={() => handleRegionClick('Oceania')}
               variant="outline"
               className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
               disabled={feedback !== null}
@@ -249,6 +269,12 @@ export const WorldMapGame = () => {
           </div>
         </div>
       </div>
+
+      {/* Login Modal */}
+      <LoginModal 
+        open={showLoginModal} 
+        onOpenChange={setShowLoginModal} 
+      />
     </Card>
   );
 };
