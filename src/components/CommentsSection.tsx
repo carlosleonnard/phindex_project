@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Send, Heart, MoreHorizontal, Trash2, Flag } from "lucide-react";
+import { Send, Heart, MoreHorizontal, Trash2, Flag, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
 import {
   Select,
   SelectContent,
@@ -125,7 +126,23 @@ export const CommentsSection = ({
 
       {/* Lista de comentários */}
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {sortedComments.map((comment) => (
+        {sortedComments.length === 0 ? (
+          <div className="py-8">
+            <EmptyState
+              icon={MessageSquare}
+              title="No comments yet"
+              description="Be the first to share your thoughts on this profile. Start the conversation!"
+              action={{
+                label: "Write a comment",
+                onClick: () => {
+                  const input = document.querySelector('input[placeholder="Add a comment..."]') as HTMLInputElement;
+                  input?.focus();
+                }
+              }}
+            />
+          </div>
+        ) : (
+          sortedComments.map((comment) => (
           <div key={comment.id} className="space-y-3">
             {/* Main comment */}
             <div id={`comment-${comment.id}`} className="flex gap-3 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
@@ -338,12 +355,7 @@ export const CommentsSection = ({
               </div>
             )}
           </div>
-        ))}
-        
-        {comments.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm">Be the first to comment!</p>
-          </div>
+        ))
         )}
       </div>
     </Card>

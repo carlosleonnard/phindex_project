@@ -9,6 +9,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CommentsSection } from "@/components/CommentsSection";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 import { VoteModal } from "@/components/VoteModal";
 import { useState } from "react";
@@ -138,7 +139,14 @@ export default function ProfileDetail() {
           <AppSidebar />
 
           {/* Botão de voltar fixo acima do perfil */}
-          <div className="sticky top-20 z-40 mb-6">
+          <div className="mb-6">
+            <Breadcrumbs 
+              items={[
+                { label: 'Profiles', href: '/' },
+                { label: sanitizedProfile.name }
+              ]}
+              className="mb-4"
+            />
             <Button 
               onClick={() => navigate("/")} 
               variant="secondary"
