@@ -124,7 +124,7 @@ export const WorldMapGame = () => {
   }
 
   return (
-    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 max-w-3xl mx-auto">
+    <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 w-full">
       <div className="p-4">
         {/* Header with Difficulty Selector */}
         <div className="mb-4 space-y-3">
