@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Heart, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,7 +28,7 @@ interface ProfileCardProps {
   country: string;
 }
 
-export const ProfileCard = ({ 
+const ProfileCardComponent = ({ 
   id, 
   name, 
   age, 
@@ -71,6 +71,7 @@ export const ProfileCard = ({
            <img 
              src={imageUrl} 
              alt={name}
+             loading="lazy"
              className="profile-image-thumbnail w-full transition-transform duration-300 group-hover:scale-105 border-2 border-primary rounded-lg"
            />
           <div className="absolute top-2 left-2 text-lg">
@@ -124,3 +125,16 @@ export const ProfileCard = ({
     </Card>
   );
 };
+
+// Memoize component to prevent unnecessary re-renders
+export const ProfileCard = memo(ProfileCardComponent, (prevProps, nextProps) => {
+  // Custom comparison function - only re-render if these props change
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.likes === nextProps.likes &&
+    prevProps.comments === nextProps.comments &&
+    prevProps.hasUserVoted === nextProps.hasUserVoted &&
+    prevProps.votes.length === nextProps.votes.length &&
+    JSON.stringify(prevProps.votes) === JSON.stringify(nextProps.votes)
+  );
+});

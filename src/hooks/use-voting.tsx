@@ -70,6 +70,30 @@ export const useVoting = (profileId: string) => {
       return false;
     }
 
+    // Optimistic update - update UI immediately
+    const previousVote = userVote;
+    const previousVotes = [...votes];
+    
+    setUserVote(classification);
+    
+    // Calculate optimistic vote counts
+    const updatedVotes = [...votes];
+    const existingIndex = updatedVotes.findIndex(v => v.classification === classification);
+    
+    if (existingIndex >= 0) {
+      updatedVotes[existingIndex].count += 1;
+    } else {
+      updatedVotes.push({ classification, count: 1, percentage: 0 });
+    }
+    
+    // Recalculate percentages
+    const total = updatedVotes.reduce((sum, v) => sum + v.count, 0);
+    updatedVotes.forEach(v => {
+      v.percentage = total > 0 ? (v.count / total) * 100 : 0;
+    });
+    
+    setVotes(updatedVotes.sort((a, b) => b.count - a.count));
+
     try {
       // Insert or update vote (upsert)
       const { error } = await supabase
@@ -83,8 +107,8 @@ export const useVoting = (profileId: string) => {
 
       if (error) throw error;
 
-      setUserVote(classification);
-      await fetchVotes(); // Refresh vote counts
+      // Refresh to get accurate counts from server
+      await fetchVotes();
 
       toast({
         title: "Vote registered!",
@@ -93,6 +117,10 @@ export const useVoting = (profileId: string) => {
 
       return true;
     } catch (error: any) {
+      // Rollback optimistic update on error
+      setUserVote(previousVote);
+      setVotes(previousVotes);
+      
       toast({
         title: "Voting error",
         description: error.message,
@@ -116,6 +144,39 @@ export const useVoting = (profileId: string) => {
       return false;
     }
 
+    // Optimistic update
+    const previousVote = userVote;
+    const previousVotes = [...votes];
+    
+    setUserVote(newClassification);
+    
+    // Calculate optimistic vote counts
+    const updatedVotes = [...votes];
+    
+    // Decrease old classification count
+    if (previousVote) {
+      const oldIndex = updatedVotes.findIndex(v => v.classification === previousVote);
+      if (oldIndex >= 0 && updatedVotes[oldIndex].count > 0) {
+        updatedVotes[oldIndex].count -= 1;
+      }
+    }
+    
+    // Increase new classification count
+    const newIndex = updatedVotes.findIndex(v => v.classification === newClassification);
+    if (newIndex >= 0) {
+      updatedVotes[newIndex].count += 1;
+    } else {
+      updatedVotes.push({ classification: newClassification, count: 1, percentage: 0 });
+    }
+    
+    // Recalculate percentages
+    const total = updatedVotes.reduce((sum, v) => sum + v.count, 0);
+    updatedVotes.forEach(v => {
+      v.percentage = total > 0 ? (v.count / total) * 100 : 0;
+    });
+    
+    setVotes(updatedVotes.filter(v => v.count > 0).sort((a, b) => b.count - a.count));
+
     try {
       // Update existing vote
       const { error } = await supabase
@@ -129,7 +190,6 @@ export const useVoting = (profileId: string) => {
 
       if (error) throw error;
 
-      setUserVote(newClassification);
       await fetchVotes(); // Refresh vote counts
 
       toast({
@@ -139,6 +199,10 @@ export const useVoting = (profileId: string) => {
 
       return true;
     } catch (error: any) {
+      // Rollback on error
+      setUserVote(previousVote);
+      setVotes(previousVotes);
+      
       toast({
         title: "Error updating vote",
         description: error.message,
