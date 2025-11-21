@@ -131,16 +131,16 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                  <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                    <div className="relative mb-1">
-                                      <div className="w-36 h-36 rounded-full overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                         <img
-                                           src={profile.front_image_url}
-                                           alt={profile.name}
-                                           loading="lazy"
-                                           className="w-full h-full object-cover rounded-full"
-                                         />
-                                      </div>
+                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-1">
+                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                          <img
+                                            src={profile.front_image_url}
+                                            alt={profile.name}
+                                            loading="lazy"
+                                            className="w-full h-full object-cover"
+                                          />
+                                       </div>
                                       <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
                                         <Vote className="h-2.5 w-2.5" />
                                         <span className="text-xs">{(profile as any).vote_count || 0}</span>
@@ -205,16 +205,16 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                  <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                    <div className="relative mb-1">
-                                      <div className="w-36 h-36 rounded-full overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                         <img
-                                           src={profile.front_image_url}
-                                           alt={profile.name}
-                                           loading="lazy"
-                                           className="w-full h-full object-cover rounded-full"
-                                         />
-                                      </div>
+                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-1">
+                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                          <img
+                                            src={profile.front_image_url}
+                                            alt={profile.name}
+                                            loading="lazy"
+                                            className="w-full h-full object-cover"
+                                          />
+                                       </div>
                                       <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
                                         <Vote className="h-2.5 w-2.5" />
                                         <span className="text-xs">{(profile as any).vote_count || 0}</span>
@@ -286,16 +286,16 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                  <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                    <div className="relative mb-1">
-                                      <div className="w-36 h-36 rounded-full overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                         <img
-                                           src={profile.front_image_url}
-                                           alt={profile.name}
-                                           loading="lazy"
-                                           className="w-full h-full object-cover rounded-full"
-                                         />
-                                      </div>
+                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-1">
+                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                          <img
+                                            src={profile.front_image_url}
+                                            alt={profile.name}
+                                            loading="lazy"
+                                            className="w-full h-full object-cover"
+                                          />
+                                       </div>
                                       <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
                                         <Vote className="h-2.5 w-2.5" />
                                         <span className="text-xs">{(profile as any).vote_count || 0}</span>
@@ -358,15 +358,15 @@ const Index = () => {
                                   className="cursor-pointer"
                                   onClick={() => navigate(`/user-profile/${profile.slug}`)}
                                 >
-                                  <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                    <div className="relative mb-1">
-                                      <div className="w-36 h-36 rounded-full overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                        <img
-                                          src={profile.front_image_url}
-                                          alt={profile.name}
-                                          className="w-full h-full object-cover rounded-full"
-                                        />
-                                      </div>
+                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
+                                     <div className="relative mb-1">
+                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
+                                         <img
+                                           src={profile.front_image_url}
+                                           alt={profile.name}
+                                           className="w-full h-full object-cover"
+                                         />
+                                       </div>
                                       <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
                                         <Vote className="h-2.5 w-2.5" />
                                         <span className="text-xs">{(profile as any).vote_count || 0}</span>
