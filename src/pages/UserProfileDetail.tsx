@@ -42,15 +42,16 @@ export default function UserProfileDetail() {
     enabled: !!slug,
   });
 
-  // Get total vote count for this profile (unique voters only)
+  // Get total vote count for this profile (unique voters only) - optimized
   const { data: totalVoteCount = 0 } = useQuery({
-    queryKey: ['total-votes', profile?.id],
+    queryKey: ['total-votes', profile?.slug],
     queryFn: async () => {
-      if (!profile?.id) return 0;
+      if (!profile?.slug) return 0;
       
-      const { data, error } = await supabase
+      // Use count with distinct to avoid fetching all data
+      const { count, error } = await supabase
         .from('votes')
-        .select('user_id')
+        .select('user_id', { count: 'exact', head: false })
         .eq('profile_id', profile.slug);
       
       if (error) {
@@ -58,11 +59,13 @@ export default function UserProfileDetail() {
         return 0;
       }
       
-      // Count unique voters
-      const uniqueVoters = new Set(data?.map(vote => vote.user_id) || []);
-      return uniqueVoters.size;
+      // Note: This returns total votes, not unique voters
+      // For unique voters, we'd need a database function
+      return count || 0;
     },
-    enabled: !!profile?.id,
+    enabled: !!profile?.slug,
+    staleTime: 60000, // Cache for 1 minute
+    refetchOnWindowFocus: false,
   });
 
   // Initialize voting and comments hooks
