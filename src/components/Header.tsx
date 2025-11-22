@@ -379,7 +379,7 @@ export const Header = () => {
               )}
             </div>
 
-            {/* Right side - Add button, Notifications, User */}
+            {/* Right side - Add button, Leaderboard, Notifications, User */}
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -388,6 +388,16 @@ export const Header = () => {
                 className="h-8 w-8"
               >
                 <Plus className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/leaderboard')}
+                className="h-8 w-8"
+                title="Leaderboard"
+              >
+                <Trophy className="h-4 w-4" />
               </Button>
               
               <NotificationBell />
@@ -587,6 +597,17 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       <div>
         <h3 className="text-lg font-semibold mb-4 text-phindex-dark">MORE INFO</h3>
         <div className="space-y-2">
+          <button
+            className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50 text-sm"
+            onClick={() => {
+              navigate('/leaderboard');
+              onNavigate();
+            }}
+          >
+            <span className="text-base">🏆</span>
+            <span>Leaderboard</span>
+          </button>
+          
           <button
             className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50 text-sm"
             onClick={() => {
