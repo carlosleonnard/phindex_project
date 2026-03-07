@@ -27,6 +27,7 @@ import { useState } from "react";
 import { EditUserProfileModal } from "@/components/EditUserProfileModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/use-admin";
+import { GuessTheOriginStats } from "@/components/GuessTheOriginStats";
 
 export default function UserProfileDetail() {
   const { slug } = useParams<{ slug: string }>();

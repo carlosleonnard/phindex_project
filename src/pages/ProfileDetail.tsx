@@ -24,6 +24,7 @@ import { useGeographicVoting } from "@/hooks/use-geographic-voting";
 import { useGeographicVoteCounts } from "@/hooks/use-geographic-vote-counts";
 import { PhysicalCharacteristicVoting } from "@/components/PhysicalCharacteristicVoting";
 import { useProfileCreator } from "@/hooks/use-profile-creator";
+import { GuessTheOriginStats } from "@/components/GuessTheOriginStats";
 
 interface Vote {
   classification: string;
