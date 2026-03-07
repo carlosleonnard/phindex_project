@@ -119,8 +119,27 @@ export default function UserProfileDetail() {
     });
   }
 
+  const profileUrl = `https://www.phenotypeindex.com/profiles/${profile.slug}`;
+  const ogImage = profile.front_image_url;
+  const ogDescription = `View ${profile.name}'s phenotype profile on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}.`;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
+      <Helmet>
+        <title>{profile.name} | Phindex - Phenotype Index</title>
+        <meta name="description" content={ogDescription} />
+        <meta property="og:title" content={`${profile.name} | Phindex - Phenotype Index`} />
+        <meta property="og:description" content={ogDescription} />
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+        <meta property="og:url" content={profileUrl} />
+        <meta property="og:type" content="profile" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${profile.name} | Phindex - Phenotype Index`} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={ogImage} />
+      </Helmet>
       <Header />
       
       <div className="container mx-auto px-4 py-8 flex-1">
