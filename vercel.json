@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/user-profile/:slug", "destination": "/api/user-profile/:slug" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
