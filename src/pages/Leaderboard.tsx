@@ -8,9 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 const periods: { key: LeaderboardPeriod; label: string; icon: React.ReactNode }[] = [
-  { key: "week",  label: "Esta Semana", icon: <CalendarDays className="w-4 h-4" /> },
-  { key: "month", label: "Este Mês",    icon: <Calendar className="w-4 h-4" /> },
-  { key: "all",   label: "Total",       icon: <Infinity className="w-4 h-4" /> },
+  { key: "week",  label: "This Week",  icon: <CalendarDays className="w-4 h-4" /> },
+  { key: "month", label: "This Month", icon: <Calendar className="w-4 h-4" /> },
+  { key: "all",   label: "All Time",   icon: <Infinity className="w-4 h-4" /> },
 ];
 
 const rankIcon = (index: number) => {
@@ -38,7 +38,7 @@ export default function Leaderboard() {
               <h1 className="text-3xl font-bold text-foreground">Leaderboard</h1>
             </div>
             <p className="text-muted-foreground mb-6">
-              Top 10 jogadores do jogo Guess the Origin.
+              Top 10 players of the Guess the Origin game.
             </p>
 
             {/* Period Tabs */}
@@ -68,8 +68,8 @@ export default function Leaderboard() {
               <Card>
                 <CardContent className="py-14 text-center">
                   <Trophy className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                  <p className="text-muted-foreground">Nenhum jogador neste período ainda.</p>
-                  <p className="text-sm text-muted-foreground/60 mt-1">Seja o primeiro a jogar!</p>
+                  <p className="text-muted-foreground">No players in this period yet.</p>
+                  <p className="text-sm text-muted-foreground/60 mt-1">Be the first to play!</p>
                 </CardContent>
               </Card>
             ) : (
@@ -100,7 +100,7 @@ export default function Leaderboard() {
                             {entry.nickname}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {entry.totalGames} {entry.totalGames === 1 ? "jogo" : "jogos"}
+                            {entry.totalGames} {entry.totalGames === 1 ? "game" : "games"} played
                           </p>
                         </div>
 
@@ -108,13 +108,13 @@ export default function Leaderboard() {
                         <div className="flex items-center gap-5">
                           <div className="text-right hidden sm:block">
                             <p className="text-xl font-bold text-primary">{entry.totalCorrect}</p>
-                            <p className="text-xs text-muted-foreground">acertos</p>
+                            <p className="text-xs text-muted-foreground">correct</p>
                           </div>
                           <div className="text-right hidden sm:block">
                             <p className="text-base font-medium text-foreground">
                               {entry.totalCorrect}/{entry.totalQuestions}
                             </p>
-                            <p className="text-xs text-muted-foreground">certo/total</p>
+                            <p className="text-xs text-muted-foreground">correct/total</p>
                           </div>
                           <div className="text-right">
                             <div className="flex items-center gap-1 justify-end">
@@ -123,7 +123,7 @@ export default function Leaderboard() {
                                 {entry.accuracyPercentage}%
                               </span>
                             </div>
-                            <p className="text-xs text-muted-foreground">precisão</p>
+                            <p className="text-xs text-muted-foreground">accuracy</p>
                           </div>
                         </div>
                       </div>
