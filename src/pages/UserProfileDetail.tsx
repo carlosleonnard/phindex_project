@@ -296,6 +296,9 @@ export default function UserProfileDetail() {
                     </div>
                   )}
                   
+                  {/* Guess the Origin Stats */}
+                  <GuessTheOriginStats profileId={profile.id} />
+
                   {/* Created By Information */}
                   <p className="text-xs text-muted-foreground text-center mb-6 -mt-2">
                     Created by <span className="font-medium text-phindex-teal">{profileCreator?.creatorName || 'User'}</span> on {profileCreator?.createdAt ? new Date(profileCreator.createdAt).toLocaleDateString('en-US') : new Date(profile.created_at).toLocaleDateString('en-US')}
