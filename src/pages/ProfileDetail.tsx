@@ -130,28 +130,26 @@ export default function ProfileDetail() {
     );
   }
 
+  const ogDescription = `View ${sanitizedProfile.name}'s phenotype profile on Phindex. Ancestry: ${sanitizedProfile.ancestry}. Country: ${sanitizedProfile.country}.`;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
+      <Helmet>
+        <title>{sanitizedProfile.name} | Phindex - Phenotype Index</title>
+        <meta name="description" content={ogDescription} />
+        <meta property="og:title" content={`${sanitizedProfile.name} | Phindex - Phenotype Index`} />
+        <meta property="og:description" content={ogDescription} />
+        <meta property="og:image" content={sanitizedProfile.front_image_url} />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+        <meta property="og:url" content={`https://www.phenotypeindex.com/profile/${sanitizedProfile.id}`} />
+        <meta property="og:type" content="profile" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={`${sanitizedProfile.name} | Phindex - Phenotype Index`} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={sanitizedProfile.front_image_url} />
+      </Helmet>
       <Header />
-      
-      {/* Dynamic OG meta tags for social sharing */}
-      {sanitizedProfile && (
-        <Helmet>
-          <title>{sanitizedProfile.name} | Phindex - Phenotype Index</title>
-          <meta name="description" content={`View ${sanitizedProfile.name}'s phenotype profile on Phindex. Ancestry: ${sanitizedProfile.ancestry}. Country: ${sanitizedProfile.country}.`} />
-          <meta property="og:title" content={`${sanitizedProfile.name} | Phindex - Phenotype Index`} />
-          <meta property="og:description" content={`View ${sanitizedProfile.name}'s phenotype profile on Phindex. Ancestry: ${sanitizedProfile.ancestry}. Country: ${sanitizedProfile.country}.`} />
-          <meta property="og:image" content={sanitizedProfile.front_image_url} />
-          <meta property="og:image:width" content="800" />
-          <meta property="og:image:height" content="800" />
-          <meta property="og:url" content={`https://www.phenotypeindex.com/profile/${sanitizedProfile.id}`} />
-          <meta property="og:type" content="profile" />
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content={`${sanitizedProfile.name} | Phindex - Phenotype Index`} />
-          <meta name="twitter:description" content={`View ${sanitizedProfile.name}'s phenotype profile on Phindex. Ancestry: ${sanitizedProfile.ancestry}. Country: ${sanitizedProfile.country}.`} />
-          <meta name="twitter:image" content={sanitizedProfile.front_image_url} />
-        </Helmet>
-      )}
       
       <div className="container mx-auto px-4 py-8 flex-1">
         <div className="lg:ml-80 pt-20">
