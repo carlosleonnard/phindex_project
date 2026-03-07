@@ -24,6 +24,7 @@ import { useGeographicVoting } from "@/hooks/use-geographic-voting";
 import { useGeographicVoteCounts } from "@/hooks/use-geographic-vote-counts";
 import { PhysicalCharacteristicVoting } from "@/components/PhysicalCharacteristicVoting";
 import { useProfileCreator } from "@/hooks/use-profile-creator";
+import { GuessTheOriginStats } from "@/components/GuessTheOriginStats";
 
 interface Vote {
   classification: string;
@@ -314,6 +315,9 @@ export default function ProfileDetail() {
                     </div>
                   )}
                   
+
+                  {/* Guess the Origin Stats */}
+                  <GuessTheOriginStats profileId={sanitizedProfile.id} />
 
                   {/* Created By Information */}
                   <p className="text-xs text-muted-foreground text-center mb-6 -mt-2">
