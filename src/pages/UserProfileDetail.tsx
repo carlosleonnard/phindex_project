@@ -1,4 +1,5 @@
 import { useParams, Navigate, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Edit, Trash2, Vote, MessageCircle, Users, MessageSquare, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
