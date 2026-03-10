@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const SUPABASE_URL = "https://jmygqrqfzglbislftczz.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpteWdxcnFmemdsYmlzbGZ0Y3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NjEyMTIsImV4cCI6MjA3MDQzNzIxMn0.-SATJkWJNhgpGY8g1o_REhIy-xhaKWIN8_Yrxrzzd1A";
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL as string;
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 function escapeHtml(str: string): string {
   return str
@@ -39,8 +39,9 @@ export default async function handler(req: any, res: any) {
       const description = escapeHtml(
         `View ${profile.name}'s phenotype profile on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}.`
       );
-      const image = profile.front_image_url;
-      const url = `https://www.phenotypeindex.com/user-profile/${slug}`;
+      // Sanitize OG image URL to prevent injection via meta tags
+      const image = escapeHtml(profile.front_image_url || '');
+      const url = `https://www.phenotypeindex.com/user-profile/${escapeHtml(slug as string)}`;
 
       const ogTags = `
   <title>${title}</title>
