@@ -16,7 +16,7 @@ interface EditUserProfileModalProps {
   isAdminEdit?: boolean;
 }
 
-export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfileModalProps) => {
+export const EditUserProfileModal = ({ profile, open, onClose, isAdminEdit }: EditUserProfileModalProps) => {
   const { updateProfile } = useUserProfiles();
   const { uploadImage, isUploading } = useImageUpload();
   const [formData, setFormData] = useState({
