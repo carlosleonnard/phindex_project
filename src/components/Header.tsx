@@ -1,38 +1,18 @@
-/**
- * COMPONENTE DE CABEÇALHO PRINCIPAL (Header.tsx)
- * 
- * Este componente renderiza a barra de navegação fixa no topo da aplicação.
- * Inclui logo, barra de busca, botões de ação e menu de usuário.
- * É exibido em todas as páginas da aplicação.
- */
-
-// Ícones do Lucide React (biblioteca de ícones SVG otimizada)
 import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu, Trophy } from "lucide-react";
-// Componentes de UI reutilizáveis do sistema de design
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// Link do React Router para navegação sem reload da página
 import { Link } from "react-router-dom";
-// Modais específicos da aplicação
-import { AddProfileModal } from "./AddProfileModal";    // Modal para criar novos perfis
-import { LoginModal } from "./LoginModal";              // Modal de autenticação
-import { NotificationBell } from "./NotificationBell";  // Componente de notificações
-import { UserMenuPopover } from "./UserMenuPopover";        // Menu do usuário com nickname
-// Componentes de avatar para imagem do usuário
+import { AddProfileModal } from "./AddProfileModal";
+import { LoginModal } from "./LoginModal";
+import { NotificationBell } from "./NotificationBell";
+import { UserMenuPopover } from "./UserMenuPopover";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-// Popover para menu dropdown do usuário
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-// Hook do React para estado local e efeitos
 import { useState, useEffect, useRef } from "react";
-// Hook customizado para gerenciamento de autenticação
 import { useAuth } from "@/hooks/use-auth";
-// Hook para gerenciamento de perfis de usuário
-import { useUserProfiles } from "@/hooks/use-user-profiles";
-// Link para navegação entre páginas
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
-// Hook para detectar dispositivos móveis
 import { useIsMobile } from "@/hooks/use-mobile";
-// Importa logo mobile
 import mobileLogo from "@/assets/mobile-logo.png";
 
 /**
