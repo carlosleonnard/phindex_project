@@ -67,10 +67,8 @@ export const NotificationBell = () => {
     }
     setIsOpen(false);
 
-    // Navigate to the profile and scroll to comment if available
     if (notification.profile_id) {
       try {
-        // Get the profile slug from profile_id
         const { data: profileData } = await supabase
           .from('user_profiles')
           .select('slug')
@@ -80,15 +78,12 @@ export const NotificationBell = () => {
         if (profileData?.slug) {
           const url = `/user-profile/${profileData.slug}`;
           if (notification.comment_id) {
-            // Add comment hash to URL for scrolling
             navigate(`${url}#comment-${notification.comment_id}`);
             
-            // Scroll to comment after navigation
             setTimeout(() => {
               const commentElement = document.getElementById(`comment-${notification.comment_id}`);
               if (commentElement) {
                 commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Add highlight effect
                 commentElement.classList.add('bg-primary/10');
                 setTimeout(() => {
                   commentElement.classList.remove('bg-primary/10');
@@ -101,7 +96,6 @@ export const NotificationBell = () => {
         }
       } catch (error) {
         console.error('Error navigating to profile:', error);
-        // Fallback: try to navigate with profile_id directly
         if (notification.profile_id) {
           navigate(`/user-profile/${notification.profile_id}`);
         }
@@ -152,38 +146,39 @@ export const NotificationBell = () => {
   };
 
   useEffect(() => {
+    // Early return BEFORE creating channel to avoid memory leak when user is null
+    if (!user) return;
+
     fetchNotifications();
 
-    // Set up real-time subscription for notifications
-    if (user) {
-      const channel = supabase
-        .channel('notifications')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            const newNotification = payload.new as Notification;
-            setNotifications(prev => [newNotification, ...prev].slice(0, 10));
-            setUnreadCount(prev => prev + 1);
-            
-            // Show toast for new notification
-            toast({
-              title: "New notification",
-              description: newNotification.message,
-            });
-          }
-        )
-        .subscribe();
+    // Use unique channel name per user to avoid cross-user leaks
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          setNotifications(prev => [newNotification, ...prev].slice(0, 10));
+          setUnreadCount(prev => prev + 1);
+          
+          toast({
+            title: "New notification",
+            description: newNotification.message,
+          });
+        }
+      )
+      .subscribe();
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    // Cleanup always runs because channel is always created inside the if(user) block
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, toast]);
 
   if (!user) return null;
