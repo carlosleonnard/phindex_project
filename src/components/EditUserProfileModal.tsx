@@ -54,11 +54,12 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdminEdit }: Ed
           gender: formData.gender,
           category: formData.category,
           height: parseFloat(formData.height),
-          ancestry: formData.ancestry.join(', '), // Convert array to string
+          ancestry: formData.ancestry.join(', '),
           frontImageUrl: formData.frontImageUrl,
           profileImageUrl: formData.profileImageUrl,
           isAnonymous: formData.isAnonymous
-        }
+        },
+        isAdminEdit: isAdminEdit,
       });
       onClose();
     } catch (error) {
