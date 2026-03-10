@@ -262,7 +262,7 @@ export const useUserProfiles = () => {
 
   // Update profile mutation
   const updateProfile = useMutation({
-    mutationFn: async ({ id, profileData }: { id: string; profileData: Partial<CreateUserProfileData> }) => {
+    mutationFn: async ({ id, profileData, isAdminEdit }: { id: string; profileData: Partial<CreateUserProfileData>; isAdminEdit?: boolean }) => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
@@ -286,13 +286,17 @@ export const useUserProfiles = () => {
         updateData.slug = slugData;
       }
 
-      const { data, error } = await supabase
+      // Build query — admins can update any profile, normal users only their own
+      let query = supabase
         .from('user_profiles')
         .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id) // Ensure user can only update their own profiles
-        .select()
-        .single();
+        .eq('id', id);
+
+      if (!isAdminEdit) {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query.select().single();
 
       if (error) throw error;
       return data as UserProfile;
