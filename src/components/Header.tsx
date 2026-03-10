@@ -25,73 +25,58 @@ import mobileLogo from "@/assets/mobile-logo.png";
  * - Menu de usuário ou botão de login
  */
 export const Header = () => {
-  // Estado local para controlar abertura/fechamento do modal de login
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  // Estado para controlar abertura/fechamento do sidebar mobile/tablet
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Estado para controlar abertura do modal de adicionar perfil
   const [isAddProfileOpen, setIsAddProfileOpen] = useState(false);
   
-  // Estados para funcionalidade de busca
-  const [searchTerm, setSearchTerm] = useState("");        // Termo digitado pelo usuário
-  const [searchResults, setSearchResults] = useState<any[]>([]); // Resultados da busca
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // Controla se o dropdown está aberto
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Controla expansão da busca no mobile
-  const searchRef = useRef<HTMLDivElement>(null);          // Referência para detectar cliques fora
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   
-  // Hooks para navegação e dados
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
-  const { profiles } = useUserProfiles();
   const isMobile = useIsMobile();
   
-  // Check for tablet/mobile breakpoint (anything below 1024px gets mobile layout)
   const [isTabletOrMobile, setIsTabletOrMobile] = useState(window.innerWidth < 1024);
   
   useEffect(() => {
     const handleResize = () => {
       setIsTabletOrMobile(window.innerWidth < 1024);
     };
-    
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
   /**
-   * FUNÇÃO DE BUSCA
-   * 
-   * Filtra os perfis baseado no termo de busca digitado pelo usuário.
-   * Busca por nome do perfil (case insensitive).
+   * Busca leve direto no Supabase — sem carregar todos os perfis em memória.
    */
-  const handleSearch = (term: string) => {
-    if (!term.trim() || !profiles) {
+  const handleSearch = async (term: string) => {
+    if (!term.trim()) {
       setSearchResults([]);
       setIsSearchOpen(false);
       return;
     }
     
-    // Filtra perfis que contenham o termo de busca no nome
-    const filtered = profiles.filter(profile => 
-      profile.name.toLowerCase().includes(term.toLowerCase())
-    ).slice(0, 5); // Limita a 5 resultados
-    
-    setSearchResults(filtered);
-    setIsSearchOpen(filtered.length > 0);
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('id, name, slug, front_image_url, category, country, is_anonymous')
+      .ilike('name', `%${term.trim()}%`)
+      .limit(5);
+
+    const results = data || [];
+    setSearchResults(results);
+    setIsSearchOpen(results.length > 0);
   };
   
-  /**
-   * EFEITO PARA BUSCA COM DEBOUNCE
-   * 
-   * Implementa um delay na busca para evitar muitas consultas while typing.
-   * Executa a busca 300ms após o usuário parar de digitar.
-   */
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       handleSearch(searchTerm);
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, profiles]);
+  }, [searchTerm]);
   
   /**
    * EFEITO PARA DETECTAR CLIQUES FORA DO DROPDOWN
