@@ -128,13 +128,21 @@ const ProfileCardComponent = ({
 
 // Memoize component to prevent unnecessary re-renders
 export const ProfileCard = memo(ProfileCardComponent, (prevProps, nextProps) => {
-  // Custom comparison function - only re-render if these props change
-  return (
-    prevProps.id === nextProps.id &&
-    prevProps.likes === nextProps.likes &&
-    prevProps.comments === nextProps.comments &&
-    prevProps.hasUserVoted === nextProps.hasUserVoted &&
-    prevProps.votes.length === nextProps.votes.length &&
-    JSON.stringify(prevProps.votes) === JSON.stringify(nextProps.votes)
-  );
+  if (
+    prevProps.id !== nextProps.id ||
+    prevProps.likes !== nextProps.likes ||
+    prevProps.comments !== nextProps.comments ||
+    prevProps.hasUserVoted !== nextProps.hasUserVoted ||
+    prevProps.votes.length !== nextProps.votes.length
+  ) return false;
+
+  // Element-by-element comparison instead of JSON.stringify
+  for (let i = 0; i < prevProps.votes.length; i++) {
+    const p = prevProps.votes[i];
+    const n = nextProps.votes[i];
+    if (p.classification !== n.classification || p.count !== n.count || p.percentage !== n.percentage) {
+      return false;
+    }
+  }
+  return true;
 });
