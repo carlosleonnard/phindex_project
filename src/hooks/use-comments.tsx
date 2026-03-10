@@ -34,6 +34,7 @@ export const useComments = (profileId: string) => {
         .order('created_at', { ascending: false });
 
       if (commentsData) {
+        // Check which comments the current user has liked and get like counts
         let userLikes: string[] = [];
         const likeCounts = new Map<string, number>();
         
@@ -46,11 +47,18 @@ export const useComments = (profileId: string) => {
           userLikes = likesData?.map(like => like.comment_id) || [];
         }
 
+        // Get unique user counts for each comment
         const { data: allLikesData } = await supabase
           .from('comment_likes')
           .select('comment_id, user_id');
 
         if (allLikesData) {
+          allLikesData.forEach(like => {
+            const current = likeCounts.get(like.comment_id) || 0;
+            likeCounts.set(like.comment_id, current);
+          });
+          
+          // Count unique users for each comment
           const uniqueUserCounts = new Map<string, Set<string>>();
           allLikesData.forEach(like => {
             if (!uniqueUserCounts.has(like.comment_id)) {
@@ -64,6 +72,7 @@ export const useComments = (profileId: string) => {
           });
         }
 
+        // Get user votes for this profile to show next to names
         const { data: userVotesData } = await supabase
           .from('votes')
           .select('user_id, classification, characteristic_type')
@@ -77,20 +86,22 @@ export const useComments = (profileId: string) => {
           userVotesMap.get(vote.user_id)[vote.characteristic_type] = vote.classification;
         });
 
-        // Get unique user IDs and fetch all nicknames in a single batch query
+        // Get unique user IDs to fetch profile nicknames securely
         const uniqueUserIds = [...new Set(commentsData.map(c => c.user_id))];
         
-        const { data: profilesData } = await supabase
-          .from('profiles')
-          .select('id, nickname')
-          .in('id', uniqueUserIds);
-
-        const profileNicknameMap = new Map(
-          (profilesData || []).map(p => [p.id, p.nickname || 'User'])
-        );
+        // Fetch profile nicknames using secure RPC
+        const profileNicknamesPromises = uniqueUserIds.map(async (userId) => {
+          const { data } = await supabase
+            .rpc('get_public_profile_nickname', { p_user_id: userId })
+            .single();
+          return { userId, nickname: data?.nickname || 'User' };
+        });
+        
+        const profileNicknames = await Promise.all(profileNicknamesPromises);
+        const profileNicknameMap = new Map(profileNicknames.map(p => [p.userId, p.nickname]));
 
         const formattedComments: Comment[] = commentsData
-          .filter(comment => !comment.parent_comment_id)
+          .filter(comment => !comment.parent_comment_id) // Only get top-level comments
           .map(comment => ({
             id: comment.id,
             content: comment.content,
@@ -100,7 +111,7 @@ export const useComments = (profileId: string) => {
             user_id: comment.user_id,
             user: {
               nickname: profileNicknameMap.get(comment.user_id) || 'User',
-              email: ''
+              email: '' // No longer expose emails for security
             },
             userVotes: userVotesMap.get(comment.user_id) || {},
             isLiked: userLikes.includes(comment.id),
@@ -115,7 +126,7 @@ export const useComments = (profileId: string) => {
                 user_id: reply.user_id,
                 user: {
                   nickname: profileNicknameMap.get(reply.user_id) || 'User',
-                  email: ''
+                  email: '' // No longer expose emails for security
                 },
                 userVotes: userVotesMap.get(reply.user_id) || {},
                 isLiked: userLikes.includes(reply.id)
@@ -155,6 +166,7 @@ export const useComments = (profileId: string) => {
 
       if (error) throw error;
 
+      // If this is a reply, create a notification for the parent comment owner
       if (parentCommentId) {
         const { data: parentComment } = await supabase
           .from('comments')
@@ -163,6 +175,7 @@ export const useComments = (profileId: string) => {
           .single();
 
         if (parentComment && parentComment.user_id !== user.id) {
+          // Get the current user's nickname for notification
           const { data: currentUserProfile } = await supabase
             .rpc('get_public_profile_nickname', { p_user_id: user.id })
             .single();
@@ -179,7 +192,7 @@ export const useComments = (profileId: string) => {
         }
       }
 
-      await fetchComments();
+      await fetchComments(); // Refresh comments
 
       toast({
         title: "Comment added!",
@@ -208,6 +221,7 @@ export const useComments = (profileId: string) => {
     }
 
     try {
+      // Check if user has already liked this comment
       const { data: existingLike } = await supabase
         .from('comment_likes')
         .select('id')
@@ -215,6 +229,7 @@ export const useComments = (profileId: string) => {
         .eq('comment_id', commentId)
         .single();
 
+      // Get current comment data
       const { data: commentData } = await supabase
         .from('comments')
         .select('user_id')
@@ -224,6 +239,7 @@ export const useComments = (profileId: string) => {
       if (!commentData) return;
 
       if (existingLike) {
+        // Unlike the comment
         const { error: deleteError } = await supabase
           .from('comment_likes')
           .delete()
@@ -232,6 +248,7 @@ export const useComments = (profileId: string) => {
 
         if (deleteError) throw deleteError;
       } else {
+        // Like the comment
         const { error: insertError } = await supabase
           .from('comment_likes')
           .insert({
@@ -241,7 +258,9 @@ export const useComments = (profileId: string) => {
 
         if (insertError) throw insertError;
 
+        // Create notification for comment owner (using nickname for anonymity)
         if (commentData.user_id !== user.id) {
+          // Get the current user's nickname for notification
           const { data: currentUserProfile } = await supabase
             .rpc('get_public_profile_nickname', { p_user_id: user.id })
             .single();
@@ -258,6 +277,7 @@ export const useComments = (profileId: string) => {
         }
       }
 
+      // Refresh comments to get updated data
       await fetchComments();
     } catch (error: any) {
       console.error('Error liking comment:', error);
@@ -280,13 +300,14 @@ export const useComments = (profileId: string) => {
     }
 
     try {
+      // Use the new function to delete comment and its children
       const { error } = await supabase.rpc('delete_comment_and_children', {
         comment_id_param: commentId
       });
 
       if (error) throw error;
 
-      await fetchComments();
+      await fetchComments(); // Refresh comments
 
       toast({
         title: "Comment deleted!",

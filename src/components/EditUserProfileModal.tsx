@@ -13,10 +13,9 @@ interface EditUserProfileModalProps {
   profile: UserProfile;
   open: boolean;
   onClose: () => void;
-  isAdminEdit?: boolean;
 }
 
-export const EditUserProfileModal = ({ profile, open, onClose, isAdminEdit }: EditUserProfileModalProps) => {
+export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfileModalProps) => {
   const { updateProfile } = useUserProfiles();
   const { uploadImage, isUploading } = useImageUpload();
   const [formData, setFormData] = useState({
@@ -54,12 +53,11 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdminEdit }: Ed
           gender: formData.gender,
           category: formData.category,
           height: parseFloat(formData.height),
-          ancestry: formData.ancestry.join(', '),
+          ancestry: formData.ancestry.join(', '), // Convert array to string
           frontImageUrl: formData.frontImageUrl,
           profileImageUrl: formData.profileImageUrl,
           isAnonymous: formData.isAnonymous
-        },
-        isAdminEdit: isAdminEdit,
+        }
       });
       onClose();
     } catch (error) {

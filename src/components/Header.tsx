@@ -1,18 +1,38 @@
+/**
+ * COMPONENTE DE CABEÇALHO PRINCIPAL (Header.tsx)
+ * 
+ * Este componente renderiza a barra de navegação fixa no topo da aplicação.
+ * Inclui logo, barra de busca, botões de ação e menu de usuário.
+ * É exibido em todas as páginas da aplicação.
+ */
+
+// Ícones do Lucide React (biblioteca de ícones SVG otimizada)
 import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu, Trophy } from "lucide-react";
+// Componentes de UI reutilizáveis do sistema de design
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+// Link do React Router para navegação sem reload da página
 import { Link } from "react-router-dom";
-import { AddProfileModal } from "./AddProfileModal";
-import { LoginModal } from "./LoginModal";
-import { NotificationBell } from "./NotificationBell";
-import { UserMenuPopover } from "./UserMenuPopover";
+// Modais específicos da aplicação
+import { AddProfileModal } from "./AddProfileModal";    // Modal para criar novos perfis
+import { LoginModal } from "./LoginModal";              // Modal de autenticação
+import { NotificationBell } from "./NotificationBell";  // Componente de notificações
+import { UserMenuPopover } from "./UserMenuPopover";        // Menu do usuário com nickname
+// Componentes de avatar para imagem do usuário
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+// Popover para menu dropdown do usuário
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+// Hook do React para estado local e efeitos
 import { useState, useEffect, useRef } from "react";
+// Hook customizado para gerenciamento de autenticação
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
+// Hook para gerenciamento de perfis de usuário
+import { useUserProfiles } from "@/hooks/use-user-profiles";
+// Link para navegação entre páginas
 import { useNavigate, useLocation } from "react-router-dom";
+// Hook para detectar dispositivos móveis
 import { useIsMobile } from "@/hooks/use-mobile";
+// Importa logo mobile
 import mobileLogo from "@/assets/mobile-logo.png";
 
 /**
@@ -25,58 +45,73 @@ import mobileLogo from "@/assets/mobile-logo.png";
  * - Menu de usuário ou botão de login
  */
 export const Header = () => {
+  // Estado local para controlar abertura/fechamento do modal de login
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  // Estado para controlar abertura/fechamento do sidebar mobile/tablet
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Estado para controlar abertura do modal de adicionar perfil
   const [isAddProfileOpen, setIsAddProfileOpen] = useState(false);
   
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+  // Estados para funcionalidade de busca
+  const [searchTerm, setSearchTerm] = useState("");        // Termo digitado pelo usuário
+  const [searchResults, setSearchResults] = useState<any[]>([]); // Resultados da busca
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // Controla se o dropdown está aberto
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Controla expansão da busca no mobile
+  const searchRef = useRef<HTMLDivElement>(null);          // Referência para detectar cliques fora
   
+  // Hooks para navegação e dados
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
+  const { profiles } = useUserProfiles();
   const isMobile = useIsMobile();
   
+  // Check for tablet/mobile breakpoint (anything below 1024px gets mobile layout)
   const [isTabletOrMobile, setIsTabletOrMobile] = useState(window.innerWidth < 1024);
   
   useEffect(() => {
     const handleResize = () => {
       setIsTabletOrMobile(window.innerWidth < 1024);
     };
+    
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
   /**
-   * Busca leve direto no Supabase — sem carregar todos os perfis em memória.
+   * FUNÇÃO DE BUSCA
+   * 
+   * Filtra os perfis baseado no termo de busca digitado pelo usuário.
+   * Busca por nome do perfil (case insensitive).
    */
-  const handleSearch = async (term: string) => {
-    if (!term.trim()) {
+  const handleSearch = (term: string) => {
+    if (!term.trim() || !profiles) {
       setSearchResults([]);
       setIsSearchOpen(false);
       return;
     }
     
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('id, name, slug, front_image_url, category, country, is_anonymous')
-      .ilike('name', `%${term.trim()}%`)
-      .limit(5);
-
-    const results = data || [];
-    setSearchResults(results);
-    setIsSearchOpen(results.length > 0);
+    // Filtra perfis que contenham o termo de busca no nome
+    const filtered = profiles.filter(profile => 
+      profile.name.toLowerCase().includes(term.toLowerCase())
+    ).slice(0, 5); // Limita a 5 resultados
+    
+    setSearchResults(filtered);
+    setIsSearchOpen(filtered.length > 0);
   };
   
+  /**
+   * EFEITO PARA BUSCA COM DEBOUNCE
+   * 
+   * Implementa um delay na busca para evitar muitas consultas while typing.
+   * Executa a busca 300ms após o usuário parar de digitar.
+   */
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       handleSearch(searchTerm);
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, profiles]);
   
   /**
    * EFEITO PARA DETECTAR CLIQUES FORA DO DROPDOWN

@@ -657,7 +657,6 @@ export default function UserProfileDetail() {
           profile={profile}
           open={showEditModal}
           onClose={() => setShowEditModal(false)}
-          isAdminEdit={isAdmin && profile.user_id !== user?.id}
         />
       )}
     </div>
