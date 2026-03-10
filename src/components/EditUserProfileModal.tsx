@@ -13,9 +13,10 @@ interface EditUserProfileModalProps {
   profile: UserProfile;
   open: boolean;
   onClose: () => void;
+  isAdmin?: boolean;
 }
 
-export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfileModalProps) => {
+export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUserProfileModalProps) => {
   const { updateProfile } = useUserProfiles();
   const { uploadImage, isUploading } = useImageUpload();
   const [formData, setFormData] = useState({
@@ -47,6 +48,7 @@ export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfile
     try {
       await updateProfile.mutateAsync({
         id: profile.id,
+        isAdmin,
         profileData: {
           name: formData.name,
           country: formData.country,
