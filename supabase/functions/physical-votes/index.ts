@@ -1,8 +1,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = [
+  'https://www.phenotypeindex.com',
+  'https://phenotypeindex.com',
+  'https://phindex.vercel.app',
+  'http://localhost:8080',
+];
+
+function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  };
 }
 
 interface PhysicalVote {
@@ -22,16 +33,39 @@ interface PhysicalVotesResponse {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate JWT via Authorization header
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Validate the token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get profileId and userId from either query params or request body
     const url = new URL(req.url);
@@ -72,8 +106,6 @@ Deno.serve(async (req) => {
       'Eye Color'
     ];
 
-    console.log(`Fetching physical votes for profile: ${profileId}`);
-
     // Fetch all votes for all physical characteristics in one query
     const { data: allVotes, error: votesError } = await supabase
       .from('votes')
@@ -82,28 +114,22 @@ Deno.serve(async (req) => {
       .in('characteristic_type', physicalCharacteristicTypes);
 
     if (votesError) {
-      console.error('Error fetching votes:', votesError);
       throw votesError;
     }
-
-    console.log(`Found ${allVotes?.length || 0} total votes`);
 
     // Aggregate votes by characteristic type
     const characteristicsData: PhysicalCharacteristic[] = [];
     
     for (const characteristicType of physicalCharacteristicTypes) {
-      // Filter votes for this characteristic
       const characteristicVotes = allVotes?.filter(vote => 
         vote.characteristic_type === characteristicType
       ) || [];
 
-      // Count votes by classification
       const voteCounts: { [key: string]: number } = {};
       characteristicVotes.forEach(vote => {
         voteCounts[vote.classification] = (voteCounts[vote.classification] || 0) + 1;
       });
 
-      // Calculate total and percentages
       const total = characteristicVotes.length;
       const voteData: PhysicalVote[] = Object.entries(voteCounts).map(([option, count]) => ({
         option,
@@ -127,9 +153,7 @@ Deno.serve(async (req) => {
         .eq('user_id', userId)
         .in('characteristic_type', physicalCharacteristicTypes);
 
-      if (userVotesError) {
-        console.error('Error fetching user votes:', userVotesError);
-      } else {
+      if (!userVotesError) {
         userVoteData?.forEach(vote => {
           userVotes[vote.characteristic_type] = vote.classification;
         });
@@ -141,8 +165,6 @@ Deno.serve(async (req) => {
       userVotes
     };
 
-    console.log(`Returning ${characteristicsData.length} characteristics`);
-
     return new Response(
       JSON.stringify(response),
       { 
@@ -151,15 +173,11 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in physical-votes function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error', 
-        details: error instanceof Error ? error.message : String(error)
-      }),
+      JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...getCorsHeaders(req.headers.get('Origin')), 'Content-Type': 'application/json' } 
       }
     );
   }
