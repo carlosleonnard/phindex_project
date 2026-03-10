@@ -262,17 +262,21 @@ export const useUserProfiles = () => {
 
   // Update profile mutation
   const updateProfile = useMutation({
-    mutationFn: async ({ id, profileData }: { id: string; profileData: Partial<CreateUserProfileData> }) => {
+    mutationFn: async ({ id, profileData, isAdmin }: { id: string; profileData: Partial<CreateUserProfileData>; isAdmin?: boolean }) => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
 
-      let updateData: any = {
-        ...profileData,
-        front_image_url: profileData.frontImageUrl,
-        profile_image_url: profileData.profileImageUrl,
-        is_anonymous: profileData.isAnonymous,
-      };
+      const updateData: any = {};
+      if (profileData.name !== undefined) updateData.name = profileData.name;
+      if (profileData.country !== undefined) updateData.country = profileData.country;
+      if (profileData.gender !== undefined) updateData.gender = profileData.gender;
+      if (profileData.category !== undefined) updateData.category = profileData.category;
+      if (profileData.height !== undefined) updateData.height = profileData.height;
+      if (profileData.ancestry !== undefined) updateData.ancestry = profileData.ancestry;
+      if (profileData.frontImageUrl !== undefined) updateData.front_image_url = profileData.frontImageUrl;
+      if (profileData.profileImageUrl !== undefined) updateData.profile_image_url = profileData.profileImageUrl;
+      if (profileData.isAnonymous !== undefined) updateData.is_anonymous = profileData.isAnonymous;
 
       // Generate new slug if name changed
       if (profileData.name) {
@@ -286,13 +290,11 @@ export const useUserProfiles = () => {
         updateData.slug = slugData;
       }
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id) // Ensure user can only update their own profiles
-        .select()
-        .single();
+      let query = supabase.from('user_profiles').update(updateData).eq('id', id);
+      if (!isAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+      const { data, error } = await query.select().single();
 
       if (error) throw error;
       return data as UserProfile;
@@ -310,16 +312,16 @@ export const useUserProfiles = () => {
 
   // Delete profile mutation
   const deleteProfile = useMutation({
-    mutationFn: async (profileId: string) => {
+    mutationFn: async ({ profileId, isAdmin }: { profileId: string; isAdmin?: boolean }) => {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
 
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('id', profileId)
-        .eq('user_id', user.id); // Ensure user can only delete their own profiles
+      let query = supabase.from('user_profiles').delete().eq('id', profileId);
+      if (!isAdmin) {
+        query = query.eq('user_id', user.id);
+      }
+      const { error } = await query;
 
       if (error) throw error;
     },

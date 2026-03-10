@@ -99,7 +99,7 @@ export default function UserProfileDetail() {
 
   const handleDelete = async () => {
     try {
-      await deleteProfile.mutateAsync(profile.id);
+      await deleteProfile.mutateAsync({ profileId: profile.id, isAdmin });
       navigate('/');
     } catch (error) {
       console.error('Error deleting profile:', error);

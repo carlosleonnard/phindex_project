@@ -13,6 +13,7 @@ interface EditUserProfileModalProps {
   profile: UserProfile;
   open: boolean;
   onClose: () => void;
+  isAdmin?: boolean;
 }
 
 export const EditUserProfileModal = ({ profile, open, onClose }: EditUserProfileModalProps) => {
