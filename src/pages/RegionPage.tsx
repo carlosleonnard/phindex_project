@@ -220,7 +220,9 @@ const RegionPage = () => {
                             <div className="relative overflow-hidden rounded-lg mb-4">
                                <img
                                  src={profile.front_image_url}
-                                 alt={profile.name}
+                                 alt={`${profile.name} phenotype profile photo`}
+                                 loading="lazy"
+                                 decoding="async"
                                  className="profile-image-thumbnail rounded-lg transition-transform duration-300 group-hover:scale-105"
                                  onError={(e) => {
                                    e.currentTarget.src = '/placeholder.svg';
