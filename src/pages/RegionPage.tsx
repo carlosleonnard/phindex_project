@@ -98,8 +98,35 @@ const RegionPage = () => {
     );
   }
 
+  const regionTitle = `${regionDisplayName} Phenotypes | Phindex - Phenotype Index`;
+  const regionDescription = `Explore ${regionDisplayName} phenotypes and physical traits. Discover phenotype classifications from ${regionDisplayName}. Vote and compare physical characteristics.`;
+  const regionUrl = `https://www.phenotypeindex.com/region/${regionKey}`;
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", "position": 2, "name": regionDisplayName, "item": regionUrl }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{regionTitle}</title>
+        <meta name="description" content={regionDescription} />
+        <link rel="canonical" href={regionUrl} />
+        <meta property="og:title" content={regionTitle} />
+        <meta property="og:description" content={regionDescription} />
+        <meta property="og:url" content={regionUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={regionTitle} />
+        <meta name="twitter:description" content={regionDescription} />
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
+      </Helmet>
       <Header />
       
       <div className="container px-4 py-8">
