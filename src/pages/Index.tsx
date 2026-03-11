@@ -12,6 +12,7 @@
 
 // Ícone de voto da biblioteca Lucide React
 import { Vote, Plus } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 import { useState } from "react";
 // Componentes de layout da aplicação
 import { Header } from "@/components/Header"; // Cabeçalho fixo
@@ -78,8 +79,38 @@ const Index = () => {
     navigate(`/region/${regionSlug}`);
   };
 
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Phindex - Phenotype Index",
+    "url": "https://www.phenotypeindex.com",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://www.phenotypeindex.com/?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 overflow-x-hidden">
+      <Helmet>
+        <title>Phindex - Phenotype Index | Discover Human Phenotypes, Ancestry &amp; Physical Traits</title>
+        <meta name="description" content="Explore and classify human phenotypes from around the world. Discover European, African, Asian, American and Middle Eastern phenotypes. Vote on physical characteristics like skin color, hair texture, eye color, body type and more." />
+        <meta name="keywords" content="phenotype, phenotypes, what is my phenotype, european phenotype, african phenotype, asian phenotype, american phenotype, ancestry, genotype, dna, human physical traits, phenotype classification, phenotype index, skin color, hair texture, eye color, body type, facial features, nasal breadth, jaw type, head type" />
+        <link rel="canonical" href="https://www.phenotypeindex.com/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Phindex - Phenotype Index" />
+        <meta property="og:description" content="Explore and classify human phenotypes from around the world." />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:url" content="https://www.phenotypeindex.com" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content="Phindex - Phenotype Index" />
+        <meta name="twitter:description" content="Explore and classify human phenotypes from around the world." />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
+      </Helmet>
       <Header />
 
       <div className="container px-4 max-w-none">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Globe } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -97,8 +98,35 @@ const RegionPage = () => {
     );
   }
 
+  const regionTitle = `${regionDisplayName} Phenotypes | Phindex - Phenotype Index`;
+  const regionDescription = `Explore ${regionDisplayName} phenotypes and physical traits. Discover phenotype classifications from ${regionDisplayName}. Vote and compare physical characteristics.`;
+  const regionUrl = `https://www.phenotypeindex.com/region/${regionKey}`;
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", "position": 2, "name": regionDisplayName, "item": regionUrl }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>{regionTitle}</title>
+        <meta name="description" content={regionDescription} />
+        <link rel="canonical" href={regionUrl} />
+        <meta property="og:title" content={regionTitle} />
+        <meta property="og:description" content={regionDescription} />
+        <meta property="og:url" content={regionUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={regionTitle} />
+        <meta name="twitter:description" content={regionDescription} />
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
+      </Helmet>
       <Header />
       
       <div className="container px-4 py-8">
@@ -192,7 +220,9 @@ const RegionPage = () => {
                             <div className="relative overflow-hidden rounded-lg mb-4">
                                <img
                                  src={profile.front_image_url}
-                                 alt={profile.name}
+                                 alt={`${profile.name} phenotype profile photo`}
+                                 loading="lazy"
+                                 decoding="async"
                                  className="profile-image-thumbnail rounded-lg transition-transform duration-300 group-hover:scale-105"
                                  onError={(e) => {
                                    e.currentTarget.src = '/placeholder.svg';

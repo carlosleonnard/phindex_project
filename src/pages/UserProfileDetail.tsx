@@ -119,26 +119,55 @@ export default function UserProfileDetail() {
     });
   }
 
-  const profileUrl = `https://www.phenotypeindex.com/profiles/${profile.slug}`;
+  const profileUrl = `https://www.phenotypeindex.com/user-profile/${profile.slug}`;
   const ogImage = profile.front_image_url;
-  const ogDescription = `View ${profile.name}'s phenotype profile on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}.`;
+  const ogTitle = `${profile.name} Phenotype Profile | Phindex - Phenotype Index`;
+  const ogDescription = `View ${profile.name}'s phenotype classification on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}. Vote on physical characteristics and compare phenotypes.`;
+  const ogKeywords = `${profile.name} phenotype, ${profile.name} ancestry, ${profile.name} physical traits, ${profile.country} phenotype`;
+
+  const personSchema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": profile.name,
+    "nationality": profile.country,
+    "image": ogImage,
+    "url": profileUrl,
+    "description": ogDescription
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", "position": 2, "name": profile.category, "item": `https://www.phenotypeindex.com/category/${profile.category.toLowerCase().replace(/\s+/g, '-')}` },
+      { "@type": "ListItem", "position": 3, "name": profile.name, "item": profileUrl }
+    ]
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
       <Helmet>
-        <title>{profile.name} | Phindex - Phenotype Index</title>
+        <title>{ogTitle}</title>
         <meta name="description" content={ogDescription} />
+        <meta name="keywords" content={ogKeywords} />
+        <link rel="canonical" href={profileUrl} />
+        <meta property="og:type" content="profile" />
         <meta property="og:title" content={`${profile.name} | Phindex - Phenotype Index`} />
         <meta property="og:description" content={ogDescription} />
         <meta property="og:image" content={ogImage} />
         <meta property="og:image:width" content="800" />
         <meta property="og:image:height" content="800" />
+        <meta property="og:image:type" content="image/jpeg" />
         <meta property="og:url" content={profileUrl} />
-        <meta property="og:type" content="profile" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${profile.name} | Phindex - Phenotype Index`} />
-        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content={`${profile.name} | Phindex`} />
+        <meta name="twitter:description" content={`View ${profile.name}'s phenotype profile on Phindex.`} />
         <meta name="twitter:image" content={ogImage} />
+        <script type="application/ld+json">{JSON.stringify(personSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
       <Header />
       
@@ -176,7 +205,9 @@ export default function UserProfileDetail() {
                             <div className="text-center">
                                <img 
                                  src={image.src} 
-                                 alt={image.alt}
+                                 alt={`${profile.name} phenotype profile photo`}
+                                 loading="lazy"
+                                 decoding="async"
                                  className="profile-image-responsive rounded-lg mx-auto"
                                />
                               <p className="text-xs text-muted-foreground mt-2">{image.label}</p>

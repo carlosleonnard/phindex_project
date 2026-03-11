@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Users, Plus } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -97,8 +98,35 @@ export default function CategoryPage() {
     );
   }
 
+  const catTitle = `${categoryName} Phenotypes | Phindex`;
+  const catDescription = `Browse ${categoryName} phenotype profiles on Phindex. See physical trait classifications and vote on characteristics.`;
+  const catUrl = `https://www.phenotypeindex.com/category/${category}`;
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", "position": 2, "name": categoryName, "item": catUrl }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
+      <Helmet>
+        <title>{catTitle}</title>
+        <meta name="description" content={catDescription} />
+        <link rel="canonical" href={catUrl} />
+        <meta property="og:title" content={catTitle} />
+        <meta property="og:description" content={catDescription} />
+        <meta property="og:url" content={catUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={catTitle} />
+        <meta name="twitter:description" content={catDescription} />
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
+      </Helmet>
       <Header />
       
       <div className="container mx-auto px-4 py-8 flex-1">
@@ -178,7 +206,9 @@ export default function CategoryPage() {
                       <div className="relative h-64 flex-shrink-0">
                          <img 
                            src={profile.front_image_url} 
-                           alt={profile.name}
+                           alt={`${profile.name} phenotype profile photo`}
+                           loading="lazy"
+                           decoding="async"
                            className="w-full h-full object-cover rounded-t-lg"
                          />
                         <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded-full px-2 py-1">
