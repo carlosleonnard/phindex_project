@@ -1,8 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || 'https://www.phenotypeindex.com,https://phenotypeindex.com')
+  .split(',')
+  .map(o => o.trim());
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  };
 }
 
 interface PhysicalVote {
@@ -24,7 +33,7 @@ interface PhysicalVotesResponse {
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: getCorsHeaders(req) });
   }
 
   try {
@@ -52,9 +61,31 @@ Deno.serve(async (req) => {
     if (!profileId) {
       return new Response(
         JSON.stringify({ error: 'Profile ID is required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status: 400,
+          headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Validate profileId format to prevent abuse
+    if (typeof profileId !== 'string' || profileId.length > 100 || !/^[a-zA-Z0-9_-]+$/.test(profileId)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid Profile ID format' }),
+        {
+          status: 400,
+          headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Validate userId format if provided
+    if (userId && (typeof userId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId))) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid User ID format' }),
+        {
+          status: 400,
+          headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
         }
       );
     }
@@ -72,8 +103,6 @@ Deno.serve(async (req) => {
       'Eye Color'
     ];
 
-    console.log(`Fetching physical votes for profile: ${profileId}`);
-
     // Fetch all votes for all physical characteristics in one query
     const { data: allVotes, error: votesError } = await supabase
       .from('votes')
@@ -85,8 +114,6 @@ Deno.serve(async (req) => {
       console.error('Error fetching votes:', votesError);
       throw votesError;
     }
-
-    console.log(`Found ${allVotes?.length || 0} total votes`);
 
     // Aggregate votes by characteristic type
     const characteristicsData: PhysicalCharacteristic[] = [];
@@ -141,25 +168,20 @@ Deno.serve(async (req) => {
       userVotes
     };
 
-    console.log(`Returning ${characteristicsData.length} characteristics`);
-
     return new Response(
       JSON.stringify(response),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
       }
     );
 
   } catch (error) {
     console.error('Error in physical-votes function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error', 
-        details: error instanceof Error ? error.message : String(error)
-      }),
+      JSON.stringify({ error: 'Internal server error' }),
       { 
         status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } 
       }
     );
   }
