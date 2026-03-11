@@ -101,14 +101,16 @@ const Index = () => {
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Phindex - Phenotype Index" />
         <meta property="og:description" content="Explore and classify human phenotypes from around the world." />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/phindex-uploads/39fe11bc-0ec1-4dad-8877-0789763891df.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://www.phenotypeindex.com" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Phindex - Phenotype Index" />
         <meta name="twitter:description" content="Explore and classify human phenotypes from around the world." />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/phindex-uploads/39fe11bc-0ec1-4dad-8877-0789763891df.png" />
         <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
       </Helmet>
       <Header />
