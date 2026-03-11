@@ -12,6 +12,7 @@
 
 // Ícone de voto da biblioteca Lucide React
 import { Vote, Plus } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 import { useState } from "react";
 // Componentes de layout da aplicação
 import { Header } from "@/components/Header"; // Cabeçalho fixo
