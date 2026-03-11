@@ -1,6 +1,7 @@
 {
   "rewrites": [
     { "source": "/user-profile/:slug", "destination": "/api/user-profile/:slug" },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }

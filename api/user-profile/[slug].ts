@@ -35,29 +35,33 @@ export default async function handler(req: any, res: any) {
     }
 
     if (profile) {
-      const title = escapeHtml(`${profile.name} | Phindex - Phenotype Index`);
+      const title = escapeHtml(`${profile.name} Phenotype Profile | Phindex - Phenotype Index`);
+      const shortTitle = escapeHtml(`${profile.name} | Phindex`);
       const description = escapeHtml(
-        `View ${profile.name}'s phenotype profile on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}.`
+        `View ${profile.name}'s phenotype classification on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}. Vote on physical characteristics and compare phenotypes.`
       );
+      const shortDescription = escapeHtml(`View ${profile.name}'s phenotype profile on Phindex.`);
       const image = profile.front_image_url;
       const url = `https://www.phenotypeindex.com/user-profile/${slug}`;
 
       const ogTags = `
   <title>${title}</title>
   <meta name="description" content="${description}" />
+  <link rel="canonical" href="${url}" />
+  <meta property="og:type" content="profile" />
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${image}" />
   <meta property="og:image:width" content="800" />
   <meta property="og:image:height" content="800" />
+  <meta property="og:image:type" content="image/jpeg" />
   <meta property="og:url" content="${url}" />
-  <meta property="og:type" content="profile" />
   <meta property="og:site_name" content="Phindex - Phenotype Index" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${title}" />
-  <meta name="twitter:description" content="${description}" />
-  <meta name="twitter:image" content="${image}" />
-  <meta name="twitter:image:src" content="${image}" />`;
+  <meta name="twitter:site" content="@phenotypeindex" />
+  <meta name="twitter:title" content="${shortTitle}" />
+  <meta name="twitter:description" content="${shortDescription}" />
+  <meta name="twitter:image" content="${image}" />`;
 
       // Replace existing title and inject OG tags
       html = html.replace(
