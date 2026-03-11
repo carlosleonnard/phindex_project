@@ -206,7 +206,9 @@ export default function CategoryPage() {
                       <div className="relative h-64 flex-shrink-0">
                          <img 
                            src={profile.front_image_url} 
-                           alt={profile.name}
+                           alt={`${profile.name} phenotype profile photo`}
+                           loading="lazy"
+                           decoding="async"
                            className="w-full h-full object-cover rounded-t-lg"
                          />
                         <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded-full px-2 py-1">
