@@ -205,7 +205,9 @@ export default function UserProfileDetail() {
                             <div className="text-center">
                                <img 
                                  src={image.src} 
-                                 alt={image.alt}
+                                 alt={`${profile.name} phenotype profile photo`}
+                                 loading="lazy"
+                                 decoding="async"
                                  className="profile-image-responsive rounded-lg mx-auto"
                                />
                               <p className="text-xs text-muted-foreground mt-2">{image.label}</p>
