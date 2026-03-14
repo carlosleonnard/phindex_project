@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const SUPABASE_URL = "https://jmygqrqfzglbislftczz.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpteWdxcnFmemdsYmlzbGZ0Y3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NjEyMTIsImV4cCI6MjA3MDQzNzIxMn0.-SATJkWJNhgpGY8g1o_REhIy-xhaKWIN8_Yrxrzzd1A";
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
 function escapeHtml(str: string): string {
   return str
@@ -15,6 +15,11 @@ function escapeHtml(str: string): string {
 
 export default async function handler(req: any, res: any) {
   const { slug } = req.query;
+
+  // Validate slug format
+  if (!slug || typeof slug !== 'string' || !/^[a-zA-Z0-9-]+$/.test(slug)) {
+    return res.status(400).send('Invalid slug');
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -41,34 +46,29 @@ export default async function handler(req: any, res: any) {
         `View ${profile.name}'s phenotype classification on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}. Vote on physical characteristics and compare phenotypes.`
       );
       const shortDescription = escapeHtml(`View ${profile.name}'s phenotype profile on Phindex.`);
-      const image = profile.front_image_url;
+      const image = escapeHtml(profile.front_image_url || '');
       const url = `https://www.phenotypeindex.com/user-profile/${slug}`;
 
-      const ogTags = `
-  <title>${title}</title>
-  <meta name="description" content="${description}" />
-  <link rel="canonical" href="${url}" />
-  <meta property="og:type" content="profile" />
-  <meta property="og:title" content="${title}" />
-  <meta property="og:description" content="${description}" />
-  <meta property="og:image" content="${image}" />
-  <meta property="og:image:width" content="800" />
-  <meta property="og:image:height" content="800" />
-  <meta property="og:image:type" content="image/jpeg" />
-  <meta property="og:url" content="${url}" />
-  <meta property="og:site_name" content="Phindex - Phenotype Index" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:site" content="@phenotypeindex" />
-  <meta name="twitter:title" content="${shortTitle}" />
-  <meta name="twitter:description" content="${shortDescription}" />
-  <meta name="twitter:image" content="${image}" />`;
+      // Replace existing meta tags with profile-specific ones
+      html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+      html = html.replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${description}">`);
+      html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${url}" />`);
 
-      // Replace existing title and inject OG tags
-      html = html.replace(
-        /<title>.*?<\/title>/,
-        `<title>${title}</title>`
-      );
-      html = html.replace('</head>', `${ogTags}\n</head>`);
+      // Replace Open Graph tags
+      html = html.replace(/<meta property="og:type"[^>]*>/, `<meta property="og:type" content="profile" />`);
+      html = html.replace(/<meta property="og:url"[^>]*>/, `<meta property="og:url" content="${url}" />`);
+      html = html.replace(/<meta property="og:title"[^>]*>/, `<meta property="og:title" content="${title}">`);
+      html = html.replace(/<meta property="og:description"[^>]*>/, `<meta property="og:description" content="${description}">`);
+      html = html.replace(/<meta property="og:image"[^>]*>/, `<meta property="og:image" content="${image}">`);
+      html = html.replace(/<meta property="og:image:width"[^>]*>/, `<meta property="og:image:width" content="800" />`);
+      html = html.replace(/<meta property="og:image:height"[^>]*>/, `<meta property="og:image:height" content="800" />`);
+
+      // Replace Twitter tags
+      html = html.replace(/<meta name="twitter:card"[^>]*>/, `<meta name="twitter:card" content="summary" />`);
+      html = html.replace(/<meta name="twitter:url"[^>]*>/, `<meta name="twitter:url" content="${url}" />`);
+      html = html.replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${shortTitle}">`);
+      html = html.replace(/<meta name="twitter:description"[^>]*>/, `<meta name="twitter:description" content="${shortDescription}">`);
+      html = html.replace(/<meta name="twitter:image"[^>]*>/, `<meta name="twitter:image" content="${image}">`);
     }
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
