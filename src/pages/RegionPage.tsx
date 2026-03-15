@@ -23,11 +23,14 @@ import { EmptyState } from "@/components/EmptyState";
  * registered in the database.
  */
 
+const PROFILES_PER_PAGE = 12;
+
 const RegionPage = () => {
   const { region } = useParams<{ region: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Search for real profiles from database filtered by region based on geographic voting
   const { data: profiles, isLoading: profilesLoading, error: profilesError } = useGeographicRegionProfiles(region);
 
@@ -209,7 +212,7 @@ const RegionPage = () => {
                   />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {profiles.map((profile) => (
+                    {profiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
                       <Link
                         key={profile.id}
                         to={`/user-profile/${profile.slug}`}
@@ -278,6 +281,39 @@ const RegionPage = () => {
                         </Card>
                       </Link>
                     ))}
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {profiles && profiles.length > PROFILES_PER_PAGE && (
+                  <div className="flex items-center justify-center gap-2 mt-8">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => { setCurrentPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    >
+                      Previous
+                    </Button>
+                    {Array.from({ length: Math.ceil(profiles.length / PROFILES_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                      <Button
+                        key={page}
+                        variant={page === currentPage ? "default" : "outline"}
+                        size="sm"
+                        className="min-w-[36px]"
+                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === Math.ceil(profiles.length / PROFILES_PER_PAGE)}
+                      onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    >
+                      Next
+                    </Button>
                   </div>
                 )}
               </div>

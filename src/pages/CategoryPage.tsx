@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Users, Plus } from "lucide-react";
 import { Helmet } from "react-helmet-async";
@@ -53,10 +54,13 @@ const categoryNames: Record<string, string> = {
   "politics": "Politics"
 };
 
+const PROFILES_PER_PAGE = 12;
+
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const { profiles, profilesLoading } = useUserProfiles();
+  const [currentPage, setCurrentPage] = useState(1);
 
   const categoryName = category ? categoryNames[category] : "Unknown Category";
   const categoryDescription = category ? categoryDescriptions[category] : "Category not found";
@@ -195,8 +199,9 @@ export default function CategoryPage() {
                 ))}
               </div>
             ) : filteredProfiles.length > 0 ? (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProfiles.map((profile) => (
+                {filteredProfiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
                   <div
                     key={profile.id}
                     className="cursor-pointer transition-transform hover:scale-105 h-full"
@@ -227,6 +232,40 @@ export default function CategoryPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination */}
+              {filteredProfiles.length > PROFILES_PER_PAGE && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => { setCurrentPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    Previous
+                  </Button>
+                  {Array.from({ length: Math.ceil(filteredProfiles.length / PROFILES_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[36px]"
+                      onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === Math.ceil(filteredProfiles.length / PROFILES_PER_PAGE)}
+                    onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+              </>
             ) : (
               <EmptyState
                 icon={Plus}
