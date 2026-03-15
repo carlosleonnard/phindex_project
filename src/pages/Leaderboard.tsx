@@ -20,8 +20,11 @@ const rankIcon = (index: number) => {
   return <span className="text-xl font-bold text-muted-foreground w-7 text-center">{index + 1}</span>;
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function Leaderboard() {
   const [period, setPeriod] = useState<LeaderboardPeriod>("week");
+  const [currentPage, setCurrentPage] = useState(1);
   const { data: leaderboard, isLoading } = useLeaderboard(period);
 
   return (
@@ -38,7 +41,7 @@ export default function Leaderboard() {
               <h1 className="text-3xl font-bold text-foreground">Leaderboard</h1>
             </div>
             <p className="text-muted-foreground mb-6">
-              Top 10 players of the Guess the Origin game.
+              Top players of the Guess the Origin game.
             </p>
 
             {/* Period Tabs */}
@@ -49,7 +52,7 @@ export default function Leaderboard() {
                   variant={period === key ? "default" : "ghost"}
                   size="sm"
                   className="flex items-center gap-2"
-                  onClick={() => setPeriod(key)}
+                  onClick={() => { setPeriod(key); setCurrentPage(1); }}
                 >
                   {icon}
                   {label}
@@ -73,16 +76,19 @@ export default function Leaderboard() {
                 </CardContent>
               </Card>
             ) : (
+              <>
               <div className="space-y-3">
-                {leaderboard.map((entry, index) => (
+                {leaderboard.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((entry, index) => {
+                  const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
+                  return (
                   <Card
                     key={entry.userId}
                     className={`transition-all hover:shadow-md ${
-                      index === 0
+                      globalIndex === 0
                         ? "border-yellow-500/40 bg-yellow-500/5"
-                        : index === 1
+                        : globalIndex === 1
                         ? "border-gray-400/40 bg-gray-400/5"
-                        : index === 2
+                        : globalIndex === 2
                         ? "border-amber-600/40 bg-amber-600/5"
                         : "border-border bg-card"
                     }`}
@@ -91,7 +97,7 @@ export default function Leaderboard() {
                       <div className="flex items-center gap-4">
                         {/* Rank */}
                         <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                          {rankIcon(index)}
+                          {rankIcon(globalIndex)}
                         </div>
 
                         {/* Player */}
@@ -129,8 +135,43 @@ export default function Leaderboard() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
+
+              {/* Pagination */}
+              {leaderboard.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-center gap-2 mt-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => { setCurrentPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    Previous
+                  </Button>
+                  {Array.from({ length: Math.ceil(leaderboard.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                    <Button
+                      key={page}
+                      variant={page === currentPage ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-[36px]"
+                      onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === Math.ceil(leaderboard.length / ITEMS_PER_PAGE)}
+                    onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+              </>
             )}
 
           </div>
