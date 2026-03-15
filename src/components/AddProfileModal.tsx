@@ -202,11 +202,11 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
       {/* Guidelines Modal */}
       <Dialog open={showGuidelines} onOpenChange={setShowGuidelines}>
         {/* Only show trigger button on desktop (screens 1024px and larger) */}
-        {!isTabletOrMobile && (
+        {!isTabletOrMobile && !triggerExternal && !onTriggerExternalChange && (
           <DialogTrigger asChild>
-            <Button 
-              variant="default" 
-              size="sm" 
+            <Button
+              variant="default"
+              size="sm"
               className="bg-phindex-teal hover:bg-phindex-teal/90 px-4 py-2 h-9"
               onClick={handleTriggerClick}
             >
