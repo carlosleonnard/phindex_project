@@ -140,7 +140,7 @@ export default function UserProfileDetail() {
     "@type": "BreadcrumbList",
     "itemListElement": [
       { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
-      { "@type": "ListItem", "position": 2, "name": profile.category, "item": `https://www.phenotypeindex.com/category/${profile.category.toLowerCase().replace(/\s+/g, '-')}` },
+      { "@type": "ListItem", "position": 2, "name": profile.category, "item": `https://www.phenotypeindex.com/category/${profile.category === 'User Profiles' ? 'community' : profile.category.toLowerCase().replace(/\s+/g, '-')}` },
       { "@type": "ListItem", "position": 3, "name": profile.name, "item": profileUrl }
     ]
   };
@@ -182,7 +182,7 @@ export default function UserProfileDetail() {
               items={[
                 { 
                   label: profile.category, 
-                  href: `/category/${profile.category.toLowerCase().replace(/\s+/g, '-')}` 
+                  href: `/category/${profile.category === 'User Profiles' ? 'community' : profile.category.toLowerCase().replace(/\s+/g, '-')}`
                 },
                 { label: profile.name }
               ]}
