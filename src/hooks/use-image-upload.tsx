@@ -20,7 +20,7 @@ export const useImageUpload = () => {
 
     // Limit file size to 5MB
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('O arquivo deve ter no máximo 5MB.');
+      toast.error('File must be no larger than 5MB.');
       return null;
     }
 
@@ -56,7 +56,7 @@ export const useImageUpload = () => {
 
     } catch (error) {
       console.error('Unexpected error during upload:', error);
-      toast.error('Erro inesperado durante o upload.');
+      toast.error('Unexpected error during upload.');
       return null;
     } finally {
       setIsUploading(false);

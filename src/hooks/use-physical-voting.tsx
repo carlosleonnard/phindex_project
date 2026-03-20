@@ -20,40 +20,15 @@ interface PhysicalVotesResponse {
 }
 
 const fetchPhysicalVotes = async (profileId: string, userId?: string): Promise<PhysicalVotesResponse> => {
-  const params = new URLSearchParams({ profileId });
-  if (userId) {
-    params.append('userId', userId);
+  const { data, error } = await supabase.functions.invoke('physical-votes', {
+    body: { profileId, userId },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to fetch physical votes');
   }
 
-  try {
-    // Try using supabase.functions.invoke first
-    const { data, error } = await supabase.functions.invoke('physical-votes', {
-      body: { profileId, userId },
-    });
-
-    if (!error && data) {
-      return data;
-    }
-  } catch (invokeError) {
-    console.warn('Functions invoke failed, falling back to fetch:', invokeError);
-  }
-
-  // Fallback to direct URL call
-  const response = await fetch(
-    `https://jmygqrqfzglbislftczz.supabase.co/functions/v1/physical-votes?${params.toString()}`,
-    {
-      headers: {
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpteWdxcnFmemdsYmlzbGZ0Y3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NjEyMTIsImV4cCI6MjA3MDQzNzIxMn0.-SATJkWJNhgpGY8g1o_REhIy-xhaKWIN8_Yrxrzzd1A`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpteWdxcnFmemdsYmlzbGZ0Y3p6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NjEyMTIsImV4cCI6MjA3MDQzNzIxMn0.-SATJkWJNhgpGY8g1o_REhIy-xhaKWIN8_Yrxrzzd1A',
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  return response.json();
+  return data;
 };
 
 export const usePhysicalVoting = (profileId: string) => {

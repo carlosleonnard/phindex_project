@@ -25,11 +25,14 @@ import { EmptyState } from "@/components/EmptyState";
 
 const PROFILES_PER_PAGE = 12;
 
+type ProfileFilter = 'all' | 'famous' | 'user';
+
 const RegionPage = () => {
   const { region } = useParams<{ region: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
+  const [profileFilter, setProfileFilter] = useState<ProfileFilter>('all');
 
   // Search for real profiles from database filtered by region based on geographic voting
   const { data: profiles, isLoading: profilesLoading, error: profilesError } = useGeographicRegionProfiles(region);
@@ -100,6 +103,12 @@ const RegionPage = () => {
       </div>
     );
   }
+
+  const filteredRegionProfiles = profiles?.filter(p => {
+    if (profileFilter === 'all') return true;
+    if (profileFilter === 'user') return p.category === 'User Profiles';
+    return p.category !== 'User Profiles';
+  }) || [];
 
   const regionTitle = `${regionDisplayName} Phenotypes | Phindex - Phenotype Index`;
   const regionDescription = `Explore ${regionDisplayName} phenotypes and physical traits. Discover phenotype classifications from ${regionDisplayName}. Vote and compare physical characteristics.`;
@@ -186,17 +195,37 @@ const RegionPage = () => {
             {/* Display profiles if not loading */}
             {!profilesLoading && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <h2 className="text-2xl font-bold text-foreground">
                     {regionDisplayName} Profiles
                   </h2>
-                  <Badge variant="secondary" className="px-3 py-1">
-                    {profiles?.length || 0} profile{profiles?.length !== 1 ? 's' : ''}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={profileFilter === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setProfileFilter('all'); setCurrentPage(1); }}
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={profileFilter === 'famous' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setProfileFilter('famous'); setCurrentPage(1); }}
+                    >
+                      Famous People
+                    </Button>
+                    <Button
+                      variant={profileFilter === 'user' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => { setProfileFilter('user'); setCurrentPage(1); }}
+                    >
+                      User Profiles
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Check if there are profiles to display */}
-                {!profiles || profiles.length === 0 ? (
+                {!filteredRegionProfiles || filteredRegionProfiles.length === 0 ? (
                   <EmptyState
                     icon={Globe}
                     title="No profiles in this region yet"
@@ -212,7 +241,7 @@ const RegionPage = () => {
                   />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {profiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
+                    {filteredRegionProfiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
                       <Link
                         key={profile.id}
                         to={`/user-profile/${profile.slug}`}
@@ -285,7 +314,7 @@ const RegionPage = () => {
                 )}
 
                 {/* Pagination */}
-                {profiles && profiles.length > PROFILES_PER_PAGE && (
+                {filteredRegionProfiles.length > PROFILES_PER_PAGE && (
                   <div className="flex items-center justify-center gap-2 mt-8">
                     <Button
                       variant="outline"
@@ -295,7 +324,7 @@ const RegionPage = () => {
                     >
                       Previous
                     </Button>
-                    {Array.from({ length: Math.ceil(profiles.length / PROFILES_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                    {Array.from({ length: Math.ceil(filteredRegionProfiles.length / PROFILES_PER_PAGE) }, (_, i) => i + 1).map(page => (
                       <Button
                         key={page}
                         variant={page === currentPage ? "default" : "outline"}
@@ -309,7 +338,7 @@ const RegionPage = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={currentPage === Math.ceil(profiles.length / PROFILES_PER_PAGE)}
+                      disabled={currentPage === Math.ceil(filteredRegionProfiles.length / PROFILES_PER_PAGE)}
                       onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     >
                       Next
