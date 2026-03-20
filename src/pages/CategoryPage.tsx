@@ -56,11 +56,14 @@ const categoryNames: Record<string, string> = {
 
 const PROFILES_PER_PAGE = 12;
 
+type ProfileFilter = 'all' | 'famous' | 'user';
+
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const { profiles, profilesLoading } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
+  const [profileFilter, setProfileFilter] = useState<ProfileFilter>('all');
 
   const categoryName = category ? categoryNames[category] : "Unknown Category";
   const categoryDescription = category ? categoryDescriptions[category] : "Category not found";
@@ -79,10 +82,17 @@ export default function CategoryPage() {
   };
   
   // Filter profiles by category
-  const filteredProfiles = profiles?.filter(profile => {
+  const categoryProfiles = profiles?.filter(profile => {
     const dbCategoryName = categoryMapping[category || ""];
     return profile.category === dbCategoryName;
   }) || [];
+
+  // Apply user/famous filter
+  const filteredProfiles = categoryProfiles.filter(p => {
+    if (profileFilter === 'all') return true;
+    if (profileFilter === 'user') return p.category === 'User Profiles';
+    return p.category !== 'User Profiles';
+  });
 
   if (!category || !categoryNames[category]) {
     return (
@@ -182,6 +192,36 @@ export default function CategoryPage() {
                 </p>
               </CardContent>
             </Card>
+
+            {/* Filter Buttons */}
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+              <h2 className="text-xl font-semibold text-foreground">
+                Profiles
+              </h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={profileFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setProfileFilter('all'); setCurrentPage(1); }}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={profileFilter === 'famous' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setProfileFilter('famous'); setCurrentPage(1); }}
+                >
+                  Famous People
+                </Button>
+                <Button
+                  variant={profileFilter === 'user' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setProfileFilter('user'); setCurrentPage(1); }}
+                >
+                  User Profiles
+                </Button>
+              </div>
+            </div>
 
             {/* Profiles Grid */}
             {profilesLoading ? (

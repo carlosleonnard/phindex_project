@@ -1,4 +1,4 @@
 project_id = "jmygqrqfzglbislftczz"
 
 [functions.physical-votes]
-verify_jwt = false
+verify_jwt = true
