@@ -247,3 +247,21 @@
     object-fit: cover;
   }
 }
+
+/* Banner Animations */
+@keyframes bannerZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.08); }
+}
+
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+  25% { transform: translateY(-20px) translateX(5px); opacity: 0.6; }
+  50% { transform: translateY(-40px) translateX(-5px); opacity: 0.4; }
+  75% { transform: translateY(-60px) translateX(8px); opacity: 0.5; }
+}
+
+@keyframes fadeSlideIn {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}

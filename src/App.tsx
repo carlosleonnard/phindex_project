@@ -28,6 +28,7 @@ import Settings from "./pages/Settings"; // Página de configurações do usuár
 import Contact from "./pages/Contact"; // Página de contato
 import FAQ from "./pages/FAQ"; // Página de perguntas frequentes
 import Leaderboard from "./pages/Leaderboard"; // Página de leaderboard
+import GamePage from "./pages/GamePage"; // Página do jogo Origin Game
 import NotFound from "./pages/NotFound"; // Página 404 para rotas não encontradas
 
 /**
@@ -93,6 +94,9 @@ const App = () => (
           
           {/* ROTA ESTÁTICA: Leaderboard global */}
           <Route path="/leaderboard" element={<Leaderboard />} />
+
+          {/* ROTA ESTÁTICA: Página do Origin Game */}
+          <Route path="/game" element={<GamePage />} />
           
           {/* ROTA CATCH-ALL: Captura qualquer URL não definida acima e mostra 404 */}
           {/* IMPORTANTE: Esta deve sempre ser a última rota para funcionar corretamente */}

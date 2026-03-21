@@ -19,7 +19,7 @@ import { Header } from "@/components/Header"; // Cabeçalho fixo
 import { Footer } from "@/components/Footer"; // Rodapé
 import { AppSidebar } from "@/components/AppSidebar"; // Barra lateral de navegação
 import { AddProfileModal } from "@/components/AddProfileModal"; // Modal de criação de perfil
-import { WorldMapGame } from "@/components/WorldMapGame"; // Jogo de adivinhação de origem
+import { StatsBanner } from "@/components/StatsBanner"; // Banner de estatísticas
 // Hook customizado para gerenciar perfis de usuário
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 // Componentes de UI do sistema de design
@@ -37,47 +37,6 @@ const Index = () => {
   const { profiles: userProfiles, profilesByVotes } = useUserProfiles();
   const [showCelebrityModal, setShowCelebrityModal] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
-
-  // Mapeamento de códigos de países para códigos de 3 letras
-  const countryCodes: Record<string, string> = {
-    US: "USA",
-    BR: "BRA",
-    IN: "IND",
-    IL: "ISR",
-    ES: "ESP",
-    NG: "NGA",
-    FR: "FRA",
-    DE: "DEU",
-    IT: "ITA",
-    JP: "JPN",
-    CN: "CHN",
-    KR: "KOR",
-    MX: "MEX",
-    CA: "CAN",
-    AU: "AUS",
-    GB: "GBR",
-    RU: "RUS",
-    AR: "ARG",
-    EG: "EGY",
-    ZA: "ZAF",
-  };
-
-  const handleRegionClick = (region: string) => {
-    // Converter nome da região para URL slug
-    const regionSlug = region
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace("á", "a")
-      .replace("é", "e")
-      .replace("í", "i")
-      .replace("ó", "o")
-      .replace("ú", "u")
-      .replace("ã", "a")
-      .replace("õ", "o")
-      .replace("ç", "c");
-
-    navigate(`/region/${regionSlug}`);
-  };
 
   const websiteSchema = {
     "@context": "https://schema.org",
@@ -120,15 +79,8 @@ const Index = () => {
           {/* Sidebar */}
           <AppSidebar />
 
-          {/* Map Game */}
-          <div className="mb-8">
-            <WorldMapGame />
-          </div>
-
-          {/* Separator */}
-          <div className="px-6 mb-8">
-            <Separator className="bg-border" />
-          </div>
+          {/* Stats Banner */}
+          <StatsBanner />
 
           {/* Main Content */}
           <div className="bg-slate-100">
