@@ -25,14 +25,11 @@ import { EmptyState } from "@/components/EmptyState";
 
 const PROFILES_PER_PAGE = 12;
 
-type ProfileFilter = 'all' | 'famous' | 'user';
-
 const RegionPage = () => {
   const { region } = useParams<{ region: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState(1);
-  const [profileFilter, setProfileFilter] = useState<ProfileFilter>('all');
 
   // Search for real profiles from database filtered by region based on geographic voting
   const { data: profiles, isLoading: profilesLoading, error: profilesError } = useGeographicRegionProfiles(region);
@@ -104,11 +101,7 @@ const RegionPage = () => {
     );
   }
 
-  const filteredRegionProfiles = profiles?.filter(p => {
-    if (profileFilter === 'all') return true;
-    if (profileFilter === 'user') return p.category === 'User Profiles';
-    return p.category !== 'User Profiles';
-  }) || [];
+  const filteredRegionProfiles = profiles || [];
 
   const regionTitle = `${regionDisplayName} Phenotypes | Phindex - Phenotype Index`;
   const regionDescription = `Explore ${regionDisplayName} phenotypes and physical traits. Discover phenotype classifications from ${regionDisplayName}. Vote and compare physical characteristics.`;
@@ -195,34 +188,9 @@ const RegionPage = () => {
             {/* Display profiles if not loading */}
             {!profilesLoading && (
               <div className="space-y-6">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <h2 className="text-2xl font-bold text-foreground">
-                    {regionDisplayName} Profiles
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={profileFilter === 'all' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => { setProfileFilter('all'); setCurrentPage(1); }}
-                    >
-                      All
-                    </Button>
-                    <Button
-                      variant={profileFilter === 'famous' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => { setProfileFilter('famous'); setCurrentPage(1); }}
-                    >
-                      Famous People
-                    </Button>
-                    <Button
-                      variant={profileFilter === 'user' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => { setProfileFilter('user'); setCurrentPage(1); }}
-                    >
-                      User Profiles
-                    </Button>
-                  </div>
-                </div>
+                <h2 className="text-2xl font-bold text-foreground">
+                  {regionDisplayName} Profiles
+                </h2>
 
                 {/* Check if there are profiles to display */}
                 {!filteredRegionProfiles || filteredRegionProfiles.length === 0 ? (
