@@ -14,7 +14,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // React Query para gerenciamento de estado assíncrono e cache de dados da API
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Sistema de roteamento do React Router para navegação entre páginas
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Vercel Analytics para monitoramento de visitantes e page views
 import { Analytics } from "@vercel/analytics/react";
 // Importa todas as páginas da aplicação
@@ -73,9 +73,11 @@ const App = () => (
           
           {/* ROTA DINÂMICA: Página filtrada por região geográfica */}
           <Route path="/region/:region" element={<RegionPage />} />
-          
+          <Route path="/region" element={<Navigate to="/" replace />} />
+
           {/* ROTA DINÂMICA: Página filtrada por categoria de fenótipo */}
           <Route path="/category/:category" element={<CategoryPage />} />
+          <Route path="/category" element={<Navigate to="/" replace />} />
           
           {/* ROTA ESTÁTICA: Fluxo de fenótipos (funcionalidade em desenvolvimento) */}
           <Route path="/phenotype-flow" element={<PhenotypeFlowPage />} />
