@@ -51,6 +51,15 @@ const RegionPage = () => {
     "oceania": "Oceania"
   };
 
+  const regionImages: Record<string, string> = {
+    "africa": "/region-africa.png",
+    "americas": "/region-americas.png",
+    "asia": "/region-asia.png",
+    "europe": "/region-europe.png",
+    "middle-east": "/region-middle-east.png",
+    "oceania": "/region-oceania.png",
+  };
+
   // Get display name for current region
   const regionKey = region?.toLowerCase() || "";
   const regionDisplayName = regionNames[regionKey] || region;
@@ -166,16 +175,51 @@ const RegionPage = () => {
             </Button>
           </div>
 
+          {/* Region Banner */}
+          <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: 220 }}>
+            {/* Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-white" />
+
+            {/* Region image */}
+            {regionImages[regionKey] && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[90%] aspect-square">
+                <img
+                  src={regionImages[regionKey]}
+                  alt={`${regionDisplayName} globe`}
+                  className="w-full h-full object-contain opacity-80 animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
+                  style={{ filter: 'hue-rotate(54deg) saturate(1.3)' }}
+                />
+              </div>
+            )}
+
+            {/* Gradient overlay for text */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-100/95 via-slate-100/70 to-transparent" />
+
+            {/* Content */}
+            <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220, fontFamily: "'Vollkorn', serif" }}>
+              <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
+                {regionDisplayName.toUpperCase()}
+              </h1>
+              <h2 className="text-2xl md:text-3xl font-black text-primary leading-tight tracking-tight mb-3 animate-[fadeSlideIn_0.8s_ease-out_0.15s_both]">
+                PHENOTYPES
+              </h2>
+              <p className="text-slate-500 text-sm max-w-md animate-[fadeSlideIn_0.8s_ease-out_0.3s_both]">
+                Explore and classify phenotypes from {regionDisplayName}
+              </p>
+              <div className="flex items-center gap-3 mt-4 animate-[fadeSlideIn_0.8s_ease-out_0.45s_both]">
+                <div className="bg-white/60 backdrop-blur-md border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <div>
+                    <div className="text-lg font-bold text-slate-800 leading-none">{profiles?.length || 0}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Profiles</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Main Content */}
           <div>
-            <div className="mb-8">
-              {/* Back button has already been moved to fixed position at top */}
-              
-              <h1 className="text-3xl font-bold text-foreground mb-2">{regionDisplayName}</h1>
-              <p className="text-muted-foreground">
-                Explore {regionDisplayName} profiles
-              </p>
-            </div>
 
             {/* Display loading while loading profiles */}
             {profilesLoading && (

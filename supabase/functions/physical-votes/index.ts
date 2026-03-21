@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || 'https://www.phenotypeindex.com,https://phenotypeindex.com')
+const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || 'https://www.phenotypeindex.com,https://phenotypeindex.com,http://localhost:5173,http://localhost:8080,http://localhost:8081')
   .split(',')
   .map(o => o.trim());
 
