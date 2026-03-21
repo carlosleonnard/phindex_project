@@ -195,10 +195,10 @@ const Index = () => {
                                         </div>
                                       )}
                                     </div>
-                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs">
+                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs w-36 truncate" title={profile.name}>
                                       {profile.name}
                                     </h3>
-                                    <p className="text-xs text-muted-foreground text-center">{profile.category}</p>
+                                    <p className="text-xs text-muted-foreground text-center w-36 truncate">{profile.category}</p>
                                   </div>
                                 </div>
                               </div>
@@ -264,10 +264,10 @@ const Index = () => {
                                         {(profile as any).most_voted_phenotype || "—"}
                                       </div>
                                     </div>
-                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs">
+                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs w-36 truncate" title={profile.name}>
                                       {profile.name}
                                     </h3>
-                                    <p className="text-xs text-muted-foreground text-center">{profile.category}</p>
+                                    <p className="text-xs text-muted-foreground text-center w-36 truncate">{profile.category}</p>
                                   </div>
                                 </div>
                               </div>
