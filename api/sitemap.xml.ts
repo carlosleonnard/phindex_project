@@ -11,7 +11,7 @@ export default async function handler(req: any, res: any) {
 
     const { data: profiles } = await supabase
       .from('user_profiles')
-      .select('slug, updated_at')
+      .select('id, slug, updated_at, profile_type')
       .order('updated_at', { ascending: false })
       .limit(50000);
 
@@ -41,12 +41,24 @@ export default async function handler(req: any, res: any) {
       lastmod: today,
     }));
 
-    const profilePages = (profiles || []).map(p => ({
-      url: `${BASE_URL}/user-profile/${p.slug}`,
-      priority: '0.8',
-      changefreq: 'weekly',
-      lastmod: p.updated_at ? p.updated_at.split('T')[0] : today,
-    }));
+    const profilePages = (profiles || []).flatMap(p => {
+      const lastmod = p.updated_at ? p.updated_at.split('T')[0] : today;
+      const pages = [
+        {
+          url: `${BASE_URL}/user-profile/${p.slug}`,
+          priority: '0.8',
+          changefreq: 'weekly',
+          lastmod,
+        },
+        {
+          url: `${BASE_URL}/profile/${p.id}`,
+          priority: '0.8',
+          changefreq: 'weekly',
+          lastmod,
+        },
+      ];
+      return pages;
+    });
 
     const allPages = [...staticPages, ...regionPages, ...categoryPages, ...profilePages];
 

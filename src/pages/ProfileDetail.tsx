@@ -130,24 +130,54 @@ export default function ProfileDetail() {
     );
   }
 
-  const ogDescription = `View ${sanitizedProfile.name}'s phenotype profile on Phindex. Ancestry: ${sanitizedProfile.ancestry}. Country: ${sanitizedProfile.country}.`;
+  const profileUrl = `https://www.phenotypeindex.com/profile/${sanitizedProfile.id}`;
+  const ogImage = sanitizedProfile.front_image_url;
+  const ogTitle = `${sanitizedProfile.name} Phenotype Profile | Phindex - Phenotype Index`;
+  const ogDescription = `View ${sanitizedProfile.name}'s phenotype classification on Phindex. Ancestry: ${sanitizedProfile.ancestry}. Country: ${sanitizedProfile.country}. Vote on physical characteristics and compare phenotypes.`;
+  const ogKeywords = `${sanitizedProfile.name} phenotype, ${sanitizedProfile.name} ancestry, ${sanitizedProfile.name} physical traits, ${sanitizedProfile.country} phenotype, ${sanitizedProfile.name} classification`;
+
+  const personSchema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": sanitizedProfile.name,
+    "nationality": sanitizedProfile.country,
+    "image": ogImage,
+    "url": profileUrl,
+    "description": ogDescription
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", "position": 2, "name": sanitizedProfile.name, "item": profileUrl }
+    ]
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
       <Helmet>
-        <title>{sanitizedProfile.name} | Phindex - Phenotype Index</title>
+        <title>{ogTitle}</title>
         <meta name="description" content={ogDescription} />
-        <meta property="og:title" content={`${sanitizedProfile.name} | Phindex - Phenotype Index`} />
+        <meta name="keywords" content={ogKeywords} />
+        <link rel="canonical" href={profileUrl} />
+        <meta property="og:title" content={ogTitle} />
         <meta property="og:description" content={ogDescription} />
-        <meta property="og:image" content={sanitizedProfile.front_image_url} />
+        <meta property="og:image" content={ogImage} />
         <meta property="og:image:width" content="800" />
         <meta property="og:image:height" content="800" />
-        <meta property="og:url" content={`https://www.phenotypeindex.com/profile/${sanitizedProfile.id}`} />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:url" content={profileUrl} />
         <meta property="og:type" content="profile" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${sanitizedProfile.name} | Phindex - Phenotype Index`} />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content={`${sanitizedProfile.name} | Phindex`} />
         <meta name="twitter:description" content={ogDescription} />
-        <meta name="twitter:image" content={sanitizedProfile.front_image_url} />
+        <meta name="twitter:image" content={ogImage} />
+        <script type="application/ld+json">{JSON.stringify(personSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
       <Header />
       
