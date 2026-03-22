@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Plus } from "lucide-react";
+import { ArrowLeft, Users, Plus, User, Calendar } from "lucide-react";
 import { Helmet } from "react-helmet-async";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
-import { ProfileCard } from "@/components/ProfileCard";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { EmptyState } from "@/components/EmptyState";
@@ -52,6 +52,18 @@ const categoryNames: Record<string, string> = {
   "sports": "Sports",
   "business": "Business",
   "politics": "Politics"
+};
+
+const categoryImages: Record<string, string> = {
+  "community": "/category-community.svg",
+  "pop-culture": "/category-pop-culture.svg",
+  "music-and-entertainment": "/category-music-and-entertainment.svg",
+  "arts": "/category-arts.svg",
+  "philosophy": "/category-philosophy.svg",
+  "sciences": "/category-sciences.svg",
+  "sports": "/category-sports.svg",
+  "business": "/category-business.svg",
+  "politics": "/category-politics.svg"
 };
 
 const PROFILES_PER_PAGE = 12;
@@ -160,76 +172,132 @@ export default function CategoryPage() {
 
           {/* Main Content */}
           <div>
-            {/* Category Header */}
-            <Card className="bg-gradient-card border-phindex-teal/20 mb-8">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="bg-phindex-teal/10 text-phindex-teal text-lg px-4 py-2">
-                    {categoryName}
-                  </Badge>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>{filteredProfiles.length} profiles</span>
-                  </div>
+            {/* Category Banner */}
+            <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: 220 }}>
+              {/* Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-white" />
+
+              {/* Category image */}
+              {category && categoryImages[category] && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[90%] aspect-square">
+                  <img
+                    src={categoryImages[category]}
+                    alt={`${categoryName} icon`}
+                    className="w-full h-full object-contain opacity-80 animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
+                  />
                 </div>
-                <CardTitle className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                  Category: {categoryName}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
+              )}
+
+              {/* Gradient overlay for text */}
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-100/95 via-slate-100/70 to-transparent" />
+
+              {/* Content */}
+              <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220 }}>
+                <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
+                  {categoryName.toUpperCase()}
+                </h1>
+                <h2 className="text-2xl md:text-3xl font-black text-primary leading-tight tracking-tight mb-3 animate-[fadeSlideIn_0.8s_ease-out_0.15s_both]">
+                  PHENOTYPES
+                </h2>
+                <p className="text-slate-500 text-sm max-w-md animate-[fadeSlideIn_0.8s_ease-out_0.3s_both]">
                   {categoryDescription}
                 </p>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-3 mt-4 animate-[fadeSlideIn_0.8s_ease-out_0.45s_both]">
+                  <div className="bg-white/60 backdrop-blur-md border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="text-lg font-bold text-slate-800 leading-none">{filteredProfiles.length}</div>
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Profiles</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* Profiles Grid */}
             {profilesLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <Card key={index} className="bg-gradient-card border-phindex-teal/20">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <Card key={index} className="bg-gradient-card border-border/50 animate-pulse">
                     <CardContent className="p-4">
-                      <div className="animate-pulse">
-                        <div className="w-full h-48 bg-muted rounded-lg mb-4"></div>
-                        <div className="h-4 bg-muted rounded mb-2"></div>
-                        <div className="h-3 bg-muted rounded w-2/3"></div>
-                      </div>
+                      <div className="w-full h-48 bg-muted rounded-lg mb-4"></div>
+                      <div className="h-4 bg-muted rounded mb-2"></div>
+                      <div className="h-3 bg-muted rounded w-2/3"></div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
             ) : filteredProfiles.length > 0 ? (
               <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredProfiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
-                  <div
+                  <Link
                     key={profile.id}
-                    className="cursor-pointer transition-transform hover:scale-105 h-full"
-                    onClick={() => navigate(`/user-profile/${profile.slug}`)}
+                    to={`/user-profile/${profile.slug}`}
+                    className="group block"
                   >
-                    <Card className="bg-gradient-card border-phindex-teal/20 overflow-hidden h-full flex flex-col">
-                      <div className="relative h-64 flex-shrink-0">
-                         <img 
-                           src={profile.front_image_url} 
-                           alt={`${profile.name} phenotype profile photo`}
-                           loading="lazy"
-                           decoding="async"
-                           className="w-full h-full object-cover rounded-t-lg"
-                         />
-                        <div className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm rounded-full px-2 py-1">
-                          <span className="text-xs font-medium">{profile.country}</span>
+                    <Card className="bg-gradient-card border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg h-full">
+                      <CardContent className="p-4 h-full flex flex-col">
+                        <div className="relative overflow-hidden rounded-lg mb-4">
+                          <img
+                            src={profile.front_image_url}
+                            alt={`${profile.name} phenotype profile photo`}
+                            loading="lazy"
+                            decoding="async"
+                            className="profile-image-thumbnail rounded-lg transition-transform duration-300 group-hover:scale-105"
+                            onError={(e) => {
+                              e.currentTarget.src = '/placeholder.svg';
+                            }}
+                          />
+                          <div className="absolute top-2 right-2">
+                            <Badge
+                              variant={profile.is_anonymous ? "secondary" : "default"}
+                              className="text-xs"
+                            >
+                              {profile.is_anonymous ? "Anonymous" : "Famous"}
+                            </Badge>
+                          </div>
+                          {profile.most_voted_phenotype && (
+                            <div className="absolute top-10 right-2">
+                              <Badge variant="secondary" className="text-xs truncate max-w-[100px] bg-accent/50 text-accent-foreground">
+                                {profile.most_voted_phenotype}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <CardContent className="p-4 flex-grow flex flex-col">
-                        <h3 className="font-semibold text-foreground mb-1 truncate">{profile.name}</h3>
-                        <p className="text-sm text-muted-foreground mb-2 line-clamp-2 flex-grow">{profile.ancestry}</p>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto">
-                          <span>Height: {profile.height}m</span>
-                          <span>{profile.gender}</span>
+
+                        <div className="space-y-2 flex-1 flex flex-col">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-medium text-muted-foreground">
+                              {profile.country}
+                            </span>
+                          </div>
+
+                          <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                            {profile.name}
+                          </h3>
+
+                          <div className="flex items-center justify-between text-xs text-muted-foreground min-h-[20px]">
+                            <span className="flex items-center gap-1 flex-1 truncate">
+                              <span className="w-3 h-3 rounded-full bg-primary/20 flex-shrink-0"></span>
+                              <span className="truncate">{profile.ancestry}</span>
+                            </span>
+                            <span className="flex-shrink-0 ml-2">{profile.height}m</span>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-auto">
+                            <Badge variant="outline" className="text-xs truncate max-w-[120px]">
+                              {profile.category}
+                            </Badge>
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(profile.created_at).toLocaleDateString('en-US')}
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
-                  </div>
+                  </Link>
                 ))}
               </div>
 

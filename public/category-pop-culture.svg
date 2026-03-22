@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Television icon -->
+  <circle cx="100" cy="100" r="90" fill="#e0f2f1" opacity="0.5"/>
+  <!-- Antenna -->
+  <line x1="100" y1="50" x2="72" y2="22" stroke="#007a75" stroke-width="4" stroke-linecap="round"/>
+  <line x1="100" y1="50" x2="128" y2="22" stroke="#007a75" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="72" cy="22" r="4" fill="#009e97"/>
+  <circle cx="128" cy="22" r="4" fill="#009e97"/>
+  <!-- TV body -->
+  <rect x="35" y="50" width="130" height="95" rx="12" fill="#007a75" opacity="0.9"/>
+  <!-- Screen -->
+  <rect x="45" y="58" width="110" height="72" rx="6" fill="#009e97" opacity="0.7"/>
+  <rect x="50" y="62" width="100" height="64" rx="4" fill="#e0f2f1" opacity="0.3"/>
+  <!-- Screen glare -->
+  <path d="M55 66h30v8H55z" rx="2" fill="#e0f2f1" opacity="0.25"/>
+  <!-- Legs -->
+  <rect x="55" y="148" width="8" height="18" rx="3" fill="#005753"/>
+  <rect x="137" y="148" width="8" height="18" rx="3" fill="#005753"/>
+  <!-- Base bar -->
+  <rect x="50" y="164" width="22" height="5" rx="2" fill="#007a75" opacity="0.6"/>
+  <rect x="128" y="164" width="22" height="5" rx="2" fill="#007a75" opacity="0.6"/>
+</svg>

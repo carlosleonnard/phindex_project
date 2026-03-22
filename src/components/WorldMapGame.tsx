@@ -21,17 +21,18 @@ export const WorldMapGame = () => {
     gameEnded,
     isLoading,
     feedback,
-    correctRegion,
+    correctAnswer,
     difficulty,
     stats,
     isLoadingStats,
+    options,
     setDifficulty,
     checkAnswer,
     resetGame,
     skipProfile
   } = useMapGame();
 
-  const handleRegionClick = (region: string) => {
+  const handleOptionClick = (option: string) => {
     if (!user) {
       toast({
         title: "Login required",
@@ -41,7 +42,15 @@ export const WorldMapGame = () => {
       setShowLoginModal(true);
       return;
     }
-    checkAnswer(region);
+    checkAnswer(option);
+  };
+
+  const getDifficultyLabel = () => {
+    switch (difficulty) {
+      case 'easy': return 'Select the region where this person\'s phenotype is from';
+      case 'medium': return 'Select the general phenotype classification for this person';
+      case 'hard': return 'Select the specific phenotype classification for this person';
+    }
   };
 
   if (isLoading) {
@@ -57,7 +66,7 @@ export const WorldMapGame = () => {
 
   if (gameEnded) {
     const accuracy = totalProfiles > 0 ? Math.round((score / totalProfiles) * 100) : 0;
-    
+
     return (
       <Card className="p-8 bg-gradient-to-br from-primary/10 to-accent/5">
         <div className="text-center space-y-6">
@@ -70,7 +79,7 @@ export const WorldMapGame = () => {
               Accuracy: <span className="font-semibold text-foreground">{accuracy}%</span>
             </p>
           </div>
-          
+
           {stats && (
             <Card className="p-4 bg-background/50">
               <div className="flex items-center justify-center gap-2 mb-3">
@@ -95,7 +104,7 @@ export const WorldMapGame = () => {
               </div>
             </Card>
           )}
-          
+
           <div className="space-y-2">
             <p className="text-lg text-muted-foreground">
               {score === totalProfiles && "Perfect score! Amazing! 🎉"}
@@ -131,10 +140,10 @@ export const WorldMapGame = () => {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground mb-1">
-                Guess the Origin
+                Guess the {difficulty === 'easy' ? 'Region' : difficulty === 'medium' ? 'General Phenotype' : 'Specific Phenotype'}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Click on the region where this person's phenotype is from
+                {getDifficultyLabel()}
               </p>
               {!user && (
                 <div className="mt-2 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-lg">
@@ -177,7 +186,7 @@ export const WorldMapGame = () => {
           {/* Profile Image */}
           <div className="space-y-2">
             <Card className={`overflow-hidden transition-all duration-300 ${
-              feedback === 'correct' ? 'ring-4 ring-green-500' : 
+              feedback === 'correct' ? 'ring-4 ring-green-500' :
               feedback === 'wrong' ? 'ring-4 ring-red-500' : ''
             }`}>
               <img
@@ -191,70 +200,28 @@ export const WorldMapGame = () => {
                 feedback === 'correct' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {feedback === 'correct' ? '✓ Correct!' : '✗ Wrong!'}
-                {feedback === 'wrong' && correctRegion && (
+                {feedback === 'wrong' && correctAnswer && (
                   <div className="text-xs mt-1 text-muted-foreground">
-                    Correct answer: {correctRegion}
+                    Correct answer: {correctAnswer}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Region Buttons */}
+          {/* Option Buttons (always 6) */}
           <div className="flex flex-col gap-2 justify-center">
-            <Button
-              onClick={() => handleRegionClick('Europe')}
-              variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
-              disabled={feedback !== null}
-            >
-              Europe
-            </Button>
-            
-            <Button
-              onClick={() => handleRegionClick('Africa')}
-              variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
-              disabled={feedback !== null}
-            >
-              Africa
-            </Button>
-            
-            <Button
-              onClick={() => handleRegionClick('Middle East')}
-              variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
-              disabled={feedback !== null}
-            >
-              Middle East
-            </Button>
-            
-            <Button
-              onClick={() => handleRegionClick('Asia')}
-              variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
-              disabled={feedback !== null}
-            >
-              Asia
-            </Button>
-            
-            <Button
-              onClick={() => handleRegionClick('Americas')}
-              variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
-              disabled={feedback !== null}
-            >
-              Americas
-            </Button>
-            
-            <Button
-              onClick={() => handleRegionClick('Oceania')}
-              variant="outline"
-              className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
-              disabled={feedback !== null}
-            >
-              Oceania
-            </Button>
+            {options.map((option) => (
+              <Button
+                key={option}
+                onClick={() => handleOptionClick(option)}
+                variant="outline"
+                className="w-full justify-start text-left hover:bg-primary hover:text-primary-foreground transition-colors"
+                disabled={feedback !== null}
+              >
+                {option}
+              </Button>
+            ))}
 
             <Button
               onClick={skipProfile}
@@ -269,9 +236,9 @@ export const WorldMapGame = () => {
       </div>
 
       {/* Login Modal */}
-      <LoginModal 
-        open={showLoginModal} 
-        onOpenChange={setShowLoginModal} 
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
       />
     </Card>
   );

@@ -7,7 +7,8 @@ interface GameProfile {
   name: string;
   front_image_url: string;
   slug: string;
-  mostVotedPhenotype: string | null;
+  mostVotedGeographic: string | null;  // Primary Geographic (e.g. "Southern Europe")
+  mostVotedPhenotype: string | null;   // Primary Phenotype (e.g. "North Atlantid")
 }
 
 interface GameStats {
@@ -19,10 +20,11 @@ interface GameStats {
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
+// Maps general phenotype (geographic subregion) → region
 const REGION_MAPPING: Record<string, string[]> = {
   "Europe": [
     "Eastern Europe",
-    "Central Europe", 
+    "Central Europe",
     "Southern Europe",
     "Northern Europe"
   ],
@@ -33,7 +35,7 @@ const REGION_MAPPING: Record<string, string[]> = {
   ],
   "Middle East": [
     "Levant",
-    "Anatolia", 
+    "Anatolia",
     "Arabian Peninsula",
     "Persian Plateau"
   ],
@@ -55,6 +57,28 @@ const REGION_MAPPING: Record<string, string[]> = {
   ]
 };
 
+// All general phenotypes (geographic subregions) for medium mode
+const ALL_GENERAL_PHENOTYPES: string[] = Object.values(REGION_MAPPING).flat();
+
+// All specific phenotypes (main groups) for hard mode
+const ALL_SPECIFIC_PHENOTYPES: string[] = [
+  // Capoid
+  "Strandlooper", "Khoid", "Sandawe", "Sanid",
+  // Negroid
+  "Katangid", "Hadza", "Bantuid", "Bambutid", "Congolid", "Sudanid", "Nilotid",
+  // Caucasoid
+  "Ethiopid", "Orientalid", "Indid", "Indo Melanid", "Mediterranid", "Nordid",
+  "East Europid", "Lappid", "Alpinid", "Dinarid", "Armenoid", "Turanid",
+  // Australoid
+  "Veddid", "Negritid", "Australid", "Melanesid",
+  // Mongoloid
+  "Polynesid", "Ainuid", "South Mongolid", "Sinid", "Tungid", "Sibirid",
+  "Eskimid", "Pacificid", "Silvid", "Margid", "Centralid", "Amazonid",
+  "Lagid", "Patagonid", "Andid"
+];
+
+const REGIONS = ["Europe", "Africa", "Middle East", "Asia", "Americas", "Oceania"];
+
 export const useMapGame = () => {
   const [gameProfiles, setGameProfiles] = useState<GameProfile[]>([]);
   const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
@@ -62,10 +86,11 @@ export const useMapGame = () => {
   const [gameEnded, setGameEnded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
-  const [correctRegion, setCorrectRegion] = useState<string | null>(null);
+  const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [stats, setStats] = useState<GameStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [options, setOptions] = useState<string[]>([]);
   const { toast } = useToast();
 
   const getQuestionsCount = (diff: Difficulty): number => {
@@ -75,6 +100,51 @@ export const useMapGame = () => {
       case 'hard': return 10;
       default: return 5;
     }
+  };
+
+  // Get the region for a given geographic subregion
+  const getRegionForGeographic = (geographic: string): string | null => {
+    for (const [region, subregions] of Object.entries(REGION_MAPPING)) {
+      if (subregions.some(sub => sub.toLowerCase() === geographic.toLowerCase())) {
+        return region;
+      }
+    }
+    return null;
+  };
+
+  // Generate 6 options for the current profile based on difficulty
+  const generateOptions = (profile: GameProfile): string[] => {
+    let correctAnswer: string | null = null;
+    let pool: string[] = [];
+
+    if (difficulty === 'easy') {
+      // Easy: regions. Correct = region mapped from mostVotedGeographic
+      correctAnswer = profile.mostVotedGeographic
+        ? getRegionForGeographic(profile.mostVotedGeographic)
+        : null;
+      pool = REGIONS;
+    } else if (difficulty === 'medium') {
+      // Medium: general phenotypes (geographic subregions). Correct = mostVotedGeographic
+      correctAnswer = profile.mostVotedGeographic;
+      pool = ALL_GENERAL_PHENOTYPES;
+    } else {
+      // Hard: specific phenotypes. Correct = mostVotedPhenotype
+      correctAnswer = profile.mostVotedPhenotype;
+      pool = ALL_SPECIFIC_PHENOTYPES;
+    }
+
+    if (!correctAnswer) {
+      // No votes: return 6 random from pool
+      const shuffled = [...pool].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, 6);
+    }
+
+    // Build 6 options: correct answer + 5 random distractors
+    const distractors = pool.filter(o => o.toLowerCase() !== correctAnswer!.toLowerCase());
+    const shuffledDistractors = distractors.sort(() => 0.5 - Math.random()).slice(0, 5);
+    const finalOptions = [correctAnswer, ...shuffledDistractors];
+    // Shuffle the final options
+    return finalOptions.sort(() => 0.5 - Math.random());
   };
 
   const fetchUserStats = async () => {
@@ -94,16 +164,11 @@ export const useMapGame = () => {
         const totalGames = results.length;
         const totalCorrect = results.reduce((sum, r) => sum + r.score, 0);
         const totalQuestions = results.reduce((sum, r) => sum + r.total_questions, 0);
-        const accuracyPercentage = totalQuestions > 0 
-          ? Math.round((totalCorrect / totalQuestions) * 100) 
+        const accuracyPercentage = totalQuestions > 0
+          ? Math.round((totalCorrect / totalQuestions) * 100)
           : 0;
 
-        setStats({
-          totalGames,
-          totalCorrect,
-          totalQuestions,
-          accuracyPercentage
-        });
+        setStats({ totalGames, totalCorrect, totalQuestions, accuracyPercentage });
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -115,9 +180,9 @@ export const useMapGame = () => {
   const fetchRandomProfiles = async () => {
     try {
       setIsLoading(true);
-      
+
       const questionsCount = getQuestionsCount(difficulty);
-      
+
       // Fetch random profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
@@ -135,41 +200,78 @@ export const useMapGame = () => {
         return;
       }
 
-      // Get random profiles based on difficulty
-      const shuffled = profiles.sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.min(questionsCount, profiles.length));
-
-      // Fetch most voted primary geographic for each profile
-      const profilesWithVotes = await Promise.all(
-        selected.map(async (profile) => {
-          const { data: votes } = await supabase
+      // Fetch most voted Primary Geographic AND Primary Phenotype for ALL profiles
+      const allProfilesWithVotes = await Promise.all(
+        profiles.map(async (profile) => {
+          // Fetch Primary Geographic votes
+          const { data: geoVotes } = await supabase
             .from('votes')
             .select('classification')
             .eq('profile_id', profile.id)
             .eq('characteristic_type', 'Primary Geographic');
 
-          // Count votes for each classification
-          const voteCounts: Record<string, number> = {};
-          votes?.forEach((vote) => {
-            voteCounts[vote.classification] = (voteCounts[vote.classification] || 0) + 1;
+          const geoVoteCounts: Record<string, number> = {};
+          geoVotes?.forEach((vote) => {
+            geoVoteCounts[vote.classification] = (geoVoteCounts[vote.classification] || 0) + 1;
           });
+          const mostVotedGeo = Object.entries(geoVoteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
-          // Get most voted classification
-          const mostVoted = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+          // Fetch Primary Phenotype votes
+          const { data: phenoVotes } = await supabase
+            .from('votes')
+            .select('classification')
+            .eq('profile_id', profile.id)
+            .eq('characteristic_type', 'Primary Phenotype');
+
+          const phenoVoteCounts: Record<string, number> = {};
+          phenoVotes?.forEach((vote) => {
+            phenoVoteCounts[vote.classification] = (phenoVoteCounts[vote.classification] || 0) + 1;
+          });
+          const mostVotedPheno = Object.entries(phenoVoteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
           return {
             ...profile,
-            mostVotedPhenotype: mostVoted
+            mostVotedGeographic: mostVotedGeo,
+            mostVotedPhenotype: mostVotedPheno
           };
         })
       );
 
-      // Use all profiles, even without votes
-      setGameProfiles(profilesWithVotes);
+      // Filter: only profiles that have the required votes for the current difficulty
+      const eligibleProfiles = allProfilesWithVotes.filter(p => {
+        if (difficulty === 'easy' || difficulty === 'medium') {
+          return p.mostVotedGeographic !== null;
+        } else {
+          // Hard mode needs Primary Phenotype
+          return p.mostVotedPhenotype !== null;
+        }
+      });
+
+      if (eligibleProfiles.length === 0) {
+        toast({
+          title: "No eligible profiles",
+          description: "There are no profiles with enough votes to play.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Shuffle and pick the required number
+      const shuffled = eligibleProfiles.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, Math.min(questionsCount, eligibleProfiles.length));
+
+      setGameProfiles(selected);
       setCurrentProfileIndex(0);
       setScore(0);
       setGameEnded(false);
       setFeedback(null);
+      setCorrectAnswer(null);
+
+      // Generate options for first profile
+      if (profilesWithVotes.length > 0) {
+        setOptions(generateOptions(profilesWithVotes[0]));
+      }
     } catch (error) {
       console.error('Error fetching profiles:', error);
       toast({
@@ -182,57 +284,56 @@ export const useMapGame = () => {
     }
   };
 
+  // Update options when profile changes
+  useEffect(() => {
+    if (gameProfiles.length > 0 && currentProfileIndex < gameProfiles.length) {
+      setOptions(generateOptions(gameProfiles[currentProfileIndex]));
+    }
+  }, [currentProfileIndex, difficulty]);
+
   useEffect(() => {
     fetchRandomProfiles();
     fetchUserStats();
   }, [difficulty]);
 
-  const getCorrectRegion = (phenotype: string): string | null => {
-    for (const [region, subregions] of Object.entries(REGION_MAPPING)) {
-      if (subregions.some(sub => sub.toLowerCase() === phenotype.toLowerCase())) {
-        return region;
-      }
+  const getCorrectAnswerForProfile = (profile: GameProfile): string | null => {
+    if (difficulty === 'easy') {
+      return profile.mostVotedGeographic
+        ? getRegionForGeographic(profile.mostVotedGeographic)
+        : null;
+    } else if (difficulty === 'medium') {
+      return profile.mostVotedGeographic;
+    } else {
+      return profile.mostVotedPhenotype;
     }
-    return null;
   };
 
-  const checkAnswer = (selectedRegion: string) => {
-    if (feedback !== null || gameEnded) return; // Prevent multiple clicks
+  const checkAnswer = (selected: string) => {
+    if (feedback !== null || gameEnded) return;
 
     const currentProfile = gameProfiles[currentProfileIndex];
     if (!currentProfile) return;
 
-    // If profile has no votes, accept any answer as correct
-    if (!currentProfile.mostVotedPhenotype) {
-      setFeedback('correct');
-      setCorrectRegion(null);
-      setScore(score + 1);
+    const correct = getCorrectAnswerForProfile(currentProfile);
+
+    const isCorrect = correct ? selected.toLowerCase() === correct.toLowerCase() : false;
+    setFeedback(isCorrect ? 'correct' : 'wrong');
+
+    if (!isCorrect && correct) {
+      setCorrectAnswer(correct);
     } else {
-      // Check if the selected region contains the profile's phenotype
-      const subregions = REGION_MAPPING[selectedRegion] || [];
-      const isCorrect = subregions.some(subregion => 
-        subregion.toLowerCase() === currentProfile.mostVotedPhenotype?.toLowerCase()
-      );
+      setCorrectAnswer(null);
+    }
 
-      setFeedback(isCorrect ? 'correct' : 'wrong');
-      
-      // Store the correct region if wrong
-      if (!isCorrect) {
-        setCorrectRegion(getCorrectRegion(currentProfile.mostVotedPhenotype));
-      } else {
-        setCorrectRegion(null);
-      }
-
-      if (isCorrect) {
-        setScore(score + 1);
-      }
+    if (isCorrect) {
+      setScore(score + 1);
     }
 
     // Move to next profile after delay
     setTimeout(() => {
       setFeedback(null);
-      setCorrectRegion(null);
-      
+      setCorrectAnswer(null);
+
       if (currentProfileIndex + 1 >= gameProfiles.length) {
         setGameEnded(true);
       } else {
@@ -256,8 +357,6 @@ export const useMapGame = () => {
         });
 
       if (error) throw error;
-      
-      // Refresh stats after saving
       await fetchUserStats();
     } catch (error) {
       console.error('Error saving game result:', error);
@@ -278,10 +377,10 @@ export const useMapGame = () => {
 
   const skipProfile = () => {
     if (feedback !== null || gameEnded) return;
-    
+
     setFeedback(null);
-    setCorrectRegion(null);
-    
+    setCorrectAnswer(null);
+
     if (currentProfileIndex + 1 >= gameProfiles.length) {
       setGameEnded(true);
     } else {
@@ -304,10 +403,11 @@ export const useMapGame = () => {
     gameEnded,
     isLoading,
     feedback,
-    correctRegion,
+    correctAnswer,
     difficulty,
     stats,
     isLoadingStats,
+    options,
     setDifficulty,
     checkAnswer,
     resetGame,

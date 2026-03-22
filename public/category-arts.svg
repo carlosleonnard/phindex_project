@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Theater masks (comedy/tragedy) -->
+  <circle cx="100" cy="100" r="90" fill="#e0f2f1" opacity="0.5"/>
+  <!-- Happy mask -->
+  <path d="M45 55c0-8 6-14 14-14h42c8 0 14 6 14 14v35c0 22-15.7 40-35 40S45 112 45 90V55z" fill="#009e97" opacity="0.85"/>
+  <circle cx="70" cy="72" r="6" fill="#e0f2f1"/>
+  <circle cx="96" cy="72" r="6" fill="#e0f2f1"/>
+  <path d="M66 92c0 0 8 16 17 16s17-16 17-16" stroke="#e0f2f1" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Sad mask (overlapping, offset) -->
+  <path d="M90 75c0-8 6-14 14-14h42c8 0 14 6 14 14v35c0 22-15.7 40-35 40S90 132 90 110V75z" fill="#007a75" opacity="0.85"/>
+  <circle cx="115" cy="92" r="6" fill="#e0f2f1"/>
+  <circle cx="141" cy="92" r="6" fill="#e0f2f1"/>
+  <path d="M112 118c0 0 8-14 16-14s16 14 16 14" stroke="#e0f2f1" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>
