@@ -65,7 +65,7 @@ export const StatsBanner = () => {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 p-8 md:p-10 flex flex-col justify-center" style={{ minHeight: 340, fontFamily: "'Vollkorn', serif" }}>
+        <div className="relative z-10 p-8 md:p-10 flex flex-col justify-center" style={{ minHeight: 340 }}>
           {/* Title with fade-in */}
           <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
             DISCOVER
@@ -108,14 +108,14 @@ export const StatsBanner = () => {
               >
                 <item.icon className="h-5 w-5 text-primary" />
                 <div>
-                  <div className="text-xl font-bold text-slate-800 leading-none" style={{ fontFamily: "system-ui, sans-serif" }}>
+                  <div className="text-xl font-bold text-slate-800 leading-none">
                     {isLoading ? (
                       <span className="inline-block w-10 h-5 bg-slate-200 rounded animate-pulse" />
                     ) : (
                       <AnimatedCounter value={item.value} />
                     )}
                   </div>
-                  <div className="text-[10px] text-slate-500 uppercase tracking-wider" style={{ fontFamily: "system-ui, sans-serif" }}>{item.label}</div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">{item.label}</div>
                 </div>
               </div>
             ))}

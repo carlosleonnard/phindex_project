@@ -196,7 +196,7 @@ const RegionPage = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-slate-100/95 via-slate-100/70 to-transparent" />
 
             {/* Content */}
-            <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220, fontFamily: "'Vollkorn', serif" }}>
+            <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220 }}>
               <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
                 {regionDisplayName.toUpperCase()}
               </h1>

@@ -10,6 +10,11 @@ export default {
 	],
 	prefix: "",
 	theme: {
+		fontFamily: {
+			sans: ["'Vollkorn'", 'serif'],
+			serif: ["'Vollkorn'", 'serif'],
+			mono: ["'Vollkorn'", 'serif'],
+		},
 		container: {
 			center: true,
 			padding: '2rem',
