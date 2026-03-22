@@ -200,49 +200,52 @@ export const useMapGame = () => {
         return;
       }
 
-      // Fetch most voted Primary Geographic AND Primary Phenotype for ALL profiles
-      const allProfilesWithVotes = await Promise.all(
-        profiles.map(async (profile) => {
-          // Fetch Primary Geographic votes
-          const { data: geoVotes } = await supabase
-            .from('votes')
-            .select('classification')
-            .eq('profile_id', profile.id)
-            .eq('characteristic_type', 'Primary Geographic');
+      const profileIds = profiles.map(p => p.id);
 
-          const geoVoteCounts: Record<string, number> = {};
-          geoVotes?.forEach((vote) => {
-            geoVoteCounts[vote.classification] = (geoVoteCounts[vote.classification] || 0) + 1;
-          });
-          const mostVotedGeo = Object.entries(geoVoteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      // Fetch ALL geographic and phenotype votes in 2 bulk queries
+      const { data: geoVotes } = await supabase
+        .from('votes')
+        .select('profile_id, classification')
+        .in('profile_id', profileIds)
+        .eq('characteristic_type', 'Primary Geographic');
 
-          // Fetch Primary Phenotype votes
-          const { data: phenoVotes } = await supabase
-            .from('votes')
-            .select('classification')
-            .eq('profile_id', profile.id)
-            .eq('characteristic_type', 'Primary Phenotype');
+      const { data: phenoVotes } = await supabase
+        .from('votes')
+        .select('profile_id, classification')
+        .in('profile_id', profileIds)
+        .eq('characteristic_type', 'Primary Phenotype');
 
-          const phenoVoteCounts: Record<string, number> = {};
-          phenoVotes?.forEach((vote) => {
-            phenoVoteCounts[vote.classification] = (phenoVoteCounts[vote.classification] || 0) + 1;
-          });
-          const mostVotedPheno = Object.entries(phenoVoteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      // Aggregate votes per profile
+      const geoByProfile: Record<string, Record<string, number>> = {};
+      geoVotes?.forEach(v => {
+        if (!geoByProfile[v.profile_id]) geoByProfile[v.profile_id] = {};
+        geoByProfile[v.profile_id][v.classification] = (geoByProfile[v.profile_id][v.classification] || 0) + 1;
+      });
 
-          return {
-            ...profile,
-            mostVotedGeographic: mostVotedGeo,
-            mostVotedPhenotype: mostVotedPheno
-          };
-        })
-      );
+      const phenoByProfile: Record<string, Record<string, number>> = {};
+      phenoVotes?.forEach(v => {
+        if (!phenoByProfile[v.profile_id]) phenoByProfile[v.profile_id] = {};
+        phenoByProfile[v.profile_id][v.classification] = (phenoByProfile[v.profile_id][v.classification] || 0) + 1;
+      });
+
+      const getMostVoted = (counts: Record<string, number> | undefined): string | null => {
+        if (!counts) return null;
+        const entries = Object.entries(counts);
+        if (entries.length === 0) return null;
+        return entries.sort((a, b) => b[1] - a[1])[0][0];
+      };
+
+      const allProfilesWithVotes = profiles.map(profile => ({
+        ...profile,
+        mostVotedGeographic: getMostVoted(geoByProfile[profile.id]),
+        mostVotedPhenotype: getMostVoted(phenoByProfile[profile.id])
+      }));
 
       // Filter: only profiles that have the required votes for the current difficulty
       const eligibleProfiles = allProfilesWithVotes.filter(p => {
         if (difficulty === 'easy' || difficulty === 'medium') {
           return p.mostVotedGeographic !== null;
         } else {
-          // Hard mode needs Primary Phenotype
           return p.mostVotedPhenotype !== null;
         }
       });
