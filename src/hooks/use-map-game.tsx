@@ -203,17 +203,27 @@ export const useMapGame = () => {
       const profileIds = profiles.map(p => p.id);
 
       // Fetch ALL geographic and phenotype votes in 2 bulk queries
-      const { data: geoVotes } = await supabase
+      const { data: geoVotes, error: geoError } = await supabase
         .from('votes')
         .select('profile_id, classification')
         .in('profile_id', profileIds)
-        .eq('characteristic_type', 'Primary Geographic');
+        .eq('characteristic_type', 'Primary Geographic')
+        .limit(5000);
 
-      const { data: phenoVotes } = await supabase
+      if (geoError) {
+        console.error('Error fetching geographic votes:', geoError);
+      }
+
+      const { data: phenoVotes, error: phenoError } = await supabase
         .from('votes')
         .select('profile_id, classification')
         .in('profile_id', profileIds)
-        .eq('characteristic_type', 'Primary Phenotype');
+        .eq('characteristic_type', 'Primary Phenotype')
+        .limit(5000);
+
+      if (phenoError) {
+        console.error('Error fetching phenotype votes:', phenoError);
+      }
 
       // Aggregate votes per profile
       const geoByProfile: Record<string, Record<string, number>> = {};
@@ -272,8 +282,8 @@ export const useMapGame = () => {
       setCorrectAnswer(null);
 
       // Generate options for first profile
-      if (profilesWithVotes.length > 0) {
-        setOptions(generateOptions(profilesWithVotes[0]));
+      if (selected.length > 0) {
+        setOptions(generateOptions(selected[0]));
       }
     } catch (error) {
       console.error('Error fetching profiles:', error);
