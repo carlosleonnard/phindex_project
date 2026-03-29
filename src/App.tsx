@@ -17,6 +17,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Vercel Analytics para monitoramento de visitantes e page views
 import { Analytics } from "@vercel/analytics/react";
+// Vercel Speed Insights para monitoramento de performance
+import { SpeedInsights } from "@vercel/speed-insights/react";
 // Importa todas as páginas da aplicação
 import Index from "./pages/Index"; // Página inicial com lista de perfis
 import ProfileDetail from "./pages/ProfileDetail"; // Página de detalhes de um perfil específico
@@ -59,6 +61,8 @@ const App = () => (
       <Sonner />
       {/* Vercel Analytics para monitoramento de page views e visitantes */}
       <Analytics />
+      {/* Vercel Speed Insights para monitoramento de performance */}
+      <SpeedInsights />
       {/* Router principal - habilita navegação entre páginas */}
       <BrowserRouter>
         {/* Container de todas as rotas da aplicação */}
