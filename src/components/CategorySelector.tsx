@@ -9,7 +9,10 @@ const CATEGORY_OPTIONS = [
   "Sciences",
   "Sports",
   "Business",
-  "Politics"
+  "Politics",
+  "Criminals",
+  "Religion",
+  "Military"
 ];
 
 interface CategorySelectorProps {

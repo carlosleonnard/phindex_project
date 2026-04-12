@@ -521,6 +521,9 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUs
                 <option value="Sports">Sports</option>
                 <option value="Business">Business</option>
                 <option value="Politics">Politics</option>
+                <option value="Criminals">Criminals</option>
+                <option value="Religion">Religion</option>
+                <option value="Military">Military</option>
               </select>
             </div>
           </div>
