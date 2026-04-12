@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Plus, User, Calendar } from "lucide-react";
+import { ArrowLeft, Users, Plus, User, Calendar, Filter } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,6 +82,9 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { profiles, profilesLoading } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
+  const [subcategoryFilter, setSubcategoryFilter] = useState('');
+  const [phenotypeFilter, setPhenotypeFilter] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
 
   const categoryName = category ? categoryNames[category] : "Unknown Category";
   const categoryDescription = category ? categoryDescriptions[category] : "Category not found";
@@ -103,10 +106,47 @@ export default function CategoryPage() {
   };
 
   // Filter profiles by category
-  const filteredProfiles = profiles?.filter(profile => {
+  const categoryProfiles = profiles?.filter(profile => {
     const dbCategoryName = categoryMapping[category || ""];
     return profile.category === dbCategoryName;
   }) || [];
+
+  // Extract unique values for filter dropdowns
+  const subcategories = useMemo(() => {
+    const subs = new Set<string>();
+    categoryProfiles.forEach(p => {
+      if (p.is_anonymous) subs.add('User Profiles');
+      else subs.add('Famous');
+    });
+    return Array.from(subs).sort();
+  }, [categoryProfiles]);
+
+  const phenotypes = useMemo(() => {
+    const phenos = new Set<string>();
+    categoryProfiles.forEach(p => {
+      if (p.most_voted_phenotype) phenos.add(p.most_voted_phenotype);
+    });
+    return Array.from(phenos).sort();
+  }, [categoryProfiles]);
+
+  const regions = useMemo(() => {
+    const regs = new Set<string>();
+    categoryProfiles.forEach(p => {
+      if (p.country) regs.add(p.country);
+    });
+    return Array.from(regs).sort();
+  }, [categoryProfiles]);
+
+  // Apply additional filters
+  const filteredProfiles = categoryProfiles.filter(profile => {
+    if (subcategoryFilter) {
+      if (subcategoryFilter === 'User Profiles' && !profile.is_anonymous) return false;
+      if (subcategoryFilter === 'Famous' && profile.is_anonymous) return false;
+    }
+    if (phenotypeFilter && profile.most_voted_phenotype !== phenotypeFilter) return false;
+    if (regionFilter && profile.country !== regionFilter) return false;
+    return true;
+  });
 
   if (!category || !categoryNames[category]) {
     return (
@@ -225,6 +265,57 @@ export default function CategoryPage() {
                 </div>
               </div>
             </div>
+
+            {/* Filters */}
+            <Card className="mb-8 bg-card/95 backdrop-blur-sm border-border/50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Filter className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold text-foreground">Filters</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
+                    <select
+                      value={subcategoryFilter}
+                      onChange={(e) => { setSubcategoryFilter(e.target.value); setCurrentPage(1); }}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">All subcategories</option>
+                      {subcategories.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Specific Phenotype</label>
+                    <select
+                      value={phenotypeFilter}
+                      onChange={(e) => { setPhenotypeFilter(e.target.value); setCurrentPage(1); }}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">All phenotypes</option>
+                      {phenotypes.map(ph => (
+                        <option key={ph} value={ph}>{ph}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Region</label>
+                    <select
+                      value={regionFilter}
+                      onChange={(e) => { setRegionFilter(e.target.value); setCurrentPage(1); }}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">All regions</option>
+                      {regions.map(reg => (
+                        <option key={reg} value={reg}>{reg}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Profiles Grid */}
             {profilesLoading ? (
