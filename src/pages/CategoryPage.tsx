@@ -82,7 +82,6 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { profiles, profilesLoading } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
-  const [subcategoryFilter, setSubcategoryFilter] = useState('');
   const [phenotypeFilter, setPhenotypeFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
 
@@ -112,15 +111,6 @@ export default function CategoryPage() {
   }) || [];
 
   // Extract unique values for filter dropdowns
-  const subcategories = useMemo(() => {
-    const subs = new Set<string>();
-    categoryProfiles.forEach(p => {
-      if (p.is_anonymous) subs.add('User Profiles');
-      else subs.add('Famous');
-    });
-    return Array.from(subs).sort();
-  }, [categoryProfiles]);
-
   const phenotypes = useMemo(() => {
     const phenos = new Set<string>();
     categoryProfiles.forEach(p => {
@@ -139,10 +129,6 @@ export default function CategoryPage() {
 
   // Apply additional filters
   const filteredProfiles = categoryProfiles.filter(profile => {
-    if (subcategoryFilter) {
-      if (subcategoryFilter === 'User Profiles' && !profile.is_anonymous) return false;
-      if (subcategoryFilter === 'Famous' && profile.is_anonymous) return false;
-    }
     if (phenotypeFilter && profile.most_voted_phenotype !== phenotypeFilter) return false;
     if (regionFilter && profile.country !== regionFilter) return false;
     return true;
@@ -273,20 +259,7 @@ export default function CategoryPage() {
                   <Filter className="h-4 w-4 text-primary" />
                   <h3 className="font-semibold text-foreground">Filters</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
-                    <select
-                      value={subcategoryFilter}
-                      onChange={(e) => { setSubcategoryFilter(e.target.value); setCurrentPage(1); }}
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      <option value="">All subcategories</option>
-                      {subcategories.map(sub => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Specific Phenotype</label>
                     <select
