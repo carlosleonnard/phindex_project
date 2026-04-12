@@ -14,11 +14,11 @@ function escapeHtml(str: string): string {
 }
 
 export default async function handler(req: any, res: any) {
-  const { slug } = req.query;
+  const { id } = req.query;
 
-  // Validate slug format
-  if (!slug || typeof slug !== 'string' || !/^[a-zA-Z0-9-]+$/.test(slug)) {
-    return res.status(400).send('Invalid slug');
+  // Validate id format (UUID)
+  if (!id || typeof id !== 'string' || !/^[a-f0-9-]+$/i.test(id)) {
+    return res.status(400).send('Invalid id');
   }
 
   try {
@@ -26,8 +26,8 @@ export default async function handler(req: any, res: any) {
 
     const { data: profile } = await supabase
       .from('user_profiles')
-      .select('name, front_image_url, ancestry, country, gender, slug')
-      .eq('slug', slug as string)
+      .select('id, name, front_image_url, ancestry, country, gender, slug')
+      .eq('id', id as string)
       .single();
 
     // Read the built index.html
@@ -35,7 +35,6 @@ export default async function handler(req: any, res: any) {
     try {
       html = readFileSync(join(process.cwd(), 'dist', 'index.html'), 'utf-8');
     } catch {
-      // Fallback for development
       html = readFileSync(join(process.cwd(), 'index.html'), 'utf-8');
     }
 
@@ -47,7 +46,7 @@ export default async function handler(req: any, res: any) {
       );
       const shortDescription = escapeHtml(`View ${profile.name}'s phenotype profile on Phindex.`);
       const image = escapeHtml(profile.front_image_url || '');
-      const url = `https://www.phenotypeindex.com/user-profile/${slug}`;
+      const url = `https://www.phenotypeindex.com/profile/${profile.id}`;
       const keywords = escapeHtml(
         `${profile.name} phenotype, ${profile.name} ancestry, ${profile.name} physical traits, ${profile.country} phenotype, ${profile.name} classification, phenotype index`
       );
@@ -68,7 +67,7 @@ export default async function handler(req: any, res: any) {
       html = html.replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${description}">`);
       html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${url}" />`);
 
-      // Add keywords meta tag
+      // Add keywords meta tag before canonical
       html = html.replace(/<link rel="canonical"/, `<meta name="keywords" content="${keywords}" />\n    <link rel="canonical"`);
 
       // Replace Open Graph tags
@@ -81,7 +80,7 @@ export default async function handler(req: any, res: any) {
       html = html.replace(/<meta property="og:image:height"[^>]*>/, `<meta property="og:image:height" content="800" />`);
 
       // Replace Twitter tags
-      html = html.replace(/<meta name="twitter:card"[^>]*>/, `<meta name="twitter:card" content="summary" />`);
+      html = html.replace(/<meta name="twitter:card"[^>]*>/, `<meta name="twitter:card" content="summary_large_image" />`);
       html = html.replace(/<meta name="twitter:url"[^>]*>/, `<meta name="twitter:url" content="${url}" />`);
       html = html.replace(/<meta name="twitter:title"[^>]*>/, `<meta name="twitter:title" content="${shortTitle}">`);
       html = html.replace(/<meta name="twitter:description"[^>]*>/, `<meta name="twitter:description" content="${shortDescription}">`);
@@ -96,7 +95,6 @@ export default async function handler(req: any, res: any) {
     return res.status(200).send(html);
   } catch (error) {
     console.error('OG preview error:', error);
-    // Fallback: serve plain index.html
     try {
       const html = readFileSync(join(process.cwd(), 'dist', 'index.html'), 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
