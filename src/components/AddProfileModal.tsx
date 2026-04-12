@@ -10,6 +10,7 @@ import { CountrySelector } from "@/components/CountrySelector";
 import { CountrySearchSelector } from "@/components/CountrySearchSelector";
 import { GenderSelector } from "@/components/GenderSelector";
 import { CategorySelector } from "@/components/CategorySelector";
+import { SUBCATEGORIES_BY_CATEGORY } from "@/constants/subcategories";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 import { useAuth } from "@/hooks/use-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
@@ -34,6 +35,7 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
     country: "",
     gender: "",
     category: initialIsAnonymous === true ? "User Profiles" : "",
+    subcategory: "",
     height: "",
     ancestry: [] as string[], // Changed to array of countries
     frontImageUrl: "",
@@ -74,10 +76,11 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
 
   const handleAnonymousChange = (value: string) => {
     const isAnonymous = value === "yes";
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       isAnonymous: isAnonymous,
-      category: isAnonymous ? "User Profiles" : ""
+      category: isAnonymous ? "User Profiles" : "",
+      subcategory: ""
     }));
   };
 
@@ -116,7 +119,8 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
           ancestry: formData.ancestry.join(', '), // Convert array to string
           frontImageUrl: formData.frontImageUrl,
           profileImageUrl: formData.profileImageUrl,
-          isAnonymous: formData.isAnonymous
+          isAnonymous: formData.isAnonymous,
+          subcategory: formData.subcategory || null
         });
 
         // Create complete profile record with all form data
@@ -132,6 +136,7 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
             height: parseFloat(formData.height),
             ancestry: formData.ancestry.join(', '), // Convert array to string
             is_anonymous: formData.isAnonymous,
+            subcategory: formData.subcategory || null,
             front_image_url: formData.frontImageUrl,
             profile_image_url: formData.profileImageUrl || null,
             description: formData.ancestry.join(', ') // Convert array to string
@@ -142,7 +147,7 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
         }
 
         // Reset form and close modal
-        setFormData({ name: "", country: "", gender: "", category: "", height: "", ancestry: [], frontImageUrl: "", profileImageUrl: "", isAnonymous: null });
+        setFormData({ name: "", country: "", gender: "", category: "", subcategory: "", height: "", ancestry: [], frontImageUrl: "", profileImageUrl: "", isAnonymous: null });
         setOpen(false);
         
         // Navigate to the new profile page
@@ -463,7 +468,7 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
                 <Label htmlFor="category">Category *</Label>
                 <CategorySelector
                   selectedCategory={formData.category}
-                  onCategoryChange={(category) => setFormData(prev => ({ ...prev, category }))}
+                  onCategoryChange={(category) => setFormData(prev => ({ ...prev, category, subcategory: "" }))}
                   placeholder="Search and select category"
                   disabled={formData.isAnonymous === true}
                   isAnonymous={formData.isAnonymous === true}
@@ -471,6 +476,23 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
                 />
               </div>
             </div>
+
+            {SUBCATEGORIES_BY_CATEGORY[formData.category] && (
+              <div className="space-y-2">
+                <Label htmlFor="subcategory">Subcategory</Label>
+                <select
+                  id="subcategory"
+                  value={formData.subcategory}
+                  onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <option value="">All subcategories</option>
+                  {SUBCATEGORIES_BY_CATEGORY[formData.category].map((sub) => (
+                    <option key={sub} value={sub}>{sub}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="ancestry">Known Ancestry *</Label>

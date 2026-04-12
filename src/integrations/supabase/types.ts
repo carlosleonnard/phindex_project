@@ -130,6 +130,7 @@ export type Database = {
           specific_phenotype_primary: string | null
           specific_phenotype_secondary: string | null
           specific_phenotype_tertiary: string | null
+          subcategory: string | null
           updated_at: string
           user_id: string
         }
@@ -164,6 +165,7 @@ export type Database = {
           specific_phenotype_primary?: string | null
           specific_phenotype_secondary?: string | null
           specific_phenotype_tertiary?: string | null
+          subcategory?: string | null
           updated_at?: string
           user_id: string
         }
@@ -198,6 +200,7 @@ export type Database = {
           specific_phenotype_primary?: string | null
           specific_phenotype_secondary?: string | null
           specific_phenotype_tertiary?: string | null
+          subcategory?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -425,6 +428,7 @@ export type Database = {
           name: string
           profile_image_url: string | null
           slug: string
+          subcategory: string | null
           updated_at: string
           user_id: string
         }
@@ -441,6 +445,7 @@ export type Database = {
           name: string
           profile_image_url?: string | null
           slug: string
+          subcategory?: string | null
           updated_at?: string
           user_id: string
         }
@@ -457,6 +462,7 @@ export type Database = {
           name?: string
           profile_image_url?: string | null
           slug?: string
+          subcategory?: string | null
           updated_at?: string
           user_id?: string
         }

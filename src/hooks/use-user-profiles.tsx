@@ -35,6 +35,7 @@ export interface UserProfile {
   front_image_url: string;       // URL da imagem frontal (obrigatória)
   profile_image_url?: string;    // URL da imagem de perfil (opcional)
   is_anonymous: boolean;         // Se o perfil é anônimo ou não
+  subcategory: string | null;    // Subcategoria opcional dentro da categoria
   slug: string;                  // Slug único para URLs amigáveis
   created_at: string;            // Data de criação
   updated_at: string;            // Data da última atualização
@@ -56,6 +57,7 @@ export interface CreateUserProfileData {
   frontImageUrl: string;         // URL da imagem frontal
   profileImageUrl?: string;      // URL da imagem de perfil (opcional)
   isAnonymous: boolean;          // Se é perfil anônimo
+  subcategory?: string | null;   // Subcategoria opcional
 }
 
 /**
@@ -240,6 +242,7 @@ export const useUserProfiles = () => {
           front_image_url: profileData.frontImageUrl,
           profile_image_url: profileData.profileImageUrl,
           is_anonymous: profileData.isAnonymous,
+          subcategory: profileData.subcategory || null,
           slug: slugData,
         })
         .select()
@@ -277,6 +280,7 @@ export const useUserProfiles = () => {
       if (profileData.frontImageUrl !== undefined) updateData.front_image_url = profileData.frontImageUrl;
       if (profileData.profileImageUrl !== undefined) updateData.profile_image_url = profileData.profileImageUrl;
       if (profileData.isAnonymous !== undefined) updateData.is_anonymous = profileData.isAnonymous;
+      if (profileData.subcategory !== undefined) updateData.subcategory = profileData.subcategory;
 
       // Generate new slug if name changed
       if (profileData.name) {

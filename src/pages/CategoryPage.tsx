@@ -10,6 +10,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
+import { SUBCATEGORIES_BY_CATEGORY } from "@/constants/subcategories";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { EmptyState } from "@/components/EmptyState";
 
@@ -82,6 +83,7 @@ export default function CategoryPage() {
   const navigate = useNavigate();
   const { profiles, profilesLoading } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
+  const [subcategoryFilter, setSubcategoryFilter] = useState('');
   const [phenotypeFilter, setPhenotypeFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
 
@@ -127,8 +129,13 @@ export default function CategoryPage() {
     return Array.from(regs).sort();
   }, [categoryProfiles]);
 
+  // Get subcategories available for this category
+  const dbCategoryName = categoryMapping[category || ""];
+  const availableSubcategories = dbCategoryName ? (SUBCATEGORIES_BY_CATEGORY[dbCategoryName] || []) : [];
+
   // Apply additional filters
   const filteredProfiles = categoryProfiles.filter(profile => {
+    if (subcategoryFilter && profile.subcategory !== subcategoryFilter) return false;
     if (phenotypeFilter && profile.most_voted_phenotype !== phenotypeFilter) return false;
     if (regionFilter && profile.country !== regionFilter) return false;
     return true;
@@ -259,7 +266,22 @@ export default function CategoryPage() {
                   <Filter className="h-4 w-4 text-primary" />
                   <h3 className="font-semibold text-foreground">Filters</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {availableSubcategories.length > 0 && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
+                      <select
+                        value={subcategoryFilter}
+                        onChange={(e) => { setSubcategoryFilter(e.target.value); setCurrentPage(1); }}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <option value="">All subcategories</option>
+                        {availableSubcategories.map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">Specific Phenotype</label>
                     <select
