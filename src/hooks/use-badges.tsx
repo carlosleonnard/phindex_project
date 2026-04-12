@@ -50,14 +50,24 @@ const LEVEL_COLORS: Record<number, string> = {
   3: 'from-blue-400 to-indigo-500',
   4: 'from-purple-400 to-violet-500',
   5: 'from-amber-400 to-yellow-500',
+  6: 'from-orange-400 to-red-500',
+  7: 'from-rose-400 to-pink-500',
+  8: 'from-cyan-400 to-teal-500',
+  9: 'from-fuchsia-400 to-purple-600',
+  10: 'from-yellow-300 to-amber-500',
 };
 
 const LEVEL_NAMES: Record<number, string> = {
   1: 'Bronze',
   2: 'Silver',
   3: 'Gold',
-  4: 'Diamond',
-  5: 'Legendary',
+  4: 'Platinum',
+  5: 'Diamond',
+  6: 'Master',
+  7: 'Grandmaster',
+  8: 'Titan',
+  9: 'Overlord',
+  10: 'Godlike',
 };
 
 export { BADGE_CATEGORIES, LEVEL_COLORS, LEVEL_NAMES };
