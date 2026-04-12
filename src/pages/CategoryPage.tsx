@@ -39,7 +39,10 @@ const categoryDescriptions: Record<string, string> = {
   "sciences": "Scientists, researchers and academics",
   "sports": "Athletes, sports players and sports professionals", 
   "business": "Entrepreneurs, executives and business leaders",
-  "politics": "Politicians, government leaders and political figures"
+  "politics": "Politicians, government leaders and political figures",
+  "criminals": "Notorious criminals, outlaws and infamous figures",
+  "religion": "Religious leaders, theologians and spiritual figures",
+  "military": "Military leaders, generals and war heroes"
 };
 
 const categoryNames: Record<string, string> = {
@@ -51,7 +54,10 @@ const categoryNames: Record<string, string> = {
   "sciences": "Sciences",
   "sports": "Sports",
   "business": "Business",
-  "politics": "Politics"
+  "politics": "Politics",
+  "criminals": "Criminals",
+  "religion": "Religion",
+  "military": "Military"
 };
 
 const categoryImages: Record<string, string> = {
@@ -63,7 +69,10 @@ const categoryImages: Record<string, string> = {
   "sciences": "/category-sciences.svg",
   "sports": "/category-sports.svg",
   "business": "/category-business.svg",
-  "politics": "/category-politics.svg"
+  "politics": "/category-politics.svg",
+  "criminals": "/category-criminals.svg",
+  "religion": "/category-religion.svg",
+  "military": "/category-military.svg"
 };
 
 const PROFILES_PER_PAGE = 12;
@@ -87,7 +96,10 @@ export default function CategoryPage() {
     "sciences": "Sciences",
     "sports": "Sports",
     "business": "Business",
-    "politics": "Politics"
+    "politics": "Politics",
+    "criminals": "Criminals",
+    "religion": "Religion",
+    "military": "Military"
   };
 
   // Filter profiles by category

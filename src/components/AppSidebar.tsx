@@ -13,6 +13,9 @@ import {
   Trophy, 
   Briefcase, 
   Building,
+  Skull,
+  Church,
+  Shield,
   GitBranch,
   HelpCircle,
   LogOut,
@@ -51,7 +54,10 @@ export const AppSidebar = () => {
       "Sciences": "sciences",
       "Sports": "sports",
       "Business": "business",
-      "Politics": "politics"
+      "Politics": "politics",
+      "Criminals": "criminals",
+      "Religion": "religion",
+      "Military": "military"
     };
     const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
     navigate(`/category/${categorySlug}`);
@@ -82,7 +88,10 @@ export const AppSidebar = () => {
       "Sciences": "sciences",
       "Sports": "sports",
       "Business": "business",
-      "Politics": "politics"
+      "Politics": "politics",
+      "Criminals": "criminals",
+      "Religion": "religion",
+      "Military": "military"
     };
     const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
     return location.pathname === `/category/${categorySlug}`;
@@ -145,7 +154,10 @@ export const AppSidebar = () => {
                 { Icon: Microscope, name: "Sciences" },
                 { Icon: Trophy, name: "Sports" },
                 { Icon: Briefcase, name: "Business" },
-                { Icon: Building, name: "Politics" }
+                { Icon: Building, name: "Politics" },
+                { Icon: Skull, name: "Criminals" },
+                { Icon: Church, name: "Religion" },
+                { Icon: Shield, name: "Military" }
                ].map((category) => {
                 const isActive = isCategoryActive(category.name);
                 return (

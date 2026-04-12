@@ -501,7 +501,10 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       "Sciences": "sciences",
       "Sports": "sports",
       "Business": "business",
-      "Politics": "politics"
+      "Politics": "politics",
+      "Criminals": "criminals",
+      "Religion": "religion",
+      "Military": "military"
     };
     const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
     navigate(`/category/${categorySlug}`);
@@ -533,7 +536,10 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       "Sciences": "sciences",
       "Sports": "sports",
       "Business": "business",
-      "Politics": "politics"
+      "Politics": "politics",
+      "Criminals": "criminals",
+      "Religion": "religion",
+      "Military": "military"
     };
     const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
     return location.pathname === `/category/${categorySlug}`;
@@ -575,7 +581,10 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
             { icon: "🔬", name: "Sciences" },
             { icon: "🏆", name: "Sports" },
             { icon: "💼", name: "Business" },
-            { icon: "🏛️", name: "Politics" }
+            { icon: "🏛️", name: "Politics" },
+            { icon: "🔪", name: "Criminals" },
+            { icon: "⛪", name: "Religion" },
+            { icon: "🎖️", name: "Military" }
           ].map((category) => (
             <button
               key={category.name}

@@ -33,7 +33,7 @@ export default async function handler(req: any, res: any) {
       lastmod: today,
     }));
 
-    const categories = ['community', 'pop-culture', 'music-and-entertainment', 'arts', 'philosophy', 'sciences', 'sports', 'business', 'politics'];
+    const categories = ['community', 'pop-culture', 'music-and-entertainment', 'arts', 'philosophy', 'sciences', 'sports', 'business', 'politics', 'criminals', 'religion', 'military'];
     const categoryPages = categories.map(c => ({
       url: `${BASE_URL}/category/${c}`,
       priority: '0.6',
