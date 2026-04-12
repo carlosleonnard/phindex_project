@@ -1,1 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2v4"/><path d="M14 6h8"/><path d="M18 10V22"/><path d="M6 18H2"/><path d="M6 14v8"/><path d="M6 2v6"/><path d="M2 6h8"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#e0f2f1" opacity="0.5"/>
+  <!-- Cross (Christianity) -->
+  <rect x="42" y="40" width="12" height="55" rx="3" fill="#007a75" opacity="0.85"/>
+  <rect x="30" y="55" width="36" height="12" rx="3" fill="#007a75" opacity="0.85"/>
+  <!-- Crescent (Islam) -->
+  <path d="M140 45c-16 0-29 14-29 32s13 32 29 32c-6 0-11-2-15-5 8-7 13-17 13-27s-5-20-13-27c4-3 9-5 15-5z" fill="#009e97" opacity="0.85"/>
+  <!-- Star of David (Judaism) - simplified -->
+  <path d="M100 115l15 26H85z" fill="none" stroke="#007a75" stroke-width="3.5"/>
+  <path d="M100 141l-15-26h30z" fill="none" stroke="#007a75" stroke-width="3.5"/>
+  <!-- Om / circle symbol (Eastern) -->
+  <circle cx="48" cy="140" r="16" stroke="#005753" stroke-width="3" fill="none"/>
+  <path d="M42 140c0-6 3-10 6-10s6 4 6 10" stroke="#005753" stroke-width="2.5" fill="none"/>
+  <circle cx="48" cy="128" r="2.5" fill="#005753"/>
+  <!-- Dharma wheel dot (Buddhism) -->
+  <circle cx="152" cy="140" r="16" stroke="#00b5ad" stroke-width="3" fill="none"/>
+  <circle cx="152" cy="140" r="3" fill="#00b5ad"/>
+  <line x1="152" y1="124" x2="152" y2="156" stroke="#00b5ad" stroke-width="2"/>
+  <line x1="136" y1="140" x2="168" y2="140" stroke="#00b5ad" stroke-width="2"/>
+  <line x1="140.7" y1="128.7" x2="163.3" y2="151.3" stroke="#00b5ad" stroke-width="2"/>
+  <line x1="163.3" y1="128.7" x2="140.7" y2="151.3" stroke="#00b5ad" stroke-width="2"/>
+</svg>

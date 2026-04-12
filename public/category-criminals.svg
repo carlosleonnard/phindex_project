@@ -1,1 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><path d="M8 20v2h8v-2"/><path d="m12.5 17-.5-1-.5 1h1z"/><path d="M17 10c.7-1 1-2.5 1-4 0-3.5-2.7-6-6-6S6 2.5 6 6c0 1.5.3 3 1 4"/><path d="M7 10h10a5 5 0 0 1-10 0z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#e0f2f1" opacity="0.5"/>
+  <!-- Head silhouette -->
+  <circle cx="100" cy="72" r="32" fill="#007a75" opacity="0.85"/>
+  <!-- Eye mask / blindfold -->
+  <rect x="58" y="62" width="84" height="20" rx="10" fill="#005753" opacity="0.9"/>
+  <!-- Eyes (holes in mask) -->
+  <circle cx="82" cy="72" r="7" fill="#e0f2f1" opacity="0.9"/>
+  <circle cx="118" cy="72" r="7" fill="#e0f2f1" opacity="0.9"/>
+  <!-- Pupils -->
+  <circle cx="82" cy="72" r="3" fill="#005753"/>
+  <circle cx="118" cy="72" r="3" fill="#005753"/>
+  <!-- Body -->
+  <path d="M55 140c0-25 20-36 45-36s45 11 45 36" fill="#009e97" opacity="0.8"/>
+  <!-- Striped prison pattern -->
+  <rect x="75" y="108" width="6" height="32" fill="#007a75" opacity="0.5" rx="1"/>
+  <rect x="90" y="106" width="6" height="34" fill="#007a75" opacity="0.5" rx="1"/>
+  <rect x="105" y="106" width="6" height="34" fill="#007a75" opacity="0.5" rx="1"/>
+  <rect x="120" y="108" width="6" height="32" fill="#007a75" opacity="0.5" rx="1"/>
+  <!-- Chain links -->
+  <circle cx="78" cy="155" r="8" stroke="#005753" stroke-width="3" fill="none"/>
+  <circle cx="92" cy="155" r="8" stroke="#005753" stroke-width="3" fill="none"/>
+  <circle cx="106" cy="155" r="8" stroke="#005753" stroke-width="3" fill="none"/>
+  <circle cx="120" cy="155" r="8" stroke="#005753" stroke-width="3" fill="none"/>
+</svg>
