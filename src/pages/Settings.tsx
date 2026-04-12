@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Save, AlertCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { BadgesSection } from "@/components/BadgesSection";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -198,7 +199,7 @@ const Settings = () => {
       <Header />
       <AppSidebar />
       <main className="lg:ml-80 pt-16">
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 space-y-6">
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
               <CardTitle className="text-2xl font-bold">Profile Settings</CardTitle>
@@ -300,6 +301,10 @@ const Settings = () => {
               )}
             </CardContent>
           </Card>
+          {/* Badges Section */}
+          <div className="max-w-2xl mx-auto">
+            <BadgesSection />
+          </div>
         </div>
       </main>
     </div>
