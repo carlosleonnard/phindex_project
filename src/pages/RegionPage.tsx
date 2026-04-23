@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Globe } from "lucide-react";
+import { ArrowLeft, User, Globe, MessageSquare } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useGeographicRegionProfiles } from "@/hooks/use-geographic-region-profiles";
+import { useCommentCounts } from "@/hooks/use-comment-counts";
 import { Link } from "react-router-dom";
 import { Calendar } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -112,6 +113,9 @@ const RegionPage = () => {
       </div>
     );
   }
+
+  const regionProfileIds = useMemo(() => (profiles || []).map((p) => p.id), [profiles]);
+  const commentCounts = useCommentCounts(regionProfileIds);
 
   const filteredRegionProfiles = (profiles || []).filter(p => {
     if (profileFilter === 'all') return true;
@@ -319,6 +323,10 @@ const RegionPage = () => {
                                    </Badge>
                                  </div>
                                )}
+                               <div className="absolute bottom-2 left-2 bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                 <MessageSquare className="h-3 w-3" />
+                                 <span>{commentCounts[profile.id] || 0}</span>
+                               </div>
                              </div>
 
                              <div className="space-y-2 flex-1 flex flex-col">

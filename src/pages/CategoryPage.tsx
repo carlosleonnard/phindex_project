@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Plus, User, Calendar, Filter } from "lucide-react";
+import { ArrowLeft, Users, Plus, User, Calendar, Filter, MessageSquare } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
+import { useCommentCounts } from "@/hooks/use-comment-counts";
 import { SUBCATEGORIES_BY_CATEGORY } from "@/constants/subcategories";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { EmptyState } from "@/components/EmptyState";
@@ -132,6 +133,9 @@ export default function CategoryPage() {
   // Get subcategories available for this category
   const dbCategoryName = categoryMapping[category || ""];
   const availableSubcategories = dbCategoryName ? (SUBCATEGORIES_BY_CATEGORY[dbCategoryName] || []) : [];
+
+  const categoryProfileIds = useMemo(() => categoryProfiles.map((p) => p.id), [categoryProfiles]);
+  const commentCounts = useCommentCounts(categoryProfileIds);
 
   // Apply additional filters
   const filteredProfiles = categoryProfiles.filter(profile => {
@@ -362,6 +366,10 @@ export default function CategoryPage() {
                               </Badge>
                             </div>
                           )}
+                          <div className="absolute bottom-2 left-2 bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3" />
+                            <span>{commentCounts[profile.id] || 0}</span>
+                          </div>
                         </div>
 
                         <div className="space-y-2 flex-1 flex flex-col">

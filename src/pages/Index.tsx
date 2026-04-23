@@ -11,7 +11,7 @@
  */
 
 // Ícone de voto da biblioteca Lucide React
-import { Vote, Plus } from "lucide-react";
+import { Vote, Plus, MessageSquare } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { useState } from "react";
 // Componentes de layout da aplicação
@@ -22,6 +22,7 @@ import { AddProfileModal } from "@/components/AddProfileModal"; // Modal de cria
 import { StatsBanner } from "@/components/StatsBanner"; // Banner de estatísticas
 // Hook customizado para gerenciar perfis de usuário
 import { useUserProfiles } from "@/hooks/use-user-profiles";
+import { useCommentCounts } from "@/hooks/use-comment-counts";
 // Componentes de UI do sistema de design
 import { Card } from "@/components/ui/card"; // Cards para layout
 import { Badge } from "@/components/ui/badge"; // Badges para indicadores
@@ -35,6 +36,13 @@ import { useNavigate } from "react-router-dom";
 const Index = () => {
   const navigate = useNavigate();
   const { profiles: userProfiles, profilesByVotes } = useUserProfiles();
+  const allProfileIds = [
+    ...(profilesByVotes?.slice(0, 12).map((p) => p.id) || []),
+    ...(userProfiles?.filter((p) => !p.is_anonymous).slice(0, 12).map((p) => p.id) || []),
+    ...(profilesByVotes?.filter((p) => p.category === "User Profiles").slice(0, 12).map((p) => p.id) || []),
+    ...(userProfiles?.filter((p) => p.is_anonymous).slice(0, 12).map((p) => p.id) || []),
+  ].filter((id, i, arr) => arr.indexOf(id) === i);
+  const commentCounts = useCommentCounts(allProfileIds);
   const [showCelebrityModal, setShowCelebrityModal] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
 
@@ -131,9 +139,15 @@ const Index = () => {
                                             className="w-full h-full object-cover"
                                           />
                                        </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                      <div className="absolute -bottom-1 -right-1 flex flex-col items-end gap-0.5">
+                                        <div className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <Vote className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                        </div>
+                                        <div className="bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <MessageSquare className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{commentCounts[profile.id] || 0}</span>
+                                        </div>
                                       </div>
                                       <div
                                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
@@ -205,9 +219,15 @@ const Index = () => {
                                             className="w-full h-full object-cover"
                                           />
                                        </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                      <div className="absolute -bottom-1 -right-1 flex flex-col items-end gap-0.5">
+                                        <div className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <Vote className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                        </div>
+                                        <div className="bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <MessageSquare className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{commentCounts[profile.id] || 0}</span>
+                                        </div>
                                       </div>
                                       <div
                                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
@@ -286,9 +306,15 @@ const Index = () => {
                                             className="w-full h-full object-cover"
                                           />
                                        </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                      <div className="absolute -bottom-1 -right-1 flex flex-col items-end gap-0.5">
+                                        <div className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <Vote className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                        </div>
+                                        <div className="bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <MessageSquare className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{commentCounts[profile.id] || 0}</span>
+                                        </div>
                                       </div>
                                       <div
                                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
@@ -357,9 +383,15 @@ const Index = () => {
                                            className="w-full h-full object-cover"
                                          />
                                        </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                      <div className="absolute -bottom-1 -right-1 flex flex-col items-end gap-0.5">
+                                        <div className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <Vote className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{(profile as any).vote_count || 0}</span>
+                                        </div>
+                                        <div className="bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <MessageSquare className="h-2.5 w-2.5" />
+                                          <span className="text-xs">{commentCounts[profile.id] || 0}</span>
+                                        </div>
                                       </div>
                                       <div
                                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
