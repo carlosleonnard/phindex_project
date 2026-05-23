@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Save, AlertCircle } from "lucide-react";
+import { Camera, Save, AlertCircle, Bell } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BadgesSection } from "@/components/BadgesSection";
@@ -20,6 +21,7 @@ const Settings = () => {
   
   const [nickname, setNickname] = useState("");
   const [profileImage, setProfileImage] = useState("");
+  const [emailNotifications, setEmailNotifications] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [nicknameError, setNicknameError] = useState("");
@@ -32,7 +34,7 @@ const Settings = () => {
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('nickname, avatar_url')
+          .select('nickname, avatar_url, email_notifications')
           .eq('id', user.id)
           .single();
 
@@ -41,6 +43,7 @@ const Settings = () => {
         if (profile) {
           setNickname(profile.nickname || "");
           setProfileImage(profile.avatar_url || "");
+          setEmailNotifications(profile.email_notifications ?? true);
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -146,9 +149,10 @@ const Settings = () => {
       // Update profiles table only (no auth metadata for anonymity)
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           nickname: nickname,
-          avatar_url: profileImage
+          avatar_url: profileImage,
+          email_notifications: emailNotifications,
         })
         .eq('id', user.id);
 
@@ -286,10 +290,33 @@ const Settings = () => {
                     </p>
                   </div>
 
+                  {/* Email Notifications Section */}
+                  <div className="space-y-3 border rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-sm font-medium">Email Notifications</h3>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="email-notifications" className="text-sm">
+                          Receive email alerts
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Get notified by email when someone likes your comment, replies to you, or votes on your profile.
+                        </p>
+                      </div>
+                      <Switch
+                        id="email-notifications"
+                        checked={emailNotifications}
+                        onCheckedChange={setEmailNotifications}
+                      />
+                    </div>
+                  </div>
+
                   {/* Save Button */}
                   <div className="pt-4">
-                    <Button 
-                      onClick={handleSave} 
+                    <Button
+                      onClick={handleSave}
                       disabled={isUpdating || isUploading || !!nicknameError || !nickname.trim()}
                       className="w-full"
                     >
