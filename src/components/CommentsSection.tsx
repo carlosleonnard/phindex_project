@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Send, Heart, MoreHorizontal, Trash2, Flag, MessageSquare } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,7 +154,7 @@ export const CommentsSection = ({
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{comment.user.nickname}</span>
+                        <Link to={`/member/${comment.user_id}`} className="font-medium text-sm hover:underline">{comment.user.nickname}</Link>
                         {comment.userVotes?.phenotype && (
                           <span className="text-xs px-2 py-1 bg-phindex-teal/10 text-phindex-teal rounded-full font-medium">
                             {comment.userVotes.phenotype}
@@ -264,7 +264,7 @@ export const CommentsSection = ({
                     
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-xs">{reply.user.nickname}</span>
+                        <Link to={`/member/${reply.user_id}`} className="font-medium text-xs hover:underline">{reply.user.nickname}</Link>
                         {reply.userVotes?.phenotype && (
                           <span className="text-xs px-1.5 py-0.5 bg-phindex-teal/10 text-phindex-teal rounded-full font-medium">
                             {reply.userVotes.phenotype}
