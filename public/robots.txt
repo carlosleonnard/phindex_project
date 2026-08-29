@@ -1,5 +1,9 @@
 User-agent: *
 Allow: /
+
+# /saved depende de estado do cliente e é marcada com
+# <meta name="robots" content="noindex"> — não entra aqui de propósito:
+# Disallow bloquearia o rastreamento e o Google nunca leria o noindex.
 Disallow: /settings
 
 Sitemap: https://www.phenotypeindex.com/sitemap.xml

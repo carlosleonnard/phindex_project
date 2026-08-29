@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <circle cx="200" cy="200" r="180" fill="#0d1b2a" opacity="0.08"/>
+  <circle cx="200" cy="200" r="130" fill="#1b263b" opacity="0.06"/>
+  <!-- Skull shape -->
+  <ellipse cx="200" cy="175" rx="70" ry="80" stroke="#334155" stroke-width="3" fill="none" opacity="0.5"/>
+  <circle cx="175" cy="160" r="15" stroke="#334155" stroke-width="3" fill="none" opacity="0.5"/>
+  <circle cx="225" cy="160" r="15" stroke="#334155" stroke-width="3" fill="none" opacity="0.5"/>
+  <path d="M185 200 L195 215 L205 215 L215 200" stroke="#334155" stroke-width="3" fill="none" opacity="0.5"/>
+  <!-- Chain links -->
+  <ellipse cx="150" cy="290" rx="20" ry="12" stroke="#475569" stroke-width="2.5" fill="none" opacity="0.4"/>
+  <ellipse cx="185" cy="290" rx="20" ry="12" stroke="#475569" stroke-width="2.5" fill="none" opacity="0.4"/>
+  <ellipse cx="220" cy="290" rx="20" ry="12" stroke="#475569" stroke-width="2.5" fill="none" opacity="0.4"/>
+  <ellipse cx="255" cy="290" rx="20" ry="12" stroke="#475569" stroke-width="2.5" fill="none" opacity="0.4"/>
+  <!-- Crosshair -->
+  <circle cx="200" cy="175" r="100" stroke="#64748b" stroke-width="1" fill="none" opacity="0.2" stroke-dasharray="8 4"/>
+  <line x1="200" y1="60" x2="200" y2="100" stroke="#64748b" stroke-width="1" opacity="0.3"/>
+  <line x1="200" y1="250" x2="200" y2="290" stroke="#64748b" stroke-width="1" opacity="0.3"/>
+  <line x1="85" y1="175" x2="125" y2="175" stroke="#64748b" stroke-width="1" opacity="0.3"/>
+  <line x1="275" y1="175" x2="315" y2="175" stroke="#64748b" stroke-width="1" opacity="0.3"/>
+</svg>

@@ -1,0 +1,14 @@
+{
+  "name": "Phindex - Phenotype Index",
+  "short_name": "Phindex",
+  "description": "The only phenotype database. Discover, classify, and index famous people and your friends by their unique traits.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

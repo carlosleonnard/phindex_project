@@ -122,6 +122,8 @@ const RegionPage = () => {
   const regionTitle = `${regionDisplayName} Phenotypes | Phindex - Phenotype Index`;
   const regionDescription = `Explore ${regionDisplayName} phenotypes and physical traits. Discover phenotype classifications from ${regionDisplayName}. Vote and compare physical characteristics.`;
   const regionUrl = `https://www.phenotypeindex.com/region/${regionKey}`;
+  // Card 1200x630 gerado a partir do banner da região (public/og/).
+  const regionImage = `https://www.phenotypeindex.com/og/region-${regionKey}.png`;
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -143,9 +145,15 @@ const RegionPage = () => {
         <meta property="og:url" content={regionUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:image" content={regionImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content={regionTitle} />
         <meta name="twitter:description" content={regionDescription} />
+        <meta name="twitter:image" content={regionImage} />
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
       <Header />

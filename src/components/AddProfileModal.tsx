@@ -34,6 +34,7 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
     country: "",
     gender: "",
     category: initialIsAnonymous === true ? "User Profiles" : "",
+    subcategory: "",
     height: "",
     ancestry: [] as string[], // Changed to array of countries
     frontImageUrl: "",
@@ -74,10 +75,11 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
 
   const handleAnonymousChange = (value: string) => {
     const isAnonymous = value === "yes";
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       isAnonymous: isAnonymous,
-      category: isAnonymous ? "User Profiles" : ""
+      category: isAnonymous ? "User Profiles" : "",
+      subcategory: ""
     }));
   };
 
@@ -116,7 +118,8 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
           ancestry: formData.ancestry.join(', '), // Convert array to string
           frontImageUrl: formData.frontImageUrl,
           profileImageUrl: formData.profileImageUrl,
-          isAnonymous: formData.isAnonymous
+          isAnonymous: formData.isAnonymous,
+          subcategory: formData.subcategory || undefined
         });
 
         // Create complete profile record with all form data
@@ -134,15 +137,29 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
             is_anonymous: formData.isAnonymous,
             front_image_url: formData.frontImageUrl,
             profile_image_url: formData.profileImageUrl || null,
-            description: formData.ancestry.join(', ') // Convert array to string
+            description: formData.ancestry.join(', '), // Convert array to string
+            subcategory: formData.subcategory || null
           });
 
         if (completeProfileError) {
           console.error('Error creating complete profile record:', completeProfileError);
         }
 
-        // Reset form and close modal
-        setFormData({ name: "", country: "", gender: "", category: "", height: "", ancestry: [], frontImageUrl: "", profileImageUrl: "", isAnonymous: null });
+        // Reset form and close modal.
+        // isAnonymous volta ao valor inicial: quando o modal foi aberto por um
+        // botão que já define o tipo, essa escolha precisa sobreviver ao reset.
+        setFormData({
+          name: "",
+          country: "",
+          gender: "",
+          category: initialIsAnonymous === true ? "User Profiles" : "",
+          subcategory: "",
+          height: "",
+          ancestry: [],
+          frontImageUrl: "",
+          profileImageUrl: "",
+          isAnonymous: initialIsAnonymous,
+        });
         setOpen(false);
         
         // Navigate to the new profile page
@@ -393,22 +410,26 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
               </div>
             </div>
 
-            {/* Campo sim/não para perfil anônimo */}
-            <div className="space-y-2">
-              <Label htmlFor="anonymousSelect">Is this classification for you or for someone you know personally? (Non-famous person) *</Label>
-              <select
-                id="anonymousSelect"
-                value={formData.isAnonymous === true ? "yes" : formData.isAnonymous === false ? "no" : ""}
-                onChange={(e) => handleAnonymousChange(e.target.value)}
-                className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                required
-                disabled={lockIsAnonymous}
-              >
-                <option value="" disabled>Select</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
+            {/* Campo sim/não para perfil anônimo.
+                Quando o modal é aberto por um botão que já define o tipo
+                (ex.: "Add famous person"), a pergunta é omitida — a resposta
+                já foi dada pela escolha do botão. */}
+            {!lockIsAnonymous && (
+              <div className="space-y-2">
+                <Label htmlFor="anonymousSelect">Is this classification for you or for someone you know personally? (Non-famous person) *</Label>
+                <select
+                  id="anonymousSelect"
+                  value={formData.isAnonymous === true ? "yes" : formData.isAnonymous === false ? "no" : ""}
+                  onChange={(e) => handleAnonymousChange(e.target.value)}
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  required
+                >
+                  <option value="" disabled>Select</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+            )}
 
             {/* Informações básicas */}
             <div className="space-y-2">
@@ -463,10 +484,13 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
                 <Label htmlFor="category">Category *</Label>
                 <CategorySelector
                   selectedCategory={formData.category}
-                  onCategoryChange={(category) => setFormData(prev => ({ ...prev, category }))}
+                  onCategoryChange={(category) => setFormData(prev => ({ ...prev, category, subcategory: "" }))}
+                  selectedSubcategory={formData.subcategory}
+                  onSubcategoryChange={(subcategory) => setFormData(prev => ({ ...prev, subcategory }))}
                   placeholder="Search and select category"
                   disabled={formData.isAnonymous === true}
                   isAnonymous={formData.isAnonymous === true}
+                  showSubcategory={formData.isAnonymous === false}
                   required
                 />
               </div>

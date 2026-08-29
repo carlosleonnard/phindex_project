@@ -7,6 +7,7 @@ interface GameProfile {
   name: string;
   front_image_url: string;
   slug: string;
+  is_anonymous: boolean;
   mostVotedGeographic: string | null;  // Primary Geographic (e.g. "Southern Europe")
   mostVotedPhenotype: string | null;   // Primary Phenotype (e.g. "North Atlantid")
 }
@@ -19,6 +20,14 @@ interface GameStats {
 }
 
 type Difficulty = 'easy' | 'medium' | 'hard';
+
+/**
+ * Quem entra no baralho da partida.
+ * - 'famous'    : figuras públicas (is_anonymous = false)
+ * - 'anonymous' : perfis da comunidade (is_anonymous = true)
+ * - 'all'       : os dois misturados
+ */
+export type GamePool = 'all' | 'famous' | 'anonymous';
 
 // Maps general phenotype (geographic subregion) → region
 const REGION_MAPPING: Record<string, string[]> = {
@@ -88,6 +97,7 @@ export const useMapGame = () => {
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [pool, setPool] = useState<GamePool>('all');
   const [stats, setStats] = useState<GameStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [options, setOptions] = useState<string[]>([]);
@@ -183,17 +193,27 @@ export const useMapGame = () => {
 
       const questionsCount = getQuestionsCount(difficulty);
 
-      // Fetch random profiles
-      const { data: profiles, error: profilesError } = await supabase
+      // Fetch random profiles, restricted to the chosen pool.
+      let profilesQuery = supabase
         .from('user_profiles')
-        .select('id, name, front_image_url, slug')
+        .select('id, name, front_image_url, slug, is_anonymous')
         .limit(100);
+
+      if (pool === 'famous') {
+        profilesQuery = profilesQuery.eq('is_anonymous', false);
+      } else if (pool === 'anonymous') {
+        profilesQuery = profilesQuery.eq('is_anonymous', true);
+      }
+
+      const { data: profiles, error: profilesError } = await profilesQuery;
 
       if (profilesError) throw profilesError;
       if (!profiles || profiles.length === 0) {
         toast({
           title: "No profiles available",
-          description: "There are no profiles to play with yet.",
+          description: pool === 'all'
+            ? "There are no profiles to play with yet."
+            : `There are no ${pool === 'famous' ? 'famous' : 'community'} profiles to play with yet.`,
           variant: "destructive"
         });
         setIsLoading(false);
@@ -307,7 +327,7 @@ export const useMapGame = () => {
   useEffect(() => {
     fetchRandomProfiles();
     fetchUserStats();
-  }, [difficulty]);
+  }, [difficulty, pool]);
 
   const getCorrectAnswerForProfile = (profile: GameProfile): string | null => {
     if (difficulty === 'easy') {
@@ -321,6 +341,33 @@ export const useMapGame = () => {
     }
   };
 
+  /**
+   * Grava o palpite para que o perfil possa mostrar como foi lido às cegas.
+   * Falha silenciosa: um erro de rede não pode interromper a partida.
+   */
+  const recordGuess = async (
+    profile: GameProfile,
+    guess: string,
+    correct: string,
+    isCorrect: boolean
+  ) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('game_guesses').insert({
+        user_id: user.id,
+        profile_id: profile.id,
+        difficulty,
+        guess,
+        correct_answer: correct,
+        is_correct: isCorrect,
+      });
+    } catch (error) {
+      console.error('Error recording guess:', error);
+    }
+  };
+
   const checkAnswer = (selected: string) => {
     if (feedback !== null || gameEnded) return;
 
@@ -331,6 +378,11 @@ export const useMapGame = () => {
 
     const isCorrect = correct ? selected.toLowerCase() === correct.toLowerCase() : false;
     setFeedback(isCorrect ? 'correct' : 'wrong');
+
+    // Só registra quando existe gabarito: sem ele não há acerto ou erro a medir.
+    if (correct) {
+      recordGuess(currentProfile, selected, correct, isCorrect);
+    }
 
     if (!isCorrect && correct) {
       setCorrectAnswer(correct);
@@ -418,10 +470,12 @@ export const useMapGame = () => {
     feedback,
     correctAnswer,
     difficulty,
+    pool,
     stats,
     isLoadingStats,
     options,
     setDifficulty,
+    setPool,
     checkAnswer,
     resetGame,
     skipProfile

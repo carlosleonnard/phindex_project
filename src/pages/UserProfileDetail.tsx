@@ -15,7 +15,9 @@ import { CommentsSection } from "@/components/CommentsSection";
 import { VoteModal } from "@/components/VoteModal";
 import { PhysicalCharacteristicVoting } from "@/components/PhysicalCharacteristicVoting";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { BottomNav } from "@/components/BottomNav";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
+import { getCategorySlug } from "@/constants/categories";
 import { useAuth } from "@/hooks/use-auth";
 import { useVoting } from "@/hooks/use-voting";
 import { useComments } from "@/hooks/use-comments";
@@ -49,10 +51,11 @@ export default function UserProfileDetail() {
     queryFn: async () => {
       if (!profile?.id) return 0;
       
+      // Os votos são gravados com profile_id = id (ver use-voting), não o slug.
       const { data, error } = await supabase
         .from('votes')
         .select('user_id')
-        .eq('profile_id', profile.slug);
+        .eq('profile_id', profile.id);
       
       if (error) {
         console.error('Error counting voters:', error);
@@ -140,13 +143,13 @@ export default function UserProfileDetail() {
     "@type": "BreadcrumbList",
     "itemListElement": [
       { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
-      { "@type": "ListItem", "position": 2, "name": profile.category, "item": `https://www.phenotypeindex.com/category/${profile.category === 'User Profiles' ? 'community' : profile.category.toLowerCase().replace(/\s+/g, '-')}` },
+      { "@type": "ListItem", "position": 2, "name": profile.category, "item": `https://www.phenotypeindex.com/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}` },
       { "@type": "ListItem", "position": 3, "name": profile.name, "item": profileUrl }
     ]
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Helmet>
         <title>{ogTitle}</title>
         <meta name="description" content={ogDescription} />
@@ -171,18 +174,17 @@ export default function UserProfileDetail() {
       </Helmet>
       <Header />
       
-      <div className="container mx-auto px-4 py-8 flex-1">
-        <div className="lg:ml-80 pt-20">
-          {/* Sidebar */}
-          <AppSidebar />
+      <AppSidebar />
 
+      <main className="flex-1 px-4 pb-24 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
+        <div className="mx-auto max-w-4xl">
           {/* Breadcrumbs */}
-          <div className="mb-6">
+          <div className="pt-6 mb-6">
             <Breadcrumbs 
               items={[
                 { 
-                  label: profile.category, 
-                  href: `/category/${profile.category === 'User Profiles' ? 'community' : profile.category.toLowerCase().replace(/\s+/g, '-')}`
+                  label: profile.category,
+                  href: `/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}`
                 },
                 { label: profile.name }
               ]}
@@ -228,14 +230,23 @@ export default function UserProfileDetail() {
                   </h1>
                   
                   {/* Category Badge */}
-                  <div className="flex justify-center mb-3">
-                    <Badge 
-                      variant="secondary" 
+                  <div className="flex justify-center gap-2 mb-3 flex-wrap">
+                    <Badge
+                      variant="secondary"
                       className="bg-phindex-teal/10 text-phindex-teal hover:bg-phindex-teal/20 cursor-pointer transition-colors"
-                      onClick={() => navigate('/category/community')}
+                      onClick={() => navigate(`/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}`)}
                     >
                       {profile.category}
                     </Badge>
+                    {profile.subcategory && (
+                      <Badge
+                        variant="outline"
+                        className="border-phindex-teal/30 text-phindex-teal hover:bg-phindex-teal/10 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}`)}
+                      >
+                        {profile.subcategory}
+                      </Badge>
+                    )}
                   </div>
                   
                   {/* General Phenotypes - Real Data */}
@@ -440,7 +451,7 @@ export default function UserProfileDetail() {
                 <CardHeader>
                   <CardTitle className="text-phindex-teal">General Phenotype Classification</CardTitle>
                 </CardHeader>
-                 <CardContent className="h-52 overflow-y-auto">
+                 <CardContent className="min-h-52">
                    <div className="space-y-4">
                      {/* Primary Geographic Classification */}
                      <div className="bg-muted/30 p-3 rounded-lg">
@@ -516,7 +527,7 @@ export default function UserProfileDetail() {
                 <CardHeader>
                   <CardTitle className="text-phindex-teal">Specific Phenotype Classification</CardTitle>
                 </CardHeader>
-                 <CardContent className="h-52 overflow-y-auto">
+                 <CardContent className="min-h-52">
                    <div className="space-y-4">
                      {/* Primary Phenotype Classification */}
                      <div className="bg-muted/30 p-3 rounded-lg">
@@ -593,7 +604,7 @@ export default function UserProfileDetail() {
               <CardHeader>
                 <CardTitle className="text-phindex-teal">Physical Characteristics</CardTitle>
               </CardHeader>
-              <CardContent className="h-96 overflow-y-auto">
+              <CardContent>
                 <div className="grid gap-6">
                   {physicalCharacteristics.map((characteristic, index) => (
                     <PhysicalCharacteristicVoting
@@ -678,9 +689,10 @@ export default function UserProfileDetail() {
             )}
           </div>
         </div>
-      </div>
+      </main>
 
       <Footer />
+      <BottomNav />
 
       {/* Edit Modal */}
       {showEditModal && (

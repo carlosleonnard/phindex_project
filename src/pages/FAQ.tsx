@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,8 +57,46 @@ const FAQ = () => {
     }
   ];
 
+  // Schema FAQPage: torna as perguntas elegíveis a rich results na busca,
+  // expandidas direto no resultado do Google.
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqData.map(({ question, answer }) => ({
+      "@type": "Question",
+      "name": question,
+      "acceptedAnswer": { "@type": "Answer", "text": answer },
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>FAQ - Frequently Asked Questions | Phindex</title>
+        <meta
+          name="description"
+          content="Answers to common questions about Phindex: what a phenotype is, how the voting system works, how to create a profile, and how phenotypic regions are classified."
+        />
+        <link rel="canonical" href="https://www.phenotypeindex.com/faq" />
+        <meta property="og:title" content="FAQ - Frequently Asked Questions | Phindex" />
+        <meta
+          property="og:description"
+          content="Answers to common questions about Phindex, phenotype classification and the voting system."
+        />
+        <meta property="og:url" content="https://www.phenotypeindex.com/faq" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content="FAQ | Phindex" />
+        <meta
+          name="twitter:description"
+          content="Answers to common questions about Phindex and phenotype classification."
+        />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
+      </Helmet>
       <Header />
       <AppSidebar />
       <main className="lg:ml-80 pt-16">

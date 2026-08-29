@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -29,6 +30,22 @@ export default function Leaderboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <Helmet>
+        <title>Leaderboard | Phindex</title>
+        <meta name="description" content="See the top Phindex contributors ranked by votes, classifications and community activity this week, this month and all time." />
+        <link rel="canonical" href="https://www.phenotypeindex.com/leaderboard" />
+        <meta property="og:title" content="Leaderboard | Phindex" />
+        <meta property="og:description" content="See the top Phindex contributors ranked by votes, classifications and community activity this week, this month and all time." />
+        <meta property="og:url" content="https://www.phenotypeindex.com/leaderboard" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content="Leaderboard | Phindex" />
+        <meta name="twitter:description" content="See the top Phindex contributors ranked by votes, classifications and community activity this week, this month and all time." />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+      </Helmet>
       <Header />
       <div className="flex flex-1">
         <AppSidebar />

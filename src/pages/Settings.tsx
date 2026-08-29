@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
+import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -178,6 +179,10 @@ const Settings = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-background">
+        <Helmet>
+          <title>Settings | Phindex</title>
+          <meta name="robots" content="noindex, nofollow" />
+        </Helmet>
         <Header />
         <AppSidebar />
         <main className="lg:ml-80 pt-16">
@@ -195,6 +200,10 @@ const Settings = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Settings | Phindex</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
       <Header />
       <AppSidebar />
       <main className="lg:ml-80 pt-16">

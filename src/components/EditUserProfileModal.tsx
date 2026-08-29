@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { CountrySelector } from "@/components/CountrySelector";
 import { useUserProfiles, UserProfile } from "@/hooks/use-user-profiles";
 import { useImageUpload } from "@/hooks/use-image-upload";
+import { CATEGORY_OPTIONS, SUBCATEGORIES } from "@/constants/categories";
 
 interface EditUserProfileModalProps {
   profile: UserProfile;
@@ -24,6 +25,7 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUs
     country: profile.country,
     gender: profile.gender,
     category: profile.category,
+    subcategory: profile.subcategory || "",
     height: profile.height.toString(),
     ancestry: profile.ancestry ? profile.ancestry.split(', ') : [], // Convert string to array
     frontImageUrl: profile.front_image_url,
@@ -58,7 +60,8 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUs
           ancestry: formData.ancestry.join(', '), // Convert array to string
           frontImageUrl: formData.frontImageUrl,
           profileImageUrl: formData.profileImageUrl,
-          isAnonymous: formData.isAnonymous
+          isAnonymous: formData.isAnonymous,
+          subcategory: formData.subcategory || undefined
         }
       });
       onClose();
@@ -506,22 +509,34 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUs
               <select
                 id="category"
                 value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value, subcategory: "" }))}
                 className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={formData.isAnonymous === true}
                 required
               >
                 <option value="">Select category</option>
                 <option value="User Profiles">User Profiles</option>
-                <option value="Pop Culture">Pop Culture</option>
-                <option value="Music and Entertainment">Music and Entertainment</option>
-                <option value="Arts">Arts</option>
-                <option value="Philosophy">Philosophy</option>
-                <option value="Sciences">Sciences</option>
-                <option value="Sports">Sports</option>
-                <option value="Business">Business</option>
-                <option value="Politics">Politics</option>
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
+              {/* Subcategory selector - only for non-anonymous */}
+              {!formData.isAnonymous && formData.category && SUBCATEGORIES[formData.category] && (
+                <div className="mt-2">
+                  <Label htmlFor="subcategory" className="text-xs">Subcategory (optional)</Label>
+                  <select
+                    id="subcategory"
+                    value={formData.subcategory}
+                    onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">Select subcategory (optional)</option>
+                    {SUBCATEGORIES[formData.category].map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 

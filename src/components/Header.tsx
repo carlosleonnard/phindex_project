@@ -7,7 +7,7 @@
  */
 
 // Ícones do Lucide React (biblioteca de ícones SVG otimizada)
-import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu, Trophy } from "lucide-react";
+import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu, Trophy, Film, Music, Palette, Brain, Microscope, Briefcase, Building, Skull, Church, Shield, Users, GitBranch, Mail, Award, Gamepad2 } from "lucide-react";
 // Componentes de UI reutilizáveis do sistema de design
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -486,7 +486,6 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       .replace('ã', 'a')
       .replace('õ', 'o')
       .replace('ç', 'c');
-    
     navigate(`/region/${regionSlug}`);
     onNavigate();
   };
@@ -501,7 +500,10 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       "Sciences": "sciences",
       "Sports": "sports",
       "Business": "business",
-      "Politics": "politics"
+      "Politics": "politics",
+      "Criminals": "criminals",
+      "Religion": "religion",
+      "Military": "military"
     };
     const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
     navigate(`/category/${categorySlug}`);
@@ -519,7 +521,6 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       .replace('ã', 'a')
       .replace('õ', 'o')
       .replace('ç', 'c');
-    
     return location.pathname === `/region/${regionSlug}`;
   };
 
@@ -533,123 +534,153 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       "Sciences": "sciences",
       "Sports": "sports",
       "Business": "business",
-      "Politics": "politics"
+      "Politics": "politics",
+      "Criminals": "criminals",
+      "Religion": "religion",
+      "Military": "military"
     };
     const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
     return location.pathname === `/category/${categorySlug}`;
   };
 
+  const nav = (path: string) => {
+    navigate(path);
+    onNavigate();
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Phenotype Regions */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 text-phindex-dark">PHENOTYPE REGION</h3>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            "Africa", "Asia", "Europe", "Americas",
-            "Middle East", "Oceania"
-          ].map((region) => (
+        <h3 className="text-xl font-semibold mb-6 text-phindex-dark">PHENOTYPE REGION</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {["Africa", "Asia", "Europe", "Americas", "Middle East", "Oceania"].map((region) => (
             <Button
               key={region}
               variant={isRegionActive(region) ? "default" : "outline"}
               size="sm"
-              className="text-xs py-2 px-3 h-auto"
+              className="text-sm py-3 px-4 h-auto whitespace-nowrap overflow-hidden text-ellipsis"
               onClick={() => handleRegionClick(region)}
+              title={region}
             >
               {region === "Middle East" ? "M.E" : region}
             </Button>
           ))}
         </div>
       </div>
-      
+
       {/* Categories */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 text-phindex-dark">CATEGORIES</h3>
-        <div className="space-y-2">
+        <h3 className="text-xl font-semibold mb-6 text-phindex-dark">CATEGORIES</h3>
+        <div className="space-y-4">
+          {/* Community */}
+          <button
+            className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
+              isCategoryActive("Community")
+                ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
+                : "hover:bg-muted/50"
+            }`}
+            onClick={() => handleCategoryClick("Community")}
+          >
+            <Users className="h-5 w-5" style={{ color: 'hsl(var(--category-primary))' }} />
+            <span className="text-base">Community</span>
+          </button>
+
+          <div className="border-t border-border/30 my-4"></div>
+
           {[
-            { icon: "👥", name: "Community" },
-            { icon: "🎬", name: "Pop Culture" },
-            { icon: "🎵", name: "Music and Entertainment" },
-            { icon: "🎨", name: "Arts" },
-            { icon: "🧠", name: "Philosophy" },
-            { icon: "🔬", name: "Sciences" },
-            { icon: "🏆", name: "Sports" },
-            { icon: "💼", name: "Business" },
-            { icon: "🏛️", name: "Politics" }
-          ].map((category) => (
-            <button
-              key={category.name}
-              className={`flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors text-sm ${
-                isCategoryActive(category.name) 
-                  ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20" 
-                  : "hover:bg-muted/50"
-              }`}
-              onClick={() => handleCategoryClick(category.name)}
-            >
-              <span className="text-base">{category.icon}</span>
-              <span>{category.name}</span>
-            </button>
-          ))}
+            { Icon: Film, name: "Pop Culture" },
+            { Icon: Music, name: "Music and Entertainment" },
+            { Icon: Palette, name: "Arts" },
+            { Icon: Brain, name: "Philosophy" },
+            { Icon: Microscope, name: "Sciences" },
+            { Icon: Trophy, name: "Sports" },
+            { Icon: Briefcase, name: "Business" },
+            { Icon: Building, name: "Politics" },
+            { Icon: Skull, name: "Criminals" },
+            { Icon: Church, name: "Religion" },
+            { Icon: Shield, name: "Military" },
+          ].map((category) => {
+            const isActive = isCategoryActive(category.name);
+            return (
+              <button
+                key={category.name}
+                className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
+                  isActive
+                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
+                    : "hover:bg-muted/50"
+                }`}
+                onClick={() => handleCategoryClick(category.name)}
+              >
+                <category.Icon className="h-5 w-5" color="#007a75" />
+                <span className="text-base">{category.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
-      
+
+      {/* Separator */}
+      <div className="border-t border-border/50"></div>
+
       {/* More Info */}
       <div>
-        <h3 className="text-lg font-semibold mb-4 text-phindex-dark">MORE INFO</h3>
-        <div className="space-y-2">
+        <h3 className="text-xl font-semibold mb-6 text-phindex-dark">MORE INFO</h3>
+        <div className="space-y-4">
           <button
-            className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50 text-sm"
-            onClick={() => {
-              navigate('/leaderboard');
-              onNavigate();
-            }}
+            className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
+              location.pathname === '/game'
+                ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
+                : "hover:bg-muted/50"
+            }`}
+            onClick={() => nav('/game')}
           >
-            <span className="text-base">🏆</span>
-            <span>Leaderboard</span>
+            <Gamepad2 className="h-5 w-5" color="#007a75" />
+            <span className="text-base">Phenotype Game</span>
           </button>
-          
+
           <button
-            className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50 text-sm"
-            onClick={() => {
-              navigate('/phenotype-flow');
-              onNavigate();
-            }}
+            className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
+              location.pathname === '/leaderboard'
+                ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
+                : "hover:bg-muted/50"
+            }`}
+            onClick={() => nav('/leaderboard')}
           >
-            <span className="text-base">🌊</span>
-            <span>Phenotype Flow</span>
+            <Award className="h-5 w-5" color="#007a75" />
+            <span className="text-base">Leaderboard</span>
           </button>
-          
+
           <button
-            className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50 text-sm"
-            onClick={() => {
-              navigate('/contact');
-              onNavigate();
-            }}
+            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
+            onClick={() => nav('/phenotype-flow')}
           >
-            <span className="text-base">📧</span>
-            <span>Contact</span>
+            <GitBranch className="h-5 w-5" color="#007a75" />
+            <span className="text-base">Phenotype Flow</span>
           </button>
-          
+
           <button
-            className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50 text-sm"
-            onClick={() => {
-              navigate('/faq');
-              onNavigate();
-            }}
+            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
+            onClick={() => nav('/contact')}
           >
-            <span className="text-base">❓</span>
-            <span>FAQ</span>
+            <Mail className="h-5 w-5" color="#007a75" />
+            <span className="text-base">Contact</span>
           </button>
-          
+
           <button
-            className="flex items-center gap-3 w-full text-left p-3 rounded-lg transition-colors hover:bg-destructive/10 text-destructive text-sm"
-            onClick={() => {
-              signOut();
-              onNavigate();
-            }}
+            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
+            onClick={() => nav('/faq')}
           >
-            <span className="text-base">🚪</span>
-            <span>Logout</span>
+            <HelpCircle className="h-5 w-5" color="#007a75" />
+            <span className="text-base">FAQ</span>
+          </button>
+
+          <button
+            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-destructive/10 text-destructive hover:text-destructive"
+            onClick={() => { signOut(); onNavigate(); }}
+          >
+            <LogOut className="h-5 w-5" />
+            <span className="text-base">Logout</span>
           </button>
         </div>
       </div>

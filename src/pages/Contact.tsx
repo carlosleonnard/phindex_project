@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,22 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Contact Phindex | Get in Touch</title>
+        <meta name="description" content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification." />
+        <link rel="canonical" href="https://www.phenotypeindex.com/contact" />
+        <meta property="og:title" content="Contact Phindex | Get in Touch" />
+        <meta property="og:description" content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification." />
+        <meta property="og:url" content="https://www.phenotypeindex.com/contact" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content="Contact | Phindex" />
+        <meta name="twitter:description" content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification." />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+      </Helmet>
       <Header />
       <AppSidebar />
       <main className="lg:ml-80 pt-16">

@@ -1,57 +1,102 @@
 /**
- * PÁGINA INICIAL DA APLICAÇÃO (Index.tsx)
+ * PÁGINA INICIAL (Index.tsx)
  *
- * Esta é a página principal (home) da aplicação Phindex.
- * Exibe três seções principais:
- * 1. Celebridades populares (mais votadas)
- * 2. Perfis de usuário mais votados
- * 3. Perfis recentes da comunidade
+ * O feed de descoberta do Phindex. A página é organizada em três faixas:
  *
- * Cada seção utiliza carousels horizontais para navegação.
+ * 1. Trilhos de destaque  — leitura rápida de quem está em alta
+ * 2. Feed vertical        — cards grandes com scroll infinito e action bar
+ * 3. Painel de descoberta — tendências e atividade (apenas em telas largas)
  */
 
-// Ícone de voto da biblioteca Lucide React
-import { Vote, Plus } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet-async";
-import { useState } from "react";
-// Componentes de layout da aplicação
-import { Header } from "@/components/Header"; // Cabeçalho fixo
-import { Footer } from "@/components/Footer"; // Rodapé
-import { AppSidebar } from "@/components/AppSidebar"; // Barra lateral de navegação
-import { AddProfileModal } from "@/components/AddProfileModal"; // Modal de criação de perfil
-import { StatsBanner } from "@/components/StatsBanner"; // Banner de estatísticas
-// Hook customizado para gerenciar perfis de usuário
-import { useUserProfiles } from "@/hooks/use-user-profiles";
-// Componentes de UI do sistema de design
-import { Card } from "@/components/ui/card"; // Cards para layout
-import { Badge } from "@/components/ui/badge"; // Badges para indicadores
-import { Button } from "@/components/ui/button"; // Botões
-// Componentes de carousel para navegação horizontal
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { Separator } from "@/components/ui/separator"; // Separadores visuais
-// Hook para navegação programática entre páginas
-import { useNavigate } from "react-router-dom";
+import { Plus } from "lucide-react";
+
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { AppSidebar } from "@/components/AppSidebar";
+import { BottomNav } from "@/components/BottomNav";
+import { AddProfileModal } from "@/components/AddProfileModal";
+import { StatsBanner } from "@/components/StatsBanner";
+import { HighlightRail } from "@/components/HighlightRail";
+import { DiscoveryPanel } from "@/components/DiscoveryPanel";
+import { PhenotypeCard } from "@/components/PhenotypeCard";
+import { Button } from "@/components/ui/button";
+import { useProfileFeed, useHighlightProfiles, type FeedSort } from "@/hooks/use-profile-feed";
+import { cn } from "@/lib/utils";
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Phindex - Phenotype Index",
+  url: "https://www.phenotypeindex.com",
+  potentialAction: {
+    "@type": "SearchAction",
+    target: "https://www.phenotypeindex.com/explore?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  },
+};
+
+const SORT_OPTIONS: { value: FeedSort; label: string }[] = [
+  { value: "recent", label: "Recent" },
+  { value: "popular", label: "Most voted" },
+];
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { profiles: userProfiles, profilesByVotes } = useUserProfiles();
-  const [showCelebrityModal, setShowCelebrityModal] = useState(false);
-  const [showUserModal, setShowUserModal] = useState(false);
+  const [sort, setSort] = useState<FeedSort>("recent");
+  // Dois modais distintos: cada botão já define se o perfil é de uma pessoa
+  // famosa ou da comunidade, então a pergunta some do formulário.
+  const [showFamousModal, setShowFamousModal] = useState(false);
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
 
-  const websiteSchema = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "Phindex - Phenotype Index",
-    "url": "https://www.phenotypeindex.com",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": "https://www.phenotypeindex.com/?search={search_term_string}",
-      "query-input": "required name=search_term_string"
-    }
-  };
+  const { profiles: highlights, isLoading: highlightsLoading } = useHighlightProfiles();
+  const {
+    profiles: feedProfiles,
+    isLoading: feedLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isError,
+    refetch,
+  } = useProfileFeed(sort);
+
+  // Sentinela do scroll infinito.
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      // Carrega antes de chegar ao fim, para o scroll não travar.
+      { rootMargin: "600px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const mostVoted = useMemo(
+    () =>
+      [...highlights]
+        .filter((profile) => !profile.is_anonymous)
+        .sort((a, b) => b.vote_count - a.vote_count)
+        .slice(0, 14),
+    [highlights]
+  );
+
+  const community = useMemo(
+    () => highlights.filter((profile) => profile.is_anonymous).slice(0, 14),
+    [highlights]
+  );
 
   return (
-    <div className="min-h-screen bg-slate-100 overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       <Helmet>
         <title>Phindex - Phenotype Index | Discover Human Phenotypes, Ancestry &amp; Physical Traits</title>
         <meta name="description" content="Explore and classify human phenotypes from around the world. Discover European, African, Asian, American and Middle Eastern phenotypes. Vote on physical characteristics like skin color, hair texture, eye color, body type and more." />
@@ -60,7 +105,7 @@ const Index = () => {
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Phindex - Phenotype Index" />
         <meta property="og:description" content="Explore and classify human phenotypes from around the world." />
-        <meta property="og:image" content="https://www.phenotypeindex.com/phindex-uploads/39fe11bc-0ec1-4dad-8877-0789763891df.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://www.phenotypeindex.com" />
@@ -69,342 +114,198 @@ const Index = () => {
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Phindex - Phenotype Index" />
         <meta name="twitter:description" content="Explore and classify human phenotypes from around the world." />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/phindex-uploads/39fe11bc-0ec1-4dad-8877-0789763891df.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
         <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
       </Helmet>
+
       <Header />
+      <AppSidebar />
 
-      <div className="container px-4 max-w-none">
-        <div className="lg:ml-80 pt-20">
-          {/* Sidebar */}
-          <AppSidebar />
+      {/* pb-24 no mobile abre espaço para a bottom nav fixa. */}
+      <main className="px-4 pb-24 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
+        <div className="mx-auto flex max-w-[1400px] gap-8">
+          <div className="min-w-0 flex-1">
+            <StatsBanner />
 
-          {/* Stats Banner */}
-          <StatsBanner />
+            <HighlightRail
+              title="Famous people"
+              description="The public figures the community has classified most"
+              profiles={mostVoted}
+              isLoading={highlightsLoading}
+              ranked
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowFamousModal(true)}
+                  className="shrink-0 gap-1.5 rounded-full"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add famous person
+                </Button>
+              }
+            />
 
-          {/* Main Content */}
-          <div className="bg-slate-100">
-            {/* Popular Celebrities Section */}
-            <div className="mb-6">
-              <div className="relative p-6">
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                        <Vote className="h-4 w-4 text-primary" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-foreground">Popular Celebrities</h2>
-                    </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90"
-                      onClick={() => setShowCelebrityModal(true)}
+            <HighlightRail
+              title="From the community"
+              description="Profiles submitted by Phindex members"
+              profiles={community}
+              isLoading={highlightsLoading}
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCommunityModal(true)}
+                  className="shrink-0 gap-1.5 rounded-full"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add to community
+                </Button>
+              }
+            />
+
+            {/* FEED */}
+            <section aria-labelledby="feed-heading" className="pt-2">
+              <div className="sticky top-16 z-30 -mx-4 mb-4 flex items-center justify-between gap-4 border-b border-border/60 bg-background/90 px-4 py-3 backdrop-blur-md">
+                <h2 id="feed-heading" className="text-xl font-semibold tracking-tight text-foreground">
+                  Discover
+                </h2>
+
+                <div
+                  role="group"
+                  aria-label="Sort feed"
+                  className="flex items-center gap-1 rounded-full bg-muted p-1"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSort(option.value)}
+                      aria-pressed={sort === option.value}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-sm transition-colors duration-200",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        sort === option.value
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
-                      <Plus className="mr-1 h-4 w-4" />
-                      Add
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {isError ? (
+                <div className="rounded-2xl border border-border/60 bg-card p-8 text-center">
+                  <p className="text-foreground">We couldn&rsquo;t load the feed.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Check your connection and try again.
+                  </p>
+                  <Button onClick={() => refetch()} className="mt-4 rounded-full">
+                    Retry
+                  </Button>
+                </div>
+              ) : feedLoading ? (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="overflow-hidden rounded-2xl border border-border/60 bg-card"
+                      aria-hidden="true"
+                    >
+                      <div className="aspect-[4/5] animate-pulse bg-muted sm:aspect-[640/607]" />
+                      <div className="space-y-2 p-5">
+                        <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+                        <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : feedProfiles.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    The index is empty
+                  </h3>
+                  <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                    Be the first to add a face and let the community classify it.
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-3">
+                    <Button
+                      onClick={() => setShowFamousModal(true)}
+                      className="gap-1.5 rounded-full"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add famous person
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCommunityModal(true)}
+                      className="gap-1.5 rounded-full"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add to community
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Use Phindex to discover and classify the most voted public figures in our phenotype community
-                  </p>
-
-                  <Carousel className="w-full" opts={{ align: "start", loop: false }}>
-                    <div className="relative group">
-                      <CarouselContent className="ml-0">
-                        {(profilesByVotes?.filter((profile) => !profile.is_anonymous) || [])
-                          .slice(0, 12)
-                          .map((profile, index) => (
-                            <CarouselItem key={profile.id} className="pl-1 basis-1/10">
-                              <div className="flex-shrink-0 group/item">
-                                <div
-                                  className="cursor-pointer"
-                                  onClick={() => navigate(`/user-profile/${profile.slug}`)}
-                                >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                          <img
-                                            src={profile.front_image_url}
-                                            alt={profile.name}
-                                            loading="lazy"
-                                            className="w-full h-full object-cover"
-                                          />
-                                       </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
-                                      </div>
-                                      <div
-                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
-                                        title={(profile as any).most_voted_phenotype || ""}
-                                      >
-                                        {(profile as any).most_voted_phenotype || "—"}
-                                      </div>
-                                      {index < 3 && (
-                                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                                          #{index + 1}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs w-36 truncate" title={profile.name}>
-                                      {profile.name}
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground text-center w-36 truncate">{profile.category}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </CarouselItem>
-                          ))}
-                      </CarouselContent>
-                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                    </div>
-                  </Carousel>
                 </div>
-              </div>
-            </div>
-
-            {/* Recent Celebrities Section */}
-            <div className="mb-6">
-              <div className="relative p-6">
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                      <Vote className="h-4 w-4 text-primary" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-foreground">Recent Celebrities</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Most recently added celebrities to our Phenotype Index
-                  </p>
-
-                  <Carousel className="w-full" opts={{ align: "start", loop: false }}>
-                    <div className="relative group">
-                      <CarouselContent className="ml-0">
-                        {(
-                          userProfiles
-                            ?.filter((profile) => !profile.is_anonymous)
-                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) || []
-                        )
-                          .slice(0, 12)
-                          .map((profile, index) => (
-                            <CarouselItem key={profile.id} className="pl-1 basis-1/10">
-                              <div className="flex-shrink-0 group/item">
-                                <div
-                                  className="cursor-pointer"
-                                  onClick={() => navigate(`/user-profile/${profile.slug}`)}
-                                >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                          <img
-                                            src={profile.front_image_url}
-                                            alt={profile.name}
-                                            loading="lazy"
-                                            className="w-full h-full object-cover"
-                                          />
-                                       </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
-                                      </div>
-                                      <div
-                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
-                                        title={(profile as any).most_voted_phenotype || ""}
-                                      >
-                                        {(profile as any).most_voted_phenotype || "—"}
-                                      </div>
-                                    </div>
-                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs w-36 truncate" title={profile.name}>
-                                      {profile.name}
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground text-center w-36 truncate">{profile.category}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </CarouselItem>
-                          ))}
-                      </CarouselContent>
-                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                    </div>
-                  </Carousel>
-                </div>
-              </div>
-            </div>
-
-            {/* Separator */}
-            <div className="px-6 mb-8">
-              <Separator className="bg-border" />
-            </div>
-
-            {/* Top User Profiles Section */}
-            <div className="mb-6">
-              <div className="relative p-6">
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                        <Vote className="h-4 w-4 text-primary" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-foreground">Top User Profiles</h2>
-                    </div>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90"
-                      onClick={() => setShowUserModal(true)}
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {feedProfiles.map((profile, index) => (
+                    <div
+                      key={profile.id}
+                      className="motion-safe:animate-[feedItemIn_400ms_cubic-bezier(0.22,1,0.36,1)_backwards]"
+                      // Escalona só dentro da página recém-chegada.
+                      style={{ animationDelay: `${(index % 12) * 40}ms` }}
                     >
-                      <Plus className="mr-1 h-4 w-4" />
-                      Add
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Most voted user-created profiles in our Phenotype Index
-                  </p>
-
-                  <Carousel className="w-full" opts={{ align: "start", loop: false }}>
-                    <div className="relative group">
-                      <CarouselContent className="ml-0">
-                        {(profilesByVotes?.filter((profile) => profile.category === "User Profiles") || [])
-                          .slice(0, 12)
-                          .map((profile, index) => (
-                            <CarouselItem key={profile.id} className="pl-1 basis-1/10">
-                              <div className="flex-shrink-0 group/item">
-                                <div
-                                  className="cursor-pointer"
-                                  onClick={() => navigate(`/user-profile/${profile.slug}`)}
-                                >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                          <img
-                                            src={profile.front_image_url}
-                                            alt={profile.name}
-                                            loading="lazy"
-                                            className="w-full h-full object-cover"
-                                          />
-                                       </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
-                                      </div>
-                                      <div
-                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
-                                        title={(profile as any).most_voted_phenotype || ""}
-                                      >
-                                        {(profile as any).most_voted_phenotype || "—"}
-                                      </div>
-                                      {index < 3 && (
-                                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                                          #{index + 1}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs">
-                                      {profile.name}
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground text-center">
-                                      {(profile as any).most_voted_phenotype || profile.category}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </CarouselItem>
-                          ))}
-                      </CarouselContent>
-                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
+                      <PhenotypeCard profile={profile} variant="feed" priority={index < 2} />
                     </div>
-                  </Carousel>
+                  ))}
                 </div>
-              </div>
-            </div>
+              )}
 
-            {/* Recent Profiles Section */}
-            <div className="mb-12">
-              <div className="relative p-6">
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20">
-                      <Vote className="h-4 w-4 text-primary" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-foreground">Recent Profiles</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Latest community profiles added to the Phenotype Index
-                  </p>
+              {/* Sentinela + estado de carregamento da próxima página. */}
+              <div ref={sentinelRef} className="h-px" aria-hidden="true" />
 
-                  <Carousel className="w-full" opts={{ align: "start", loop: false }}>
-                    <div className="relative group">
-                      <CarouselContent className="ml-0">
-                        {(userProfiles?.filter((profile) => profile.is_anonymous) || [])
-                          .slice(0, 12)
-                          .map((profile, index) => (
-                            <CarouselItem key={profile.id} className="pl-1 basis-1/10">
-                              <div className="flex-shrink-0 group/item">
-                                <div
-                                  className="cursor-pointer"
-                                  onClick={() => navigate(`/user-profile/${profile.slug}`)}
-                                >
-                                   <div className="flex flex-col items-center p-1 rounded-lg hover:bg-accent/50 transition-colors">
-                                     <div className="relative mb-1">
-                                       <div className="w-36 h-36 rounded-lg overflow-hidden border-2 border-primary cursor-pointer bg-primary/10 flex items-center justify-center">
-                                         <img
-                                           src={profile.front_image_url}
-                                           alt={profile.name}
-                                           className="w-full h-full object-cover"
-                                         />
-                                       </div>
-                                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                                        <Vote className="h-2.5 w-2.5" />
-                                        <span className="text-xs">{(profile as any).vote_count || 0}</span>
-                                      </div>
-                                      <div
-                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-xs bg-background/80 px-1 py-0.5 rounded max-w-[9rem] truncate"
-                                        title={(profile as any).most_voted_phenotype || ""}
-                                      >
-                                        {(profile as any).most_voted_phenotype || "—"}
-                                      </div>
-                                    </div>
-                                    <h3 className="font-medium text-foreground mb-0.5 text-center text-xs">
-                                      {profile.name}
-                                    </h3>
-                                    <p className="text-xs text-muted-foreground text-center">
-                                      {(profile as any).most_voted_phenotype || profile.category}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </CarouselItem>
-                          ))}
-                      </CarouselContent>
-                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-background border-0" />
-                    </div>
-                  </Carousel>
-                </div>
-              </div>
-            </div>
+              {isFetchingNextPage && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  Loading more&hellip;
+                </p>
+              )}
+
+              {!hasNextPage && feedProfiles.length > 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  You&rsquo;ve reached the end of the index.
+                </p>
+              )}
+            </section>
           </div>
+
+          {/* PAINEL DIREITO */}
+          <aside className="hidden w-80 shrink-0 xl:block">
+            <div className="sticky top-24">
+              <DiscoveryPanel profiles={highlights} isLoading={highlightsLoading} />
+            </div>
+          </aside>
         </div>
-      </div>
+      </main>
 
       <Footer />
+      <BottomNav />
 
-      {/* Modals */}
+      {/* Pessoa famosa: is_anonymous = false, categoria escolhida no formulário. */}
       <AddProfileModal
-        triggerExternal={showCelebrityModal}
-        onTriggerExternalChange={setShowCelebrityModal}
+        triggerExternal={showFamousModal}
+        onTriggerExternalChange={setShowFamousModal}
         initialIsAnonymous={false}
-        lockIsAnonymous={true}
+        lockIsAnonymous
       />
+
+      {/* Comunidade: is_anonymous = true, categoria fixada em "User Profiles". */}
       <AddProfileModal
-        triggerExternal={showUserModal}
-        onTriggerExternalChange={setShowUserModal}
+        triggerExternal={showCommunityModal}
+        onTriggerExternalChange={setShowCommunityModal}
         initialIsAnonymous={true}
-        lockIsAnonymous={true}
+        lockIsAnonymous
       />
     </div>
   );

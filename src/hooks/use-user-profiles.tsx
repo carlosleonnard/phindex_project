@@ -36,6 +36,7 @@ export interface UserProfile {
   profile_image_url?: string;    // URL da imagem de perfil (opcional)
   is_anonymous: boolean;         // Se o perfil é anônimo ou não
   slug: string;                  // Slug único para URLs amigáveis
+  subcategory: string | null;    // Subcategoria opcional
   created_at: string;            // Data de criação
   updated_at: string;            // Data da última atualização
 }
@@ -56,6 +57,7 @@ export interface CreateUserProfileData {
   frontImageUrl: string;         // URL da imagem frontal
   profileImageUrl?: string;      // URL da imagem de perfil (opcional)
   isAnonymous: boolean;          // Se é perfil anônimo
+  subcategory?: string;          // Subcategoria opcional
 }
 
 /**
@@ -110,6 +112,15 @@ export const useUserProfiles = () => {
           // Conta votos do Primary Geographic
           const voteCount = votesData?.length || 0;
 
+          // Calcula a classificação geográfica mais votada
+          const geographicCounts: Record<string, number> = {};
+          votesData?.forEach(vote => {
+            geographicCounts[vote.classification] = (geographicCounts[vote.classification] || 0) + 1;
+          });
+
+          const mostVotedGeographic = Object.entries(geographicCounts)
+            .sort(([,a], [,b]) => b - a)[0]?.[0] || null;
+
           // Calcula o fenótipo específico mais votado
           const phenotypeCounts: Record<string, number> = {};
           phenotypeVotesData?.forEach(vote => {
@@ -122,8 +133,9 @@ export const useUserProfiles = () => {
           // Retorna o perfil original + contagem de votos Primary Geographic + fenótipo mais votado
           return {
             ...profile,
-            vote_count: voteCount,   // Conta votos do Primary Geographic
-            most_voted_phenotype: mostVotedPhenotype // Fenótipo específico mais votado
+            vote_count: voteCount,
+            most_voted_geographic: mostVotedGeographic,
+            most_voted_phenotype: mostVotedPhenotype
           };
         })
       );
@@ -162,6 +174,15 @@ export const useUserProfiles = () => {
           // Count votes for Primary Geographic
           const voteCount = votesData?.length || 0;
 
+          // Calcula a classificação geográfica mais votada
+          const geographicCounts: Record<string, number> = {};
+          votesData?.forEach(vote => {
+            geographicCounts[vote.classification] = (geographicCounts[vote.classification] || 0) + 1;
+          });
+
+          const mostVotedGeographic = Object.entries(geographicCounts)
+            .sort(([,a], [,b]) => b - a)[0]?.[0] || null;
+
           // Calcula o fenótipo específico mais votado
           const phenotypeCounts: Record<string, number> = {};
           phenotypeVotesData?.forEach(vote => {
@@ -174,7 +195,8 @@ export const useUserProfiles = () => {
           return {
             ...profile,
             vote_count: voteCount,
-            most_voted_phenotype: mostVotedPhenotype // Fenótipo específico mais votado
+            most_voted_geographic: mostVotedGeographic,
+            most_voted_phenotype: mostVotedPhenotype
           };
         })
       );
@@ -240,6 +262,7 @@ export const useUserProfiles = () => {
           front_image_url: profileData.frontImageUrl,
           profile_image_url: profileData.profileImageUrl,
           is_anonymous: profileData.isAnonymous,
+          subcategory: profileData.subcategory || null,
           slug: slugData,
         })
         .select()
@@ -277,6 +300,7 @@ export const useUserProfiles = () => {
       if (profileData.frontImageUrl !== undefined) updateData.front_image_url = profileData.frontImageUrl;
       if (profileData.profileImageUrl !== undefined) updateData.profile_image_url = profileData.profileImageUrl;
       if (profileData.isAnonymous !== undefined) updateData.is_anonymous = profileData.isAnonymous;
+      if (profileData.subcategory !== undefined) updateData.subcategory = profileData.subcategory;
 
       // Generate new slug if name changed
       if (profileData.name) {

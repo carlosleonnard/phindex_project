@@ -3,23 +3,38 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
-import { 
-  Users, 
-  Film, 
-  Music, 
-  Palette, 
-  Brain, 
-  Microscope, 
-  Trophy, 
-  Briefcase, 
+import {
+  Users,
+  Film,
+  Music,
+  Palette,
+  Brain,
+  Microscope,
+  Trophy,
+  Briefcase,
   Building,
+  Skull,
+  Church,
+  Shield,
   GitBranch,
   HelpCircle,
   LogOut,
   Mail,
   Award,
-  Gamepad2
+  Gamepad2,
+  Home,
+  Search,
+  Heart
 } from "lucide-react";
+import { CATEGORY_SLUG_MAP } from "@/constants/categories";
+
+/** Destinos de descoberta, espelhando a bottom nav do mobile. */
+const PRIMARY_NAV = [
+  { Icon: Home, name: "Home", path: "/" },
+  { Icon: Search, name: "Explore", path: "/explore" },
+  { Icon: Gamepad2, name: "Guess the phenotype", path: "/game" },
+  { Icon: Heart, name: "Saved", path: "/saved" },
+];
 
 export const AppSidebar = () => {
   const navigate = useNavigate();
@@ -37,23 +52,12 @@ export const AppSidebar = () => {
       .replace('ã', 'a')
       .replace('õ', 'o')
       .replace('ç', 'c');
-    
+
     navigate(`/region/${regionSlug}`);
   };
 
   const handleCategoryClick = (category: string) => {
-    const categoryMapping: Record<string, string> = {
-      "Community": "community",
-      "Pop Culture": "pop-culture",
-      "Music and Entertainment": "music-and-entertainment",
-      "Arts": "arts",
-      "Philosophy": "philosophy",
-      "Sciences": "sciences",
-      "Sports": "sports",
-      "Business": "business",
-      "Politics": "politics"
-    };
-    const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
+    const categorySlug = CATEGORY_SLUG_MAP[category] || category.toLowerCase().replace(/\s+/g, '-');
     navigate(`/category/${categorySlug}`);
   };
 
@@ -68,30 +72,49 @@ export const AppSidebar = () => {
       .replace('ã', 'a')
       .replace('õ', 'o')
       .replace('ç', 'c');
-    
+
     return location.pathname === `/region/${regionSlug}`;
   };
 
   const isCategoryActive = (category: string) => {
-    const categoryMapping: Record<string, string> = {
-      "Community": "community",
-      "Pop Culture": "pop-culture",
-      "Music and Entertainment": "music-and-entertainment",
-      "Arts": "arts",
-      "Philosophy": "philosophy",
-      "Sciences": "sciences",
-      "Sports": "sports",
-      "Business": "business",
-      "Politics": "politics"
-    };
-    const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
+    const categorySlug = CATEGORY_SLUG_MAP[category] || category.toLowerCase().replace(/\s+/g, '-');
     return location.pathname === `/category/${categorySlug}`;
   };
 
   return (
     <div className="w-80 hidden lg:block fixed left-0 top-16 h-screen z-40">
-      <div className="bg-card border-r border-border/50 h-full overflow-y-auto pt-6 px-6">
+      <div className="bg-card border-r border-border/50 h-full overflow-y-auto pt-6 px-6 pb-12">
         <div className="space-y-8">
+          {/* Destinos principais da descoberta social */}
+          <nav aria-label="Discover">
+            <ul className="space-y-1">
+              {PRIMARY_NAV.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <li key={item.path}>
+                    <button
+                      className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors ${
+                        isActive
+                          ? "bg-phindex-teal/10 text-phindex-teal"
+                          : "hover:bg-muted/50"
+                      }`}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => navigate(item.path)}
+                    >
+                      <item.Icon
+                        className="h-5 w-5 shrink-0"
+                        color={isActive ? undefined : "#007a75"}
+                      />
+                      <span className="text-base">{item.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          <Separator />
+
           <div>
             <h3 className="text-xl font-semibold mb-6 text-phindex-dark">PHENOTYPE REGION</h3>
             <div className="grid grid-cols-2 gap-3">
@@ -109,22 +132,22 @@ export const AppSidebar = () => {
                 >
                   <span className="hidden xl:inline">{region}</span>
                   <span className="xl:hidden">
-                    {region === "Middle East" ? "M.E" : 
+                    {region === "Middle East" ? "M.E" :
                      region}
                   </span>
                 </Button>
               ))}
             </div>
           </div>
-          
+
           <div>
             <h3 className="text-xl font-semibold mb-6 text-phindex-dark">CATEGORIES</h3>
             <div className="space-y-4">
               {/* Community Section */}
               <button
                 className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-                  isCategoryActive("Community") 
-                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20" 
+                  isCategoryActive("Community")
+                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
                     : "hover:bg-muted/50"
                 }`}
                 onClick={() => handleCategoryClick("Community")}
@@ -132,10 +155,10 @@ export const AppSidebar = () => {
                 <Users className="h-5 w-5" style={{ color: 'hsl(var(--category-primary))' }} />
                 <span className="text-base">Community</span>
               </button>
-              
+
               {/* Separator */}
               <div className="border-t border-border/30 my-4"></div>
-              
+
               {/* Other Categories */}
               {[
                 { Icon: Film, name: "Pop Culture" },
@@ -145,22 +168,25 @@ export const AppSidebar = () => {
                 { Icon: Microscope, name: "Sciences" },
                 { Icon: Trophy, name: "Sports" },
                 { Icon: Briefcase, name: "Business" },
-                { Icon: Building, name: "Politics" }
+                { Icon: Building, name: "Politics" },
+                { Icon: Skull, name: "Criminals" },
+                { Icon: Church, name: "Religion" },
+                { Icon: Shield, name: "Military" },
                ].map((category) => {
                 const isActive = isCategoryActive(category.name);
                 return (
                   <button
                     key={category.name}
                     className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-                      isActive 
-                        ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20" 
+                      isActive
+                        ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
                         : "hover:bg-muted/50"
                     }`}
                     onClick={() => handleCategoryClick(category.name)}
                   >
-                    <category.Icon 
-                      className="h-5 w-5" 
-                      color="#007a75" 
+                    <category.Icon
+                      className="h-5 w-5"
+                      color="#007a75"
                     />
                     <span className="text-base">{category.name}</span>
                   </button>
@@ -168,26 +194,14 @@ export const AppSidebar = () => {
                })}
             </div>
           </div>
-          
+
           {/* Separator */}
           <Separator className="my-6" />
-          
+
           {/* More Info Section */}
           <div>
             <h3 className="text-xl font-semibold mb-6 text-phindex-dark">MORE INFO</h3>
             <div className="space-y-4">
-              <button
-                className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-                  location.pathname === '/game'
-                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
-                    : "hover:bg-muted/50"
-                }`}
-                onClick={() => navigate('/game')}
-              >
-                <Gamepad2 className="h-5 w-5" color="#007a75" />
-                <span className="text-base">Phenotype Game</span>
-              </button>
-
               <button
                 className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
                   location.pathname === '/leaderboard'
@@ -207,8 +221,8 @@ export const AppSidebar = () => {
                 <GitBranch className="h-5 w-5" color="#007a75" />
                 <span className="text-base">Phenotype Flow</span>
               </button>
-              
-              
+
+
               <button
                 className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
                 onClick={() => navigate('/contact')}
@@ -216,7 +230,7 @@ export const AppSidebar = () => {
                 <Mail className="h-5 w-5" color="#007a75" />
                 <span className="text-base">Contact</span>
               </button>
-              
+
               <button
                 className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
                 onClick={() => navigate('/faq')}
@@ -224,7 +238,7 @@ export const AppSidebar = () => {
                 <HelpCircle className="h-5 w-5" color="#007a75" />
                 <span className="text-base">FAQ</span>
               </button>
-              
+
               <button
                 className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-destructive/10 text-destructive hover:text-destructive"
                 onClick={() => signOut()}

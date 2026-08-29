@@ -266,3 +266,34 @@
   0% { opacity: 0; transform: translateY(16px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+
+/* Confirmação do duplo toque para salvar: cresce, segura e some. */
+@keyframes saveBurst {
+  0% { opacity: 0; transform: scale(0.4); }
+  40% { opacity: 0.95; transform: scale(1.08); }
+  70% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.18); }
+}
+
+/* Entrada escalonada dos itens do feed a partir de um estado já visível. */
+@keyframes feedItemIn {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Bandeja de comparação entrando pela base da tela. */
+@keyframes trayIn {
+  0% { opacity: 0; transform: translateY(100%); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

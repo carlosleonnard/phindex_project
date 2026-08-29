@@ -19,6 +19,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
 // Importa todas as páginas da aplicação
 import Index from "./pages/Index"; // Página inicial com lista de perfis
+import Explore from "./pages/Explore"; // Busca e navegação em grade
+import Saved from "./pages/Saved"; // Coleção pessoal de perfis salvos
 import ProfileDetail from "./pages/ProfileDetail"; // Página de detalhes de um perfil específico
 import UserProfileDetail from "./pages/UserProfileDetail"; // Página de perfil de usuário
 import RegionPage from "./pages/RegionPage"; // Página filtrada por região geográfica
@@ -63,9 +65,15 @@ const App = () => (
       <BrowserRouter>
         {/* Container de todas as rotas da aplicação */}
         <Routes>
-          {/* ROTA INICIAL: Página principal com lista de perfis */}
+          {/* ROTA INICIAL: Feed de descoberta */}
           <Route path="/" element={<Index />} />
-          
+
+          {/* ROTA ESTÁTICA: Busca e navegação em grade */}
+          <Route path="/explore" element={<Explore />} />
+
+          {/* ROTA ESTÁTICA: Perfis salvos pelo usuário */}
+          <Route path="/saved" element={<Saved />} />
+
           {/* ROTA DINÂMICA: Detalhes de perfil por ID específico */}
           <Route path="/profile/:id" element={<ProfileDetail />} />
           

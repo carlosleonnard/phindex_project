@@ -1,9 +1,38 @@
+/**
+ * SITEMAP DINÂMICO (sitemap.xml.ts)
+ *
+ * As listas de categorias e regiões vêm de api/_lib/routes.ts, que tem um teste
+ * de consistência contra src/constants — antes eram duplicadas inline aqui e
+ * ficaram desatualizadas quando "criminals", "religion" e "military" surgiram.
+ *
+ * Cada perfil aparece uma única vez, na URL do slug. Emitir também /profile/{id}
+ * criava conteúdo duplicado: duas URLs idênticas por pessoa, dividindo o sinal
+ * de ranking entre elas.
+ */
+
 import { createClient } from '@supabase/supabase-js';
+import { CATEGORY_SLUGS, REGION_SLUGS } from './_lib/routes';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
 const BASE_URL = "https://www.phenotypeindex.com";
+
+type SitemapEntry = {
+  url: string;
+  priority: string;
+  changefreq: string;
+  lastmod: string;
+};
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
 
 export default async function handler(req: any, res: any) {
   try {
@@ -17,54 +46,48 @@ export default async function handler(req: any, res: any) {
 
     const today = new Date().toISOString().split('T')[0];
 
-    const staticPages = [
+    // Páginas dependentes de estado do cliente (/saved, /settings) ficam de
+    // fora: são noindex.
+    const staticPages: SitemapEntry[] = [
       { url: `${BASE_URL}/`, priority: '1.0', changefreq: 'daily', lastmod: today },
+      { url: `${BASE_URL}/explore`, priority: '0.8', changefreq: 'daily', lastmod: today },
+      { url: `${BASE_URL}/game`, priority: '0.7', changefreq: 'weekly', lastmod: today },
       { url: `${BASE_URL}/leaderboard`, priority: '0.5', changefreq: 'daily', lastmod: today },
       { url: `${BASE_URL}/faq`, priority: '0.5', changefreq: 'monthly', lastmod: today },
       { url: `${BASE_URL}/contact`, priority: '0.5', changefreq: 'monthly', lastmod: today },
       { url: `${BASE_URL}/phenotype-flow`, priority: '0.5', changefreq: 'monthly', lastmod: today },
     ];
 
-    const regions = ['africa', 'europe', 'asia', 'americas', 'middle-east', 'oceania'];
-    const regionPages = regions.map(r => ({
-      url: `${BASE_URL}/region/${r}`,
+    const regionPages: SitemapEntry[] = REGION_SLUGS.map((slug) => ({
+      url: `${BASE_URL}/region/${slug}`,
       priority: '0.7',
       changefreq: 'weekly',
       lastmod: today,
     }));
 
-    const categories = ['community', 'pop-culture', 'music-and-entertainment', 'arts', 'philosophy', 'sciences', 'sports', 'business', 'politics'];
-    const categoryPages = categories.map(c => ({
-      url: `${BASE_URL}/category/${c}`,
+    const categoryPages: SitemapEntry[] = CATEGORY_SLUGS.map((slug) => ({
+      url: `${BASE_URL}/category/${slug}`,
       priority: '0.6',
       changefreq: 'weekly',
       lastmod: today,
     }));
 
-    const profilePages = (profiles || []).flatMap(p => {
-      const lastmod = p.updated_at ? p.updated_at.split('T')[0] : today;
-      const pages = [
-        {
-          url: `${BASE_URL}/user-profile/${p.slug}`,
-          priority: '0.8',
-          changefreq: 'weekly',
-          lastmod,
-        },
-        {
-          url: `${BASE_URL}/profile/${p.id}`,
-          priority: '0.8',
-          changefreq: 'weekly',
-          lastmod,
-        },
-      ];
-      return pages;
-    });
+    // Uma URL por perfil: o slug é o canônico, com fallback para o id quando
+    // o perfil ainda não tem slug.
+    const profilePages: SitemapEntry[] = (profiles || []).map((p) => ({
+      url: p.slug
+        ? `${BASE_URL}/user-profile/${p.slug}`
+        : `${BASE_URL}/profile/${p.id}`,
+      priority: '0.8',
+      changefreq: 'weekly',
+      lastmod: p.updated_at ? p.updated_at.split('T')[0] : today,
+    }));
 
     const allPages = [...staticPages, ...regionPages, ...categoryPages, ...profilePages];
 
     const xmlUrls = allPages
       .map(page => `  <url>
-    <loc>${page.url}</loc>
+    <loc>${escapeXml(page.url)}</loc>
     <lastmod>${page.lastmod}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
     <priority>${page.priority}</priority>

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Plus, User, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, User, Calendar, Filter } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
@@ -12,61 +12,30 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { EmptyState } from "@/components/EmptyState";
-
-interface Profile {
-  id: string;
-  name: string;
-  age: number;
-  location: string;
-  imageUrl: string;
-  phenotypes: string[];
-  likes: number;
-  comments: any[];
-  votes: any[];
-  hasUserVoted: boolean;
-  description?: string;
-  category: string;
-  country: string;
-}
-
-
-const categoryDescriptions: Record<string, string> = {
-  "community": "Profiles of anonymous people and regular platform users",
-  "pop-culture": "Celebrities, influencers and pop culture personalities", 
-  "music-and-entertainment": "Artists, musicians, actors and entertainment professionals",
-  "arts": "Visual artists, writers and arts professionals",
-  "philosophy": "Philosophers, thinkers and intellectuals",
-  "sciences": "Scientists, researchers and academics",
-  "sports": "Athletes, sports players and sports professionals", 
-  "business": "Entrepreneurs, executives and business leaders",
-  "politics": "Politicians, government leaders and political figures"
-};
-
-const categoryNames: Record<string, string> = {
-  "community": "User Profiles",
-  "pop-culture": "Pop Culture",
-  "music-and-entertainment": "Music and Entertainment",
-  "arts": "Arts",
-  "philosophy": "Philosophy",
-  "sciences": "Sciences",
-  "sports": "Sports",
-  "business": "Business",
-  "politics": "Politics"
-};
-
-const categoryImages: Record<string, string> = {
-  "community": "/category-community.svg",
-  "pop-culture": "/category-pop-culture.svg",
-  "music-and-entertainment": "/category-music-and-entertainment.svg",
-  "arts": "/category-arts.svg",
-  "philosophy": "/category-philosophy.svg",
-  "sciences": "/category-sciences.svg",
-  "sports": "/category-sports.svg",
-  "business": "/category-business.svg",
-  "politics": "/category-politics.svg"
-};
+import {
+  SLUG_TO_CATEGORY,
+  CATEGORY_DESCRIPTIONS,
+  CATEGORY_IMAGES,
+  SUBCATEGORIES,
+} from "@/constants/categories";
 
 const PROFILES_PER_PAGE = 12;
+
+// Same mapping used in use-geographic-region-profiles
+const geographicToRegionMapping: Record<string, string[]> = {
+  "europe": ["Eastern Europe", "Central Europe", "Southern Europe", "Northern Europe"],
+  "africa": ["North Africa", "East Africa", "Sub-Saharan Africa"],
+  "middle-east": ["Levant", "Anatólia", "Anatolia", "Arabian Peninsula", "Persian Plateau"],
+  "asia": ["Central Asia", "Eastern Asia", "Southern Asia", "Southeastern Asia"],
+  "americas": ["Northern America", "Central America", "Southern America"],
+  "oceania": ["Australia and New Zealand", "Melanesia", "Polynesia"],
+};
+
+const belongsToRegion = (mostVotedGeographic: string | undefined | null, regionSlug: string): boolean => {
+  if (!mostVotedGeographic) return false;
+  const classifications = geographicToRegionMapping[regionSlug] || [];
+  return classifications.some(c => c.toLowerCase() === mostVotedGeographic.toLowerCase());
+};
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
@@ -74,29 +43,72 @@ export default function CategoryPage() {
   const { profiles, profilesLoading } = useUserProfiles();
   const [currentPage, setCurrentPage] = useState(1);
 
-  const categoryName = category ? categoryNames[category] : "Unknown Category";
-  const categoryDescription = category ? categoryDescriptions[category] : "Category not found";
+  // Filters
+  const [subcategoryFilter, setSubcategoryFilter] = useState("");
+  const [specificPhenotypeFilter, setSpecificPhenotypeFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
 
-  // Map URL category to database category names
-  const categoryMapping: Record<string, string> = {
-    "community": "User Profiles",
-    "pop-culture": "Pop Culture",
-    "music-and-entertainment": "Music and Entertainment",
-    "arts": "Arts",
-    "philosophy": "Philosophy",
-    "sciences": "Sciences",
-    "sports": "Sports",
-    "business": "Business",
-    "politics": "Politics"
-  };
+  const categoryName = category ? (SLUG_TO_CATEGORY[category] || "Unknown Category") : "Unknown Category";
+  const categoryDescription = category ? (CATEGORY_DESCRIPTIONS[category] || "Category not found") : "Category not found";
+  const isCommunity = category === "community";
+  const subcategoryOptions = SUBCATEGORIES[categoryName] || [];
 
-  // Filter profiles by category
-  const filteredProfiles = profiles?.filter(profile => {
-    const dbCategoryName = categoryMapping[category || ""];
-    return profile.category === dbCategoryName;
-  }) || [];
+  // Get profiles for this category
+  const categoryProfiles = useMemo(() => {
+    return profiles?.filter(profile => {
+      const dbCategoryName = SLUG_TO_CATEGORY[category || ""];
+      return profile.category === dbCategoryName;
+    }) || [];
+  }, [profiles, category]);
 
-  if (!category || !categoryNames[category]) {
+  // Collect unique specific phenotypes filtered by selected region
+  const uniquePhenotypes = useMemo(() => {
+    const set = new Set<string>();
+    categoryProfiles.forEach(p => {
+      if (!p.most_voted_phenotype) return;
+      if (regionFilter) {
+        const regionSlug = regionFilter.toLowerCase().replace(/\s+/g, '-');
+        if (!belongsToRegion(p.most_voted_geographic, regionSlug)) return;
+      }
+      set.add(p.most_voted_phenotype);
+    });
+    return Array.from(set).sort();
+  }, [categoryProfiles, regionFilter]);
+
+  // Collect unique regions filtered by selected phenotype
+  const availableRegions = useMemo(() => {
+    const set = new Set<string>();
+    const allRegions = ["Africa", "Asia", "Europe", "Americas", "Middle East", "Oceania"];
+    categoryProfiles.forEach(p => {
+      if (specificPhenotypeFilter && p.most_voted_phenotype !== specificPhenotypeFilter) return;
+      if (!p.most_voted_geographic) return;
+      for (const region of allRegions) {
+        const regionSlug = region.toLowerCase().replace(/\s+/g, '-');
+        if (belongsToRegion(p.most_voted_geographic, regionSlug)) {
+          set.add(region);
+        }
+      }
+    });
+    return allRegions.filter(r => set.has(r));
+  }, [categoryProfiles, specificPhenotypeFilter]);
+
+  // Apply filters
+  const filteredProfiles = useMemo(() => {
+    return categoryProfiles.filter(profile => {
+      if (subcategoryFilter && profile.subcategory !== subcategoryFilter) return false;
+
+      if (specificPhenotypeFilter && profile.most_voted_phenotype !== specificPhenotypeFilter) return false;
+
+      if (regionFilter) {
+        const regionSlug = regionFilter.toLowerCase().replace(/\s+/g, '-');
+        if (!belongsToRegion(profile.most_voted_geographic, regionSlug)) return false;
+      }
+
+      return true;
+    });
+  }, [categoryProfiles, subcategoryFilter, specificPhenotypeFilter, regionFilter]);
+
+  if (!category || !SLUG_TO_CATEGORY[category]) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20">
         <Header />
@@ -117,6 +129,8 @@ export default function CategoryPage() {
   const catTitle = `${categoryName} Phenotypes | Phindex`;
   const catDescription = `Browse ${categoryName} phenotype profiles on Phindex. See physical trait classifications and vote on characteristics.`;
   const catUrl = `https://www.phenotypeindex.com/category/${category}`;
+  // Os ícones de categoria são SVG e crawlers não os renderizam; usa o card padrão.
+  const catImage = "https://www.phenotypeindex.com/og-default.png";
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -126,6 +140,18 @@ export default function CategoryPage() {
       { "@type": "ListItem", "position": 2, "name": categoryName, "item": catUrl }
     ]
   };
+
+  const hasActiveFilters = subcategoryFilter || specificPhenotypeFilter || regionFilter;
+
+  const clearFilters = () => {
+    setSubcategoryFilter("");
+    setSpecificPhenotypeFilter("");
+    setRegionFilter("");
+    setCurrentPage(1);
+  };
+
+  // Count active filters for grid layout
+  const filterCount = (isCommunity ? 0 : 1) + 1 + 1; // subcategory (if not community) + specific phenotype + region
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
@@ -138,13 +164,19 @@ export default function CategoryPage() {
         <meta property="og:url" content={catUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:image" content={catImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content={catTitle} />
         <meta name="twitter:description" content={catDescription} />
+        <meta name="twitter:image" content={catImage} />
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
       <Header />
-      
+
       <div className="container mx-auto px-4 py-8 flex-1">
         <div className="lg:ml-80 pt-20">
           {/* Sidebar */}
@@ -152,15 +184,15 @@ export default function CategoryPage() {
 
           {/* Breadcrumbs and back button */}
           <div className="mb-6">
-            <Breadcrumbs 
+            <Breadcrumbs
               items={[
                 { label: 'Categories', href: '/' },
                 { label: categoryName }
               ]}
               className="mb-4"
             />
-            <Button 
-              onClick={() => navigate("/")} 
+            <Button
+              onClick={() => navigate("/")}
               variant="secondary"
               size="sm"
               className="bg-card/95 backdrop-blur-sm border border-border/50 hover:bg-card shadow-lg"
@@ -174,24 +206,17 @@ export default function CategoryPage() {
           <div>
             {/* Category Banner */}
             <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: 220 }}>
-              {/* Background */}
               <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-white" />
-
-              {/* Category image */}
-              {category && categoryImages[category] && (
+              {category && CATEGORY_IMAGES[category] && (
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[90%] aspect-square">
                   <img
-                    src={categoryImages[category]}
+                    src={CATEGORY_IMAGES[category]}
                     alt={`${categoryName} icon`}
                     className="w-full h-full object-contain opacity-80 animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
                   />
                 </div>
               )}
-
-              {/* Gradient overlay for text */}
               <div className="absolute inset-0 bg-gradient-to-r from-slate-100/95 via-slate-100/70 to-transparent" />
-
-              {/* Content */}
               <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220 }}>
                 <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
                   {categoryName.toUpperCase()}
@@ -210,6 +235,70 @@ export default function CategoryPage() {
                       <div className="text-[10px] text-slate-500 uppercase tracking-wider">Profiles</div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters Section */}
+            <div className="mb-6 p-4 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <Filter className="h-4 w-4 text-phindex-teal" />
+                <h3 className="text-sm font-semibold text-foreground">Filters</h3>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCommunity ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-3`}>
+                {/* Subcategory Filter - hidden for Community */}
+                {!isCommunity && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
+                    <select
+                      value={subcategoryFilter}
+                      onChange={(e) => { setSubcategoryFilter(e.target.value); setCurrentPage(1); }}
+                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">All subcategories</option>
+                      {subcategoryOptions.map((sub) => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Specific Phenotype Filter - dropdown */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Specific Phenotype</label>
+                  <select
+                    value={specificPhenotypeFilter}
+                    onChange={(e) => { setSpecificPhenotypeFilter(e.target.value); setCurrentPage(1); }}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">All phenotypes</option>
+                    {uniquePhenotypes.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Region Filter */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Region</label>
+                  <select
+                    value={regionFilter}
+                    onChange={(e) => { setRegionFilter(e.target.value); setCurrentPage(1); }}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">All regions</option>
+                    {["Africa", "Asia", "Europe", "Americas", "Middle East", "Oceania"].map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -286,9 +375,16 @@ export default function CategoryPage() {
                           </div>
 
                           <div className="flex items-center justify-between mt-auto">
-                            <Badge variant="outline" className="text-xs truncate max-w-[120px]">
-                              {profile.category}
-                            </Badge>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <Badge variant="outline" className="text-xs truncate max-w-[120px]">
+                                {profile.category}
+                              </Badge>
+                              {profile.subcategory && (
+                                <Badge variant="secondary" className="text-xs truncate max-w-[100px]">
+                                  {profile.subcategory}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
                               <Calendar className="h-3 w-3" />
                               {new Date(profile.created_at).toLocaleDateString('en-US')}

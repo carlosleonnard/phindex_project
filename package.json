@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/check-route-constants.mjs && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "check:routes": "node scripts/check-route-constants.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

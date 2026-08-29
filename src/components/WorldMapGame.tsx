@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useMapGame } from "@/hooks/use-map-game";
-import { Loader2, RotateCcw, Trophy, Target, LogIn } from "lucide-react";
+import { useMapGame, type GamePool } from "@/hooks/use-map-game";
+import { Loader2, RotateCcw, Trophy, Target, LogIn, Shuffle, Star, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,10 +23,12 @@ export const WorldMapGame = () => {
     feedback,
     correctAnswer,
     difficulty,
+    pool,
     stats,
     isLoadingStats,
     options,
     setDifficulty,
+    setPool,
     checkAnswer,
     resetGame,
     skipProfile
@@ -125,8 +127,28 @@ export const WorldMapGame = () => {
     return (
       <Card className="p-8">
         <div className="text-center">
-          <p className="text-muted-foreground mb-4">No profiles available to play</p>
-          <Button onClick={resetGame}>Try Again</Button>
+          <p className="mb-1 font-medium text-foreground">
+            {pool === 'all'
+              ? 'No profiles are ready to play'
+              : `No ${pool === 'famous' ? 'famous' : 'community'} profiles are ready to play`}
+          </p>
+          <p className="mx-auto mb-5 max-w-sm text-sm text-muted-foreground">
+            A face needs enough votes at this difficulty before it can be used as a
+            question. Try another deck or an easier level.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {pool !== 'all' && (
+              <Button variant="outline" onClick={() => setPool('all')}>
+                Play with everyone
+              </Button>
+            )}
+            {difficulty !== 'easy' && (
+              <Button variant="outline" onClick={() => setDifficulty('easy')}>
+                Switch to easy
+              </Button>
+            )}
+            <Button onClick={resetGame}>Try again</Button>
+          </div>
         </div>
       </Card>
     );
@@ -134,6 +156,33 @@ export const WorldMapGame = () => {
 
   return (
     <Card className="overflow-hidden bg-gradient-to-br from-background to-muted/30 w-full">
+      {/* Escolha do baralho: quem entra na partida. Fica acima de tudo porque
+          é a decisão anterior — define o conjunto antes da dificuldade e da
+          pergunta em si. */}
+      <div className="border-b border-border/60 bg-muted/30 px-5 py-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Who you'll see
+          </span>
+          <Tabs value={pool} onValueChange={(value) => setPool(value as GamePool)}>
+            <TabsList className="grid grid-cols-3">
+              <TabsTrigger value="all" className="gap-1.5 text-xs">
+                <Shuffle className="h-3.5 w-3.5" />
+                Everyone
+              </TabsTrigger>
+              <TabsTrigger value="famous" className="gap-1.5 text-xs">
+                <Star className="h-3.5 w-3.5" />
+                Famous
+              </TabsTrigger>
+              <TabsTrigger value="anonymous" className="gap-1.5 text-xs">
+                <UserRound className="h-3.5 w-3.5" />
+                Community
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
       <div className="p-5">
         {/* Header with Difficulty Selector */}
         <div className="mb-3 space-y-2">
@@ -162,10 +211,10 @@ export const WorldMapGame = () => {
             </div>
           </div>
 
-          {/* Difficulty Selector and Stats */}
-          <div className="flex items-center justify-between gap-4">
+          {/* Dificuldade e precisão acumulada */}
+          <div className="flex flex-wrap items-center gap-3">
             <Tabs value={difficulty} onValueChange={(value) => setDifficulty(value as 'easy' | 'medium' | 'hard')}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid grid-cols-3">
                 <TabsTrigger value="easy" className="text-xs">Easy (3)</TabsTrigger>
                 <TabsTrigger value="medium" className="text-xs">Medium (5)</TabsTrigger>
                 <TabsTrigger value="hard" className="text-xs">Hard (10)</TabsTrigger>
@@ -173,7 +222,7 @@ export const WorldMapGame = () => {
             </Tabs>
 
             {stats && !isLoadingStats && (
-              <div className="flex items-center gap-2 text-xs">
+              <div className="ml-auto flex items-center gap-2 text-xs">
                 <Target className="h-4 w-4 text-primary" />
                 <span className="text-muted-foreground">Accuracy:</span>
                 <span className="font-semibold text-primary">{stats.accuracyPercentage}%</span>

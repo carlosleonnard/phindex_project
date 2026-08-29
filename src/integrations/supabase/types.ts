@@ -130,6 +130,7 @@ export type Database = {
           specific_phenotype_primary: string | null
           specific_phenotype_secondary: string | null
           specific_phenotype_tertiary: string | null
+          subcategory: string | null
           updated_at: string
           user_id: string
         }
@@ -164,6 +165,7 @@ export type Database = {
           specific_phenotype_primary?: string | null
           specific_phenotype_secondary?: string | null
           specific_phenotype_tertiary?: string | null
+          subcategory?: string | null
           updated_at?: string
           user_id: string
         }
@@ -198,6 +200,7 @@ export type Database = {
           specific_phenotype_primary?: string | null
           specific_phenotype_secondary?: string | null
           specific_phenotype_tertiary?: string | null
+          subcategory?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -411,6 +414,76 @@ export type Database = {
           },
         ]
       }
+      game_guesses: {
+        Row: {
+          correct_answer: string
+          created_at: string
+          difficulty: string
+          guess: string
+          id: string
+          is_correct: boolean
+          profile_id: string
+          user_id: string
+        }
+        Insert: {
+          correct_answer: string
+          created_at?: string
+          difficulty: string
+          guess: string
+          id?: string
+          is_correct: boolean
+          profile_id: string
+          user_id: string
+        }
+        Update: {
+          correct_answer?: string
+          created_at?: string
+          difficulty?: string
+          guess?: string
+          id?: string
+          is_correct?: boolean
+          profile_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_guesses_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_profiles: {
         Row: {
           ancestry: string
@@ -425,6 +498,7 @@ export type Database = {
           name: string
           profile_image_url: string | null
           slug: string
+          subcategory: string | null
           updated_at: string
           user_id: string
         }
@@ -441,6 +515,7 @@ export type Database = {
           name: string
           profile_image_url?: string | null
           slug: string
+          subcategory?: string | null
           updated_at?: string
           user_id: string
         }
@@ -457,6 +532,7 @@ export type Database = {
           name?: string
           profile_image_url?: string | null
           slug?: string
+          subcategory?: string | null
           updated_at?: string
           user_id?: string
         }

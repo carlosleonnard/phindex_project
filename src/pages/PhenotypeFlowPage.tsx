@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Footer } from "@/components/Footer";
@@ -201,6 +202,22 @@ export default function PhenotypeFlowPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Phenotype Flow - Classification Reference | Phindex</title>
+        <meta name="description" content="Browse the full phenotype classification reference by region, from Northern America to Oceania, with visual examples for each phenotype." />
+        <link rel="canonical" href="https://www.phenotypeindex.com/phenotype-flow" />
+        <meta property="og:title" content="Phenotype Flow - Classification Reference | Phindex" />
+        <meta property="og:description" content="Browse the full phenotype classification reference by region, from Northern America to Oceania, with visual examples for each phenotype." />
+        <meta property="og:url" content="https://www.phenotypeindex.com/phenotype-flow" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Phindex - Phenotype Index" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@phenotypeindex" />
+        <meta name="twitter:title" content="Phenotype Flow | Phindex" />
+        <meta name="twitter:description" content="Browse the full phenotype classification reference by region, from Northern America to Oceania, with visual examples for each phenotype." />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+      </Helmet>
       <Header />
       <AppSidebar />
       
