@@ -282,7 +282,11 @@ const Index = () => {
 
           {/* PAINEL DIREITO */}
           <aside className="hidden w-80 shrink-0 xl:block">
-            <div className="sticky top-24">
+            {/* Fixo na viewport, mas com rolagem própria: sem a altura máxima,
+                um painel mais alto que a janela ficava cortado pela metade e
+                não havia como alcançar o que estava embaixo.
+                scrollbar-hide esconde a barra sem desabilitar a rolagem. */}
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain scrollbar-hide pb-4">
               <DiscoveryPanel profiles={highlights} isLoading={highlightsLoading} />
             </div>
           </aside>
