@@ -2,3 +2,6 @@ project_id = "jmygqrqfzglbislftczz"
 
 [functions.physical-votes]
 verify_jwt = true
+
+[functions.send-email-notification]
+verify_jwt = false

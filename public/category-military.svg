@@ -1,16 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
-  <circle cx="200" cy="200" r="180" fill="#1e3a5f" opacity="0.06"/>
-  <circle cx="200" cy="200" r="130" fill="#1e3a5f" opacity="0.04"/>
-  <!-- Shield -->
-  <path d="M200 80 L270 120 L270 220 Q270 280 200 320 Q130 280 130 220 L130 120 Z" stroke="#475569" stroke-width="3" fill="none" opacity="0.4"/>
-  <path d="M200 100 L255 132 L255 215 Q255 265 200 300 Q145 265 145 215 L145 132 Z" stroke="#475569" stroke-width="1.5" fill="none" opacity="0.2"/>
-  <!-- Star on shield -->
-  <polygon points="200,150 208,172 232,172 213,186 220,208 200,195 180,208 187,186 168,172 192,172" stroke="#475569" stroke-width="2" fill="none" opacity="0.35"/>
-  <!-- Crossed swords -->
-  <line x1="80" y1="320" x2="170" y2="230" stroke="#475569" stroke-width="2.5" opacity="0.3"/>
-  <line x1="80" y1="230" x2="170" y2="320" stroke="#475569" stroke-width="2.5" opacity="0.3"/>
-  <line x1="230" y1="320" x2="320" y2="230" stroke="#475569" stroke-width="2.5" opacity="0.3"/>
-  <line x1="230" y1="230" x2="320" y2="320" stroke="#475569" stroke-width="2.5" opacity="0.3"/>
-  <!-- Medal ribbons -->
-  <circle cx="200" cy="200" r="160" stroke="#64748b" stroke-width="0.8" fill="none" opacity="0.12" stroke-dasharray="10 5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="90" fill="#e0f2f1" opacity="0.5"/>
+  <!-- Shield shape -->
+  <path d="M100 25L155 50V105c0 30-22 52-55 65-33-13-55-35-55-65V50L100 25z" fill="#007a75" opacity="0.85"/>
+  <!-- Inner shield -->
+  <path d="M100 38L145 58V102c0 25-18 44-45 55-27-11-45-30-45-55V58L100 38z" fill="#009e97" opacity="0.7"/>
+  <!-- Star -->
+  <path d="M100 58l8 16.5 18 2.5-13 12.5 3 18-16-8.5-16 8.5 3-18-13-12.5 18-2.5z" fill="#e0f2f1" opacity="0.9"/>
+  <!-- Chevron stripes at bottom -->
+  <path d="M75 120l25 15 25-15" stroke="#e0f2f1" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M75 132l25 15 25-15" stroke="#e0f2f1" stroke-width="4" fill="none" stroke-linecap="round"/>
 </svg>

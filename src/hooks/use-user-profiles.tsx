@@ -35,8 +35,8 @@ export interface UserProfile {
   front_image_url: string;       // URL da imagem frontal (obrigatória)
   profile_image_url?: string;    // URL da imagem de perfil (opcional)
   is_anonymous: boolean;         // Se o perfil é anônimo ou não
+  subcategory: string | null;    // Subcategoria opcional dentro da categoria
   slug: string;                  // Slug único para URLs amigáveis
-  subcategory: string | null;    // Subcategoria opcional
   created_at: string;            // Data de criação
   updated_at: string;            // Data da última atualização
 }
@@ -57,7 +57,7 @@ export interface CreateUserProfileData {
   frontImageUrl: string;         // URL da imagem frontal
   profileImageUrl?: string;      // URL da imagem de perfil (opcional)
   isAnonymous: boolean;          // Se é perfil anônimo
-  subcategory?: string;          // Subcategoria opcional
+  subcategory?: string | null;   // Subcategoria opcional
 }
 
 /**

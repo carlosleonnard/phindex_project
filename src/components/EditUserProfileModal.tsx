@@ -37,10 +37,11 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUs
 
   const handleAnonymousChange = (value: string) => {
     const isAnonymous = value === "sim";
-    setFormData(prev => ({ 
-      ...prev, 
+    setFormData(prev => ({
+      ...prev,
       isAnonymous: isAnonymous,
-      category: isAnonymous ? "User Profiles" : prev.category
+      category: isAnonymous ? "User Profiles" : prev.category,
+      subcategory: ""
     }));
   };
 
@@ -56,12 +57,12 @@ export const EditUserProfileModal = ({ profile, open, onClose, isAdmin }: EditUs
           country: formData.country,
           gender: formData.gender,
           category: formData.category,
+          subcategory: formData.subcategory || null,
           height: parseFloat(formData.height),
           ancestry: formData.ancestry.join(', '), // Convert array to string
           frontImageUrl: formData.frontImageUrl,
           profileImageUrl: formData.profileImageUrl,
-          isAnonymous: formData.isAnonymous,
-          subcategory: formData.subcategory || undefined
+          isAnonymous: formData.isAnonymous
         }
       });
       onClose();

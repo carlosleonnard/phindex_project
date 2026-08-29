@@ -17,6 +17,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Vercel Analytics para monitoramento de visitantes e page views
 import { Analytics } from "@vercel/analytics/react";
+// Vercel Speed Insights para monitoramento de performance
+import { SpeedInsights } from "@vercel/speed-insights/react";
 // Importa todas as páginas da aplicação
 import Index from "./pages/Index"; // Página inicial com lista de perfis
 import Explore from "./pages/Explore"; // Busca e navegação em grade
@@ -31,6 +33,7 @@ import Contact from "./pages/Contact"; // Página de contato
 import FAQ from "./pages/FAQ"; // Página de perguntas frequentes
 import Leaderboard from "./pages/Leaderboard"; // Página de leaderboard
 import GamePage from "./pages/GamePage"; // Página do jogo Origin Game
+import MemberProfile from "./pages/MemberProfile"; // Página de perfil público de membro
 import NotFound from "./pages/NotFound"; // Página 404 para rotas não encontradas
 
 /**
@@ -61,6 +64,8 @@ const App = () => (
       <Sonner />
       {/* Vercel Analytics para monitoramento de page views e visitantes */}
       <Analytics />
+      {/* Vercel Speed Insights para monitoramento de performance */}
+      <SpeedInsights />
       {/* Router principal - habilita navegação entre páginas */}
       <BrowserRouter>
         {/* Container de todas as rotas da aplicação */}
@@ -105,6 +110,9 @@ const App = () => (
 
           {/* ROTA ESTÁTICA: Página do Origin Game */}
           <Route path="/game" element={<GamePage />} />
+
+          {/* ROTA DINÂMICA: Perfil público de membro por userId */}
+          <Route path="/member/:userId" element={<MemberProfile />} />
           
           {/* ROTA CATCH-ALL: Captura qualquer URL não definida acima e mostra 404 */}
           {/* IMPORTANTE: Esta deve sempre ser a última rota para funcionar corretamente */}

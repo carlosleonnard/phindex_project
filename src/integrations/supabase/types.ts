@@ -14,6 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
+      badge_definitions: {
+        Row: {
+          id: string
+          key: string
+          name: string
+          description: string
+          category: string
+          level: number
+          icon: string
+          threshold: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          name: string
+          description: string
+          category: string
+          level?: number
+          icon: string
+          threshold: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          name?: string
+          description?: string
+          category?: string
+          level?: number
+          icon?: string
+          threshold?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          id: string
+          user_id: string
+          badge_id: string
+          earned_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          badge_id: string
+          earned_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          badge_id?: string
+          earned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badge_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_stats: {
+        Row: {
+          user_id: string
+          total_votes_cast: number
+          total_profiles_created: number
+          total_comments: number
+          total_games_played: number
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          total_votes_cast?: number
+          total_profiles_created?: number
+          total_comments?: number
+          total_games_played?: number
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          total_votes_cast?: number
+          total_profiles_created?: number
+          total_comments?: number
+          total_games_played?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       comment_likes: {
         Row: {
           comment_id: string
