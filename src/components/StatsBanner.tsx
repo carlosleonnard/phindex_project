@@ -45,11 +45,20 @@ export const StatsBanner = () => {
       <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: 340 }}>
         {/* Background image with subtle zoom animation */}
         <div className="absolute inset-0">
-          <img
-            src="/banner-dna.jpg"
-            alt=""
-            className="w-full h-full object-cover animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
-          />
+          {/* WebP com fallback JPEG: a arte original tinha 1,5 MB e é a maior
+              imagem do topo da home, ou seja, o custo de LCP no mobile. */}
+          <picture>
+            <source srcSet="/banner-dna.webp" type="image/webp" />
+            <img
+              src="/banner-dna.jpg"
+              alt=""
+              width={1376}
+              height={768}
+              fetchPriority="high"
+              decoding="async"
+              className="w-full h-full object-cover animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
+            />
+          </picture>
         </div>
 
         {/* Gradient overlay for text readability */}
