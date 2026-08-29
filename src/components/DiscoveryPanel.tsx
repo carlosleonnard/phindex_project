@@ -172,7 +172,7 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
                   className="text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="text-foreground">{profile.name}</span>
-                  <span className="text-muted-foreground"> joined the index</span>
+                  <span className="text-muted-foreground"> joined Phindex</span>
                   <span className="mt-0.5 block text-xs text-muted-foreground">
                     {timeAgo(profile.created_at)}
                   </span>
