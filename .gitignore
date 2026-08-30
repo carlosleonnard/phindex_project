@@ -32,3 +32,6 @@ dist-ssr
 
 # Supabase CLI temp files
 supabase/.temp/
+
+# Arquivos temporarios que o Vite cria ao recarregar a config
+vite.config.ts.timestamp-*

@@ -7,7 +7,8 @@
  * nenhuma métrica inventada.
  *
  * "Needs your vote" vem primeiro por ser a seção acionável: pede uma
- * contribuição, enquanto as outras duas só informam.
+ * contribuição, enquanto as outras duas só informam. Ela lista apenas perfis
+ * sem nenhum voto, dos criados mais recentemente para os mais antigos.
  *
  * Escondido abaixo de xl, onde a largura pertence ao feed.
  */
@@ -87,12 +88,20 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
   // O painel é estreito: cinco linhas bastam, o resto fica na página cheia.
   const topPlayers = (leaderboard ?? []).slice(0, 5);
 
-  /** Perfis com poucos votos: onde a participação do usuário rende mais. */
+  /**
+   * Perfis ainda sem nenhum voto — onde a participação do usuário rende mais,
+   * porque ali um voto é o primeiro em vez de somar a uma contagem existente.
+   * Famosos e perfis da comunidade entram juntos, dos criados mais
+   * recentemente para os mais antigos. A lista rola, então não corta em 4.
+   */
   const needsVotes = useMemo(
     () =>
-      [...profiles]
-        .filter((profile) => profile.vote_count < 3)
-        .slice(0, 4),
+      profiles
+        .filter((profile) => profile.vote_count === 0)
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
     [profiles]
   );
 
@@ -149,7 +158,10 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
     <div className="space-y-4">
       {needsVotes.length > 0 && (
         <PanelSection icon={Sparkles} title="Needs your vote">
-          <ul className="space-y-1">
+          {/* Altura limitada com rolagem própria: a seção mostra muitos perfis
+              sem empurrar leaderboard e atividade recente para fora da tela.
+              scrollbar-hide esconde a barra sem desabilitar a rolagem. */}
+          <ul className="max-h-64 space-y-1 overflow-y-auto overscroll-contain scrollbar-hide">
             {needsVotes.map((profile) => (
               <li key={profile.id}>
                 <button
@@ -170,10 +182,9 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
                     <span className="block truncate text-sm text-foreground">
                       {profile.name}
                     </span>
+                    {/* A seção só lista perfis sem voto, então o rótulo é fixo. */}
                     <span className="block truncate text-xs text-muted-foreground">
-                      {profile.vote_count === 0
-                        ? "No votes yet"
-                        : `${profile.vote_count} ${profile.vote_count === 1 ? "vote" : "votes"}`}
+                      No votes yet
                     </span>
                   </span>
                 </button>
