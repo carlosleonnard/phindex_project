@@ -1,19 +1,21 @@
 /**
  * NAVEGAÇÃO INFERIOR MOBILE (BottomNav.tsx)
  *
- * Barra fixa de cinco destinos no mobile, conforme o wireframe:
- * Home · Explore · Adicionar · Saved · Perfil
+ * Barra fixa de cinco destinos no mobile:
+ * Home · Explore · Adicionar · Alerts · Profile
  *
- * Substitui o menu hambúrguer como caminho principal — as ações mais usadas
- * ficam ao alcance do polegar em vez de escondidas atrás de um toque extra.
+ * A barra superior no mobile ficou só com logo e menu sanduíche, então as
+ * ações que antes moravam lá (criar, notificações, perfil/login) vivem aqui,
+ * ao alcance do polegar. O resto da navegação está no menu sanduíche.
  */
 
-import { Home, Search, Plus, Heart, User } from "lucide-react";
+import { Home, Search, Plus, Bell, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { AddProfileModal } from "./AddProfileModal";
 import { LoginModal } from "./LoginModal";
+import { NotificationBell } from "./NotificationBell";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -24,12 +26,56 @@ interface NavItem {
   requiresAuth?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const LEFT_ITEMS: NavItem[] = [
   { icon: Home, label: "Home", path: "/" },
   { icon: Search, label: "Explore", path: "/explore" },
-  { icon: Heart, label: "Saved", path: "/saved", requiresAuth: true },
-  { icon: User, label: "Profile", path: "/settings", requiresAuth: true },
 ];
+
+const PROFILE_ITEM: NavItem = {
+  icon: User,
+  label: "Profile",
+  path: "/settings",
+  requiresAuth: true,
+};
+
+/** Classes compartilhadas por todos os itens da barra. */
+const itemClass = (isActive: boolean) =>
+  cn(
+    "flex h-full flex-1 flex-col items-center justify-center gap-0.5",
+    "transition-colors duration-200",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+  );
+
+/**
+ * Item de notificações — precisa de ref encaminhada para servir de trigger
+ * do popover do NotificationBell.
+ */
+const AlertsTrigger = forwardRef<
+  HTMLButtonElement,
+  { unreadCount: number } & React.ButtonHTMLAttributes<HTMLButtonElement>
+>(({ unreadCount, ...props }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    aria-label={
+      unreadCount > 0 ? `Alerts, ${unreadCount} unread` : "Alerts"
+    }
+    className={cn(itemClass(false), "relative")}
+    {...props}
+  >
+    <span className="relative">
+      <Bell className="h-5 w-5" />
+      {unreadCount > 0 && (
+        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium leading-none text-white">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      )}
+    </span>
+    <span className="text-[11px] leading-none">Alerts</span>
+  </button>
+));
+AlertsTrigger.displayName = "AlertsTrigger";
 
 export const BottomNav = () => {
   const navigate = useNavigate();
@@ -54,7 +100,6 @@ export const BottomNav = () => {
     setIsAddOpen(true);
   };
 
-  // Os dois primeiros itens à esquerda do botão central, os dois últimos à direita.
   const renderItem = (item: NavItem) => {
     const isActive = location.pathname === item.path;
     return (
@@ -64,12 +109,7 @@ export const BottomNav = () => {
         onClick={() => handleNavigate(item)}
         aria-label={item.label}
         aria-current={isActive ? "page" : undefined}
-        className={cn(
-          "flex h-full flex-1 flex-col items-center justify-center gap-0.5",
-          "transition-colors duration-200",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-          isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-        )}
+        className={itemClass(isActive)}
       >
         <item.icon className={cn("h-5 w-5", isActive && "fill-current/10")} />
         <span className="text-[11px] leading-none">{item.label}</span>
@@ -79,13 +119,21 @@ export const BottomNav = () => {
 
   return (
     <>
+      {/* Espaçador: reserva no fluxo a altura da barra fixa, para que o
+          conteúdo no fim da página nunca fique escondido atrás dela. */}
+      <div
+        aria-hidden
+        className="h-16 lg:hidden"
+        style={{ marginBottom: "env(safe-area-inset-bottom)" }}
+      />
+
       <nav
         aria-label="Primary"
         className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/95 backdrop-blur-md lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex h-16 items-stretch">
-          {NAV_ITEMS.slice(0, 2).map(renderItem)}
+          {LEFT_ITEMS.map(renderItem)}
 
           {/* Ação central de criar — elevada para leitura imediata. */}
           <div className="flex flex-1 items-center justify-center">
@@ -99,7 +147,28 @@ export const BottomNav = () => {
             </button>
           </div>
 
-          {NAV_ITEMS.slice(2).map(renderItem)}
+          {/* Alertas: o popover só existe logado; deslogado, leva ao login. */}
+          {user ? (
+            <NotificationBell
+              align="end"
+              side="top"
+              renderTrigger={(unreadCount) => (
+                <AlertsTrigger unreadCount={unreadCount} />
+              )}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsLoginOpen(true)}
+              aria-label="Alerts"
+              className={itemClass(false)}
+            >
+              <Bell className="h-5 w-5" />
+              <span className="text-[11px] leading-none">Alerts</span>
+            </button>
+          )}
+
+          {renderItem(PROFILE_ITEM)}
         </div>
       </nav>
 

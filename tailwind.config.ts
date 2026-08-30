@@ -75,7 +75,9 @@ export default {
 				'modal-card': 'hsl(var(--modal-card))',
 				'modal-hover': 'hsl(var(--modal-hover))',
 				'modal-text': 'hsl(var(--modal-text))',
-				'modal-accent': 'hsl(var(--modal-accent))'
+				'modal-accent': 'hsl(var(--modal-accent))',
+				'category-primary': 'hsl(var(--category-primary))',
+				'category-secondary': 'hsl(var(--category-secondary))'
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',

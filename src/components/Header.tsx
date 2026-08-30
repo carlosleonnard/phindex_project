@@ -7,7 +7,7 @@
  */
 
 // Ícones do Lucide React (biblioteca de ícones SVG otimizada)
-import { Search, User, Bell, Plus, HelpCircle, Settings, LogOut, Menu, Trophy, Film, Music, Palette, Brain, Microscope, Briefcase, Building, Skull, Church, Shield, Users, GitBranch, Mail, Award, Gamepad2 } from "lucide-react";
+import { Search, HelpCircle, Settings, LogOut, Menu, Trophy, Film, Music, Palette, Brain, Microscope, Briefcase, Building, Skull, Church, Shield, Users, GitBranch, Mail, Award, Gamepad2, Home, Heart, LogIn } from "lucide-react";
 // Componentes de UI reutilizáveis do sistema de design
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,10 +18,6 @@ import { AddProfileModal } from "./AddProfileModal";    // Modal para criar novo
 import { LoginModal } from "./LoginModal";              // Modal de autenticação
 import { NotificationBell } from "./NotificationBell";  // Componente de notificações
 import { UserMenuPopover } from "./UserMenuPopover";        // Menu do usuário com nickname
-// Componentes de avatar para imagem do usuário
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-// Popover para menu dropdown do usuário
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 // Hook do React para estado local e efeitos
 import { useState, useEffect, useRef } from "react";
 // Hook customizado para gerenciamento de autenticação
@@ -30,10 +26,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 // Link para navegação entre páginas
 import { useNavigate, useLocation } from "react-router-dom";
-// Hook para detectar dispositivos móveis
-import { useIsMobile } from "@/hooks/use-mobile";
 // Importa logo mobile
 import mobileLogo from "@/assets/mobile-logo.png";
+// Mapa de slugs de categoria, compartilhado com o sidebar do desktop
+import { CATEGORY_SLUG_MAP } from "@/constants/categories";
 
 /**
  * COMPONENTE HEADER
@@ -49,21 +45,16 @@ export const Header = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   // Estado para controlar abertura/fechamento do sidebar mobile/tablet
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // Estado para controlar abertura do modal de adicionar perfil
-  const [isAddProfileOpen, setIsAddProfileOpen] = useState(false);
-  
   // Estados para funcionalidade de busca
   const [searchTerm, setSearchTerm] = useState("");        // Termo digitado pelo usuário
   const [searchResults, setSearchResults] = useState<any[]>([]); // Resultados da busca
   const [isSearchOpen, setIsSearchOpen] = useState(false); // Controla se o dropdown está aberto
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // Controla expansão da busca no mobile
   const searchRef = useRef<HTMLDivElement>(null);          // Referência para detectar cliques fora
   
   // Hooks para navegação e dados
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
   const { profiles } = useUserProfiles();
-  const isMobile = useIsMobile();
   
   // Check for tablet/mobile breakpoint (anything below 1024px gets mobile layout)
   const [isTabletOrMobile, setIsTabletOrMobile] = useState(window.innerWidth < 1024);
@@ -151,25 +142,6 @@ export const Header = () => {
     await signOut();
   };
 
-  /**
-   * FUNÇÃO PARA ENVIAR BUSCA COM ENTER
-   * 
-   * Permite buscar pressionando Enter no campo de busca mobile/tablet.
-   */
-  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && searchTerm.trim()) {
-      handleSearch(searchTerm);
-    }
-  };
-
-  /**
-   * FUNÇÃO PARA ABRIR MODAL DE ADICIONAR PERFIL
-   * 
-   * Abre o modal de classificação com guidelines e criação de perfis.
-   */
-  const handleAddProfileClick = () => {
-    setIsAddProfileOpen(true);
-  };
   return (
     <>
       <header className="fixed top-0 z-50 w-full border-b border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -292,130 +264,27 @@ export const Header = () => {
           </div>
         )}
 
-        {/* Mobile/Tablet Header */}
+        {/* Mobile/Tablet Header — apenas menu e logo.
+            As ações (busca, criar, alertas, perfil) vivem na bottom nav;
+            o resto da navegação está no menu sanduíche. */}
         {isTabletOrMobile && (
-          <div className="px-4 h-16 flex items-center justify-between">
-            {/* Left side - Menu button and Logo */}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen(true)}
-                className="h-8 w-8"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              <Link to="/" className="cursor-pointer">
-                <img 
-                  src={mobileLogo}
-                  alt="Phindex Logo" 
-                  className="h-8 object-contain"
-                />
-              </Link>
-            </div>
-
-            {/* Center - Search (expandable) */}
-            <div className="flex-1 mx-4">
-              {!isSearchExpanded ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsSearchExpanded(true)}
-                  className="w-full h-10 bg-muted/30 rounded-full"
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              ) : (
-                <div className="relative" ref={searchRef}>
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input 
-                    placeholder="Search..." 
-                    className="pl-10 h-10 bg-muted/30 border-border/30 focus:border-primary/50 rounded-full text-sm"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={handleSearchKeyPress}
-                    onBlur={() => {
-                      if (!searchTerm) setIsSearchExpanded(false);
-                    }}
-                    autoFocus
-                  />
-                  
-                  {/* DROPDOWN DE SUGESTÕES DE BUSCA MOBILE */}
-                  {isSearchOpen && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                      {searchResults.map((profile, index) => (
-                        <div
-                          key={profile.id}
-                          className="p-3 hover:bg-muted/50 cursor-pointer border-b border-border last:border-b-0 flex items-center gap-3"
-                          onClick={() => {
-                            handleProfileSelect(profile);
-                            setIsSearchExpanded(false);
-                          }}
-                        >
-                          <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex-shrink-0">
-                             <img 
-                               src={profile.front_image_url} 
-                               alt={profile.name}
-                               className="w-full h-full object-cover"
-                               onError={(e) => {
-                                 (e.target as HTMLImageElement).src = '/placeholder.svg';
-                              }}
-                            />
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground truncate text-sm">
-                              {profile.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {profile.category}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Right side - Add button, Leaderboard, Notifications, User */}
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleAddProfileClick}
-                className="h-8 w-8"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/leaderboard')}
-                className="h-8 w-8"
-                title="Leaderboard"
-              >
-                <Trophy className="h-4 w-4" />
-              </Button>
-              
-              <NotificationBell />
-              
-              {user ? (
-                <UserMenuPopover user={user} />
-              ) : (
-                <Button 
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsLoginModalOpen(true)}
-                  disabled={loading}
-                  className="h-8 w-8"
-                >
-                  <User className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+          <div className="px-4 h-16 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarOpen(true)}
+              aria-label="Open menu"
+              className="h-9 w-9"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Link to="/" className="cursor-pointer">
+              <img
+                src={mobileLogo}
+                alt="Phindex Logo"
+                className="h-8 object-contain"
+              />
+            </Link>
           </div>
         )}
       </header>
@@ -443,20 +312,18 @@ export const Header = () => {
               </div>
               
               {/* Sidebar content */}
-              <MobileSidebarContent onNavigate={() => setIsSidebarOpen(false)} />
+              <MobileSidebarContent
+                onNavigate={() => setIsSidebarOpen(false)}
+                onRequestLogin={() => {
+                  setIsSidebarOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* Add Profile Modal - para mobile/tablet controlado externamente */}
-      {isTabletOrMobile && (
-        <AddProfileModal 
-          triggerExternal={isAddProfileOpen}
-          onTriggerExternalChange={(value) => setIsAddProfileOpen(value)}
-        />
-      )}
-      
       <LoginModal 
         open={isLoginModalOpen} 
         onOpenChange={setIsLoginModalOpen} 
@@ -467,89 +334,88 @@ export const Header = () => {
 
 /**
  * COMPONENTE MOBILE SIDEBAR CONTENT
- * 
- * Renderiza o conteúdo do sidebar mobile com navegação.
+ *
+ * Espelha o AppSidebar do desktop: os mesmos destinos principais, regiões,
+ * categorias e links de "more info", para que nada só exista no desktop.
  */
-const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
+const MobileSidebarContent = ({
+  onNavigate,
+  onRequestLogin,
+}: {
+  onNavigate: () => void;
+  onRequestLogin: () => void;
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuth();
-
-  const handleRegionClick = (region: string) => {
-    const regionSlug = region.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace('á', 'a')
-      .replace('é', 'e')
-      .replace('í', 'i')
-      .replace('ó', 'o')
-      .replace('ú', 'u')
-      .replace('ã', 'a')
-      .replace('õ', 'o')
-      .replace('ç', 'c');
-    navigate(`/region/${regionSlug}`);
-    onNavigate();
-  };
-
-  const handleCategoryClick = (category: string) => {
-    const categoryMapping: Record<string, string> = {
-      "Community": "community",
-      "Pop Culture": "pop-culture",
-      "Music and Entertainment": "music-and-entertainment",
-      "Arts": "arts",
-      "Philosophy": "philosophy",
-      "Sciences": "sciences",
-      "Sports": "sports",
-      "Business": "business",
-      "Politics": "politics",
-      "Criminals": "criminals",
-      "Religion": "religion",
-      "Military": "military"
-    };
-    const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/category/${categorySlug}`);
-    onNavigate();
-  };
-
-  const isRegionActive = (region: string) => {
-    const regionSlug = region.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace('á', 'a')
-      .replace('é', 'e')
-      .replace('í', 'i')
-      .replace('ó', 'o')
-      .replace('ú', 'u')
-      .replace('ã', 'a')
-      .replace('õ', 'o')
-      .replace('ç', 'c');
-    return location.pathname === `/region/${regionSlug}`;
-  };
-
-  const isCategoryActive = (category: string) => {
-    const categoryMapping: Record<string, string> = {
-      "Community": "community",
-      "Pop Culture": "pop-culture",
-      "Music and Entertainment": "music-and-entertainment",
-      "Arts": "arts",
-      "Philosophy": "philosophy",
-      "Sciences": "sciences",
-      "Sports": "sports",
-      "Business": "business",
-      "Politics": "politics",
-      "Criminals": "criminals",
-      "Religion": "religion",
-      "Military": "military"
-    };
-    const categorySlug = categoryMapping[category] || category.toLowerCase().replace(/\s+/g, '-');
-    return location.pathname === `/category/${categorySlug}`;
-  };
+  const { user, signOut } = useAuth();
 
   const nav = (path: string) => {
     navigate(path);
     onNavigate();
   };
 
+  const regionSlugOf = (region: string) =>
+    region.toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace('á', 'a')
+      .replace('é', 'e')
+      .replace('í', 'i')
+      .replace('ó', 'o')
+      .replace('ú', 'u')
+      .replace('ã', 'a')
+      .replace('õ', 'o')
+      .replace('ç', 'c');
+
+  const categorySlugOf = (category: string) =>
+    CATEGORY_SLUG_MAP[category] || category.toLowerCase().replace(/\s+/g, '-');
+
+  const handleRegionClick = (region: string) => nav(`/region/${regionSlugOf(region)}`);
+  const handleCategoryClick = (category: string) => nav(`/category/${categorySlugOf(category)}`);
+
+  const isRegionActive = (region: string) => location.pathname === `/region/${regionSlugOf(region)}`;
+  const isCategoryActive = (category: string) => location.pathname === `/category/${categorySlugOf(category)}`;
+
+  /** Item de navegação com o mesmo tratamento visual do sidebar desktop. */
+  const navButton = (
+    Icon: typeof Home,
+    label: string,
+    path: string,
+    opts?: { compact?: boolean }
+  ) => {
+    const isActive = location.pathname === path;
+    return (
+      <button
+        key={path}
+        className={`flex items-center w-full text-left rounded-lg transition-colors ${
+          opts?.compact ? 'gap-3 px-3 py-2.5' : 'gap-4 p-3'
+        } ${
+          isActive
+            ? 'bg-phindex-teal/10 text-phindex-teal'
+            : 'hover:bg-muted/50'
+        }`}
+        aria-current={isActive ? 'page' : undefined}
+        onClick={() => nav(path)}
+      >
+        <Icon className="h-5 w-5 shrink-0" color={isActive ? undefined : '#007a75'} />
+        <span className="text-base">{label}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="space-y-8">
+      {/* Destinos principais — iguais aos do desktop */}
+      <nav aria-label="Discover">
+        <div className="space-y-1">
+          {navButton(Home, 'Home', '/', { compact: true })}
+          {navButton(Search, 'Explore', '/explore', { compact: true })}
+          {navButton(Gamepad2, 'Guess the phenotype', '/game', { compact: true })}
+          {navButton(Heart, 'Saved', '/saved', { compact: true })}
+        </div>
+      </nav>
+
+      <div className="border-t border-border/50"></div>
+
       {/* Phenotype Regions */}
       <div>
         <h3 className="text-xl font-semibold mb-6 text-phindex-dark">PHENOTYPE REGION</h3>
@@ -627,61 +493,29 @@ const MobileSidebarContent = ({ onNavigate }: { onNavigate: () => void }) => {
       <div>
         <h3 className="text-xl font-semibold mb-6 text-phindex-dark">MORE INFO</h3>
         <div className="space-y-4">
-          <button
-            className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-              location.pathname === '/game'
-                ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
-                : "hover:bg-muted/50"
-            }`}
-            onClick={() => nav('/game')}
-          >
-            <Gamepad2 className="h-5 w-5" color="#007a75" />
-            <span className="text-base">Phenotype Game</span>
-          </button>
+          {navButton(Award, 'Leaderboard', '/leaderboard')}
+          {navButton(GitBranch, 'Phenotype Flow', '/phenotype-flow')}
+          {navButton(Mail, 'Contact', '/contact')}
+          {navButton(HelpCircle, 'FAQ', '/faq')}
+          {user && navButton(Settings, 'Settings', '/settings')}
 
-          <button
-            className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-              location.pathname === '/leaderboard'
-                ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
-                : "hover:bg-muted/50"
-            }`}
-            onClick={() => nav('/leaderboard')}
-          >
-            <Award className="h-5 w-5" color="#007a75" />
-            <span className="text-base">Leaderboard</span>
-          </button>
-
-          <button
-            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
-            onClick={() => nav('/phenotype-flow')}
-          >
-            <GitBranch className="h-5 w-5" color="#007a75" />
-            <span className="text-base">Phenotype Flow</span>
-          </button>
-
-          <button
-            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
-            onClick={() => nav('/contact')}
-          >
-            <Mail className="h-5 w-5" color="#007a75" />
-            <span className="text-base">Contact</span>
-          </button>
-
-          <button
-            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
-            onClick={() => nav('/faq')}
-          >
-            <HelpCircle className="h-5 w-5" color="#007a75" />
-            <span className="text-base">FAQ</span>
-          </button>
-
-          <button
-            className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-destructive/10 text-destructive hover:text-destructive"
-            onClick={() => { signOut(); onNavigate(); }}
-          >
-            <LogOut className="h-5 w-5" />
-            <span className="text-base">Logout</span>
-          </button>
+          {user ? (
+            <button
+              className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-destructive/10 text-destructive hover:text-destructive"
+              onClick={() => { signOut(); onNavigate(); }}
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="text-base">Logout</span>
+            </button>
+          ) : (
+            <button
+              className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
+              onClick={onRequestLogin}
+            >
+              <LogIn className="h-5 w-5" color="#007a75" />
+              <span className="text-base">Login</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

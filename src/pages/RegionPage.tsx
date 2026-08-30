@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Globe, MessageSquare } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CommentsSection } from "@/components/CommentsSection";
@@ -331,7 +332,7 @@ const RegionPage = () => {
                                    </Badge>
                                  </div>
                                )}
-                               <div className="absolute bottom-2 left-2 bg-phindex-dark text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                               <div className="absolute bottom-2 left-2 bg-category-primary/90 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
                                  <MessageSquare className="h-3 w-3" />
                                  <span>{commentCounts[profile.id] || 0}</span>
                                </div>
@@ -412,6 +413,7 @@ const RegionPage = () => {
       </div>
       
       <Footer />
+      <BottomNav />
     </div>
   );
 };

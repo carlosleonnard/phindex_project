@@ -1,17 +1,24 @@
 /**
  * PAINEL DE DESCOBERTA (DiscoveryPanel.tsx)
  *
- * Coluna direita da home em telas largas: fenótipos em alta, perfis sugeridos
- * e atividade recente da comunidade. Tudo derivado dos dados reais de voto —
+ * Coluna direita da home em telas largas: perfis que precisam de voto,
+ * leaderboard do jogo e atividade recente da comunidade (perfis novos e
+ * comentários novos, intercalados por data). Tudo derivado dos dados reais —
  * nenhuma métrica inventada.
+ *
+ * "Needs your vote" vem primeiro por ser a seção acionável: pede uma
+ * contribuição, enquanto as outras duas só informam.
  *
  * Escondido abaixo de xl, onde a largura pertence ao feed.
  */
 
-import { TrendingUp, Sparkles, Clock } from "lucide-react";
+import { Trophy, Sparkles, Clock, Award, MessageSquare, UserPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { FeedProfile } from "@/hooks/use-profile-feed";
+import { useLeaderboard, type LeaderboardPeriod } from "@/hooks/use-leaderboard";
+import { useRecentComments } from "@/hooks/use-recent-comments";
+import { cn } from "@/lib/utils";
 
 interface DiscoveryPanelProps {
   profiles: FeedProfile[];
@@ -38,7 +45,7 @@ const PanelSection = ({
   title,
   children,
 }: {
-  icon: typeof TrendingUp;
+  icon: typeof Trophy;
   title: string;
   children: React.ReactNode;
 }) => (
@@ -51,20 +58,34 @@ const PanelSection = ({
   </section>
 );
 
+/** Uma linha do "Recent activity", vinda de perfis novos ou de comentários. */
+type ActivityItem = {
+  kind: "profile" | "comment";
+  id: string;
+  createdAt: string;
+  /** Quem agiu: o nome do perfil criado, ou o apelido de quem comentou. */
+  name: string;
+  /** Slug do perfil de destino do link. */
+  slug: string;
+  /** Só para comentários: o perfil que recebeu o comentário. */
+  targetName?: string;
+};
+
+/** Os três recortes do leaderboard, iguais aos da página /leaderboard. */
+const LEADERBOARD_PERIODS: { key: LeaderboardPeriod; label: string }[] = [
+  { key: "week", label: "This week" },
+  { key: "month", label: "This month" },
+  { key: "all", label: "All time" },
+];
+
 export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelProps) => {
   const navigate = useNavigate();
 
-  /** Fenótipos mais classificados, com a contagem real de perfis. */
-  const trending = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const profile of profiles) {
-      const phenotype = profile.most_voted_phenotype;
-      if (phenotype) counts[phenotype] = (counts[phenotype] || 0) + 1;
-    }
-    return Object.entries(counts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 6);
-  }, [profiles]);
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState<LeaderboardPeriod>("week");
+  const { data: leaderboard, isLoading: leaderboardLoading } =
+    useLeaderboard(leaderboardPeriod);
+  // O painel é estreito: cinco linhas bastam, o resto fica na página cheia.
+  const topPlayers = (leaderboard ?? []).slice(0, 5);
 
   /** Perfis com poucos votos: onde a participação do usuário rende mais. */
   const needsVotes = useMemo(
@@ -75,15 +96,37 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
     [profiles]
   );
 
-  const recent = useMemo(
-    () =>
-      [...profiles]
-        .sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        .slice(0, 5),
-    [profiles]
-  );
+  const { data: recentComments } = useRecentComments(5);
+
+  /**
+   * Atividade recente = perfis novos + comentários novos, intercalados por
+   * data. Os dois tipos vêm de fontes diferentes, então são normalizados para
+   * um formato comum antes de ordenar.
+   */
+  const recent = useMemo<ActivityItem[]>(() => {
+    const newProfiles: ActivityItem[] = profiles.map((profile) => ({
+      kind: "profile",
+      id: `profile-${profile.id}`,
+      createdAt: profile.created_at,
+      name: profile.name,
+      slug: profile.slug,
+    }));
+
+    const newComments: ActivityItem[] = (recentComments ?? []).map((comment) => ({
+      kind: "comment",
+      id: `comment-${comment.id}`,
+      createdAt: comment.created_at,
+      name: comment.nickname,
+      slug: comment.profileSlug,
+      targetName: comment.profileName,
+    }));
+
+    return [...newProfiles, ...newComments]
+      .sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      .slice(0, 6);
+  }, [profiles, recentComments]);
 
   if (isLoading) {
     return (
@@ -104,27 +147,6 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
 
   return (
     <div className="space-y-4">
-      {trending.length > 0 && (
-        <PanelSection icon={TrendingUp} title="Trending phenotypes">
-          <ul className="space-y-1">
-            {trending.map(([phenotype, count]) => (
-              <li key={phenotype}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/explore?q=${encodeURIComponent(phenotype)}`)}
-                  className="flex w-full items-baseline justify-between gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="truncate text-sm text-foreground">{phenotype}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {count} {count === 1 ? "profile" : "profiles"}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </PanelSection>
-      )}
-
       {needsVotes.length > 0 && (
         <PanelSection icon={Sparkles} title="Needs your vote">
           <ul className="space-y-1">
@@ -161,20 +183,127 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
         </PanelSection>
       )}
 
+      <PanelSection icon={Trophy} title="Leaderboard">
+        {/* Filtros de período. O estado é local: o painel não interfere na
+            página /leaderboard, que mantém o próprio recorte. */}
+        <div
+          role="tablist"
+          aria-label="Leaderboard period"
+          className="mb-3 flex items-center gap-1 rounded-lg bg-muted p-0.5"
+        >
+          {LEADERBOARD_PERIODS.map(({ key, label }) => {
+            const isActive = leaderboardPeriod === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setLeaderboardPeriod(key)}
+                className={cn(
+                  "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isActive
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {leaderboardLoading ? (
+          <div className="space-y-2" aria-hidden="true">
+            {[0, 1, 2].map((index) => (
+              <div key={index} className="h-8 animate-pulse rounded bg-muted" />
+            ))}
+          </div>
+        ) : topPlayers.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-muted-foreground">
+            No players in this period yet.
+          </p>
+        ) : (
+          <>
+            <ul className="space-y-1">
+              {topPlayers.map((entry, index) => (
+                <li key={entry.userId}>
+                  <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+                    {/* Top 3 ganham medalha; do 4º em diante, só o número. */}
+                    <span className="flex w-5 shrink-0 justify-center">
+                      {index < 3 ? (
+                        <Award
+                          className={cn(
+                            "h-4 w-4",
+                            index === 0 && "text-yellow-500",
+                            index === 1 && "text-gray-400",
+                            index === 2 && "text-amber-600"
+                          )}
+                        />
+                      ) : (
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {index + 1}
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                      {entry.nickname}
+                    </span>
+                    <span
+                      className="shrink-0 text-xs tabular-nums text-muted-foreground"
+                      title={`${entry.totalCorrect} correct of ${entry.totalQuestions}`}
+                    >
+                      {entry.totalCorrect}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <button
+              type="button"
+              onClick={() => navigate("/leaderboard")}
+              className="mt-2 w-full rounded-lg px-2 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              See full leaderboard
+            </button>
+          </>
+        )}
+      </PanelSection>
+
       {recent.length > 0 && (
         <PanelSection icon={Clock} title="Recent activity">
           <ul className="space-y-2.5">
-            {recent.map((profile) => (
-              <li key={profile.id} className="text-sm leading-snug">
+            {recent.map((item) => (
+              <li key={item.id} className="text-sm leading-snug">
                 <button
                   type="button"
-                  onClick={() => navigate(`/user-profile/${profile.slug}`)}
-                  className="text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => navigate(`/user-profile/${item.slug}`)}
+                  className="flex w-full items-start gap-2 text-left transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <span className="text-foreground">{profile.name}</span>
-                  <span className="text-muted-foreground"> joined Phindex</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {timeAgo(profile.created_at)}
+                  {/* Ícone diferencia perfil novo de comentário novo. */}
+                  {item.kind === "profile" ? (
+                    <UserPlus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                  ) : (
+                    <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-category-primary" />
+                  )}
+                  <span className="min-w-0 flex-1">
+                    {item.kind === "profile" ? (
+                      <>
+                        <span className="text-foreground">{item.name}</span>
+                        <span className="text-muted-foreground"> joined Phindex</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-foreground">{item.name}</span>
+                        <span className="text-muted-foreground"> commented on </span>
+                        <span className="text-foreground">{item.targetName}</span>
+                      </>
+                    )}
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {timeAgo(item.createdAt)}
+                    </span>
                   </span>
                 </button>
               </li>

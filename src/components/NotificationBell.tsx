@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactElement } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,7 +17,23 @@ interface Notification {
   created_at: string;
 }
 
-export const NotificationBell = () => {
+interface NotificationBellProps {
+  /**
+   * Trigger alternativo. Recebe a contagem de não lidas para que a bottom nav
+   * possa desenhar seu próprio item com badge, reaproveitando esta lógica.
+   */
+  renderTrigger?: (unreadCount: number) => ReactElement;
+  /** Alinhamento do popover; a bottom nav ancora ao centro/fim da tela. */
+  align?: 'start' | 'center' | 'end';
+  /** Lado em que o popover abre — 'top' para a barra inferior. */
+  side?: 'top' | 'bottom';
+}
+
+export const NotificationBell = ({
+  renderTrigger,
+  align = 'end',
+  side = 'bottom',
+}: NotificationBellProps = {}) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -191,16 +207,20 @@ export const NotificationBell = () => {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative hover:bg-muted/50">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </Button>
+        {renderTrigger ? (
+          renderTrigger(unreadCount)
+        ) : (
+          <Button variant="ghost" size="icon" className="relative hover:bg-muted/50">
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Button>
+        )}
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0" align={align} side={side} sideOffset={8}>
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold">Notifications</h3>

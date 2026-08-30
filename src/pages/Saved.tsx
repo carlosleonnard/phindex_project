@@ -8,7 +8,6 @@
 import { Helmet } from "react-helmet-async";
 import { Heart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useMemo } from "react";
 
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -18,29 +17,14 @@ import { PhenotypeCard } from "@/components/PhenotypeCard";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useSavedProfiles } from "@/hooks/use-saved-profiles";
-import type { FeedProfile } from "@/hooks/use-profile-feed";
 
 const Saved = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { savedProfiles, isLoading } = useSavedProfiles();
 
-  /**
-   * O card espera os agregados do feed. Aqui a lista já é curta e a contagem
-   * exata de votos não é o ponto, então os agregados entram zerados e o card
-   * mostra "Not classified yet" quando não há fenótipo.
-   */
-  const cards = useMemo<FeedProfile[]>(
-    () =>
-      savedProfiles.map((profile) => ({
-        ...profile,
-        vote_count: 0,
-        most_voted_geographic: null,
-        most_voted_phenotype: null,
-        save_count: 0,
-      })),
-    [savedProfiles]
-  );
+  // useSavedProfiles já devolve os perfis com os agregados do feed.
+  const cards = savedProfiles;
 
   const showEmpty = !isLoading && cards.length === 0;
 
@@ -55,7 +39,7 @@ const Saved = () => {
       <Header />
       <AppSidebar />
 
-      <main className="px-4 pb-24 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
+      <main className="px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
         <div className="mx-auto max-w-[1200px]">
           <div className="py-6">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">

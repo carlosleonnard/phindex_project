@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './use-auth';
 import { toast } from 'sonner';
 import type { UserProfile } from './use-user-profiles';
+import { attachAggregates, type FeedProfile } from './use-profile-feed';
 
 /**
  * IDs dos perfis salvos pelo usuário logado.
@@ -39,7 +40,9 @@ export const useSavedProfileIds = () => {
 };
 
 /**
- * Lista completa dos perfis salvos, com os dados do perfil embutidos.
+ * Lista completa dos perfis salvos, com os dados do perfil embutidos e os
+ * mesmos agregados do feed (votos, saves, comentários) — assim os selos do
+ * card mostram os números reais, e não zeros.
  * Usada pela página Saved.
  */
 export const useSavedProfiles = () => {
@@ -48,7 +51,7 @@ export const useSavedProfiles = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['saved-profiles', user?.id],
     queryFn: async () => {
-      if (!user?.id) return [] as UserProfile[];
+      if (!user?.id) return [] as FeedProfile[];
 
       const { data, error } = await supabase
         .from('saved_profiles')
@@ -59,9 +62,11 @@ export const useSavedProfiles = () => {
       if (error) throw error;
 
       // A junção pode devolver linhas órfãs se o perfil tiver sido removido.
-      return (data || [])
+      const profiles = (data || [])
         .map((row) => (row as unknown as { user_profiles: UserProfile }).user_profiles)
         .filter(Boolean);
+
+      return attachAggregates(profiles);
     },
     enabled: !!user?.id,
   });

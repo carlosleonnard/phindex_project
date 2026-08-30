@@ -143,7 +143,7 @@ const Explore = () => {
       <Header />
       <AppSidebar />
 
-      <main className="px-4 pb-24 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
+      <main className="px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
         <div className="mx-auto max-w-[1200px]">
           <div className="py-6">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">

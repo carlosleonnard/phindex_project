@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -343,6 +344,7 @@ const Settings = () => {
           </div>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useLeaderboard, LeaderboardPeriod } from "@/hooks/use-leaderboard";
@@ -195,6 +196,7 @@ export default function Leaderboard() {
         </main>
       </div>
       <Footer />
+      <BottomNav />
     </div>
   );
 }

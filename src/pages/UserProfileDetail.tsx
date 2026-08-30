@@ -176,7 +176,7 @@ export default function UserProfileDetail() {
       
       <AppSidebar />
 
-      <main className="flex-1 px-4 pb-24 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
+      <main className="flex-1 px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
         <div className="mx-auto max-w-4xl">
           {/* Breadcrumbs */}
           <div className="pt-6 mb-6">

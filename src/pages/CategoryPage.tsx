@@ -1,15 +1,17 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, User, Calendar, Filter } from "lucide-react";
+import { ArrowLeft, Plus, User, Calendar, Filter, MessageSquare } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
+import { useCommentCounts } from "@/hooks/use-comment-counts";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -107,6 +109,12 @@ export default function CategoryPage() {
       return true;
     });
   }, [categoryProfiles, subcategoryFilter, specificPhenotypeFilter, regionFilter]);
+
+  const categoryProfileIds = useMemo(
+    () => filteredProfiles.map((profile) => profile.id),
+    [filteredProfiles]
+  );
+  const commentCounts = useCommentCounts(categoryProfileIds);
 
   if (!category || !SLUG_TO_CATEGORY[category]) {
     return (
@@ -353,6 +361,11 @@ export default function CategoryPage() {
                               </Badge>
                             </div>
                           )}
+                          {/* Comentários — mostrado inclusive em zero. */}
+                          <div className="absolute bottom-2 left-2 bg-category-primary/90 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
+                            <MessageSquare className="h-3 w-3" />
+                            <span>{commentCounts[profile.id] || 0}</span>
+                          </div>
                         </div>
 
                         <div className="space-y-2 flex-1 flex flex-col">
@@ -450,6 +463,7 @@ export default function CategoryPage() {
       </div>
 
       <Footer />
+      <BottomNav />
     </div>
   );
 }

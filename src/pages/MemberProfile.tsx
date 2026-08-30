@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Header } from '@/components/Header';
+import { BottomNav } from '@/components/BottomNav';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -214,6 +215,7 @@ const MemberProfile = () => {
 
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

@@ -9,6 +9,7 @@
  */
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { UserProfile } from './use-user-profiles';
 
@@ -22,6 +23,7 @@ export interface FeedProfile extends UserProfile {
   most_voted_geographic: string | null;
   most_voted_phenotype: string | null;
   save_count: number;
+  comment_count: number;
 }
 
 interface VoteRow {
@@ -45,20 +47,22 @@ const topClassification = (counts: Record<string, number>): string | null => {
 };
 
 /**
- * Anexa contagem de votos, fenótipo/geografia mais votados e contagem de saves
- * a uma lista de perfis, usando duas queries no total (não duas por perfil).
+ * Anexa contagem de votos, fenótipo/geografia mais votados, contagem de saves e
+ * contagem de comentários a uma lista de perfis, usando três queries no total
+ * (não três por perfil).
  */
 export const attachAggregates = async (profiles: UserProfile[]): Promise<FeedProfile[]> => {
   if (profiles.length === 0) return [];
 
   const ids = profiles.map((profile) => profile.id);
 
-  const [votesResult, savesResult] = await Promise.all([
+  const [votesResult, savesResult, commentsResult] = await Promise.all([
     supabase
       .from('votes')
       .select('profile_id, user_id, classification, characteristic_type')
       .in('profile_id', ids),
     supabase.from('saved_profiles').select('profile_id').in('profile_id', ids),
+    supabase.from('comments').select('profile_id').in('profile_id', ids),
   ]);
 
   // Falha nos agregados não deve derrubar o feed: os perfis ainda aparecem,
@@ -71,6 +75,9 @@ export const attachAggregates = async (profiles: UserProfile[]): Promise<FeedPro
   // e o resto do feed segue normalmente.
   if (savesResult.error && savesResult.error.code !== 'PGRST205') {
     console.error('Feed: failed to load saves', savesResult.error);
+  }
+  if (commentsResult.error) {
+    console.error('Feed: failed to load comments', commentsResult.error);
   }
 
   const geographicByProfile: Record<string, Record<string, number>> = {};
@@ -101,53 +108,133 @@ export const attachAggregates = async (profiles: UserProfile[]): Promise<FeedPro
     saveCountByProfile[save.profile_id] = (saveCountByProfile[save.profile_id] || 0) + 1;
   }
 
+  // Conta todos os comentários do perfil, respostas incluídas — o mesmo
+  // critério de useCommentCounts, usado na RegionPage.
+  const commentCountByProfile: Record<string, number> = {};
+  for (const comment of commentsResult.data || []) {
+    commentCountByProfile[comment.profile_id] =
+      (commentCountByProfile[comment.profile_id] || 0) + 1;
+  }
+
   return profiles.map((profile) => ({
     ...profile,
     vote_count: votersByProfile[profile.id]?.size || 0,
     most_voted_geographic: topClassification(geographicByProfile[profile.id] || {}),
     most_voted_phenotype: topClassification(phenotypeByProfile[profile.id] || {}),
     save_count: saveCountByProfile[profile.id] || 0,
+    comment_count: commentCountByProfile[profile.id] || 0,
   }));
 };
 
 /**
+ * Teto de perfis considerados no ranking de "Most voted".
+ *
+ * Ordenar por votos exige conhecer a contagem de TODOS os perfis antes de
+ * cortar a página — ordenar depois de paginar por data deixaria de fora um
+ * perfil antigo e muito votado. Como o ranking é feito no cliente, este é o
+ * limite do que se busca de uma vez; a página Explore já usa a mesma escala.
+ */
+export const POPULAR_POOL_SIZE = 300;
+
+/**
  * FEED INFINITO
  *
- * Pagina por offset sobre user_profiles. `sort: 'popular'` ordena pela contagem
- * de votos já materializada na página carregada.
+ * `sort: 'recent'` pagina por data direto no banco.
+ *
+ * `sort: 'popular'` busca o conjunto de perfis de uma vez, ranqueia por votos
+ * (famosos e perfis da comunidade juntos, sem distinção) e só então pagina
+ * sobre a lista já ordenada — assim quem tem mais votos fica em primeiro,
+ * independentemente de quando o perfil foi criado.
  */
 export const useProfileFeed = (sort: FeedSort = 'recent') => {
-  const query = useInfiniteQuery({
-    queryKey: ['profile-feed', sort],
-    initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
-      const from = pageParam as number;
-      const to = from + FEED_PAGE_SIZE - 1;
-
+  // O ranking completo é buscado uma vez e reaproveitado por todas as páginas;
+  // o React Query mantém em cache enquanto o sort for 'popular'.
+  const popularQuery = useQuery({
+    queryKey: ['profile-feed-popular-pool', POPULAR_POOL_SIZE],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false })
-        .range(from, to);
+        .limit(POPULAR_POOL_SIZE);
 
       if (error) throw error;
 
       const enriched = await attachAggregates((data || []) as UserProfile[]);
 
+      return [...enriched].sort((a, b) => {
+        if (b.vote_count !== a.vote_count) return b.vote_count - a.vote_count;
+        // Desempate estável: sem ele, perfis empatados podem trocar de posição
+        // entre páginas e acabar duplicados ou omitidos na rolagem.
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    },
+    enabled: sort === 'popular',
+  });
+
+  const recentQuery = useInfiniteQuery({
+    queryKey: ['profile-feed', 'recent'],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const from = pageParam as number;
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + FEED_PAGE_SIZE - 1);
+
+      if (error) throw error;
+
+      const rows = (data || []) as UserProfile[];
+
       return {
-        profiles: sort === 'popular'
-          ? [...enriched].sort((a, b) => b.vote_count - a.vote_count)
-          : enriched,
+        profiles: await attachAggregates(rows),
         // Uma página menor que o tamanho pedido significa fim da lista.
-        nextOffset: (data || []).length < FEED_PAGE_SIZE ? undefined : from + FEED_PAGE_SIZE,
+        nextOffset: rows.length < FEED_PAGE_SIZE ? undefined : from + FEED_PAGE_SIZE,
       };
     },
     getNextPageParam: (lastPage) => lastPage.nextOffset,
+    enabled: sort === 'recent',
   });
 
-  const profiles = query.data?.pages.flatMap((page) => page.profiles) ?? [];
+  // Quantas páginas da lista ordenada já foram reveladas. A rolagem infinita
+  // consome a lista em memória, sem novas idas ao banco.
+  const [popularPages, setPopularPages] = useState(1);
 
-  return { ...query, profiles };
+  // Trocar de aba recomeça a contagem, para não herdar o scroll da anterior.
+  useEffect(() => {
+    if (sort === 'popular') setPopularPages(1);
+  }, [sort]);
+
+  // Identidade estável: o observer do scroll infinito tem fetchNextPage nas
+  // dependências, e uma função nova a cada render o recriaria sem parar.
+  const revealMorePopular = useCallback(() => {
+    setPopularPages((pages) => pages + 1);
+  }, []);
+
+  if (sort === 'popular') {
+    const ranked = popularQuery.data ?? [];
+    const visible = ranked.slice(0, popularPages * FEED_PAGE_SIZE);
+    const hasNextPage = visible.length < ranked.length;
+
+    return {
+      profiles: visible,
+      isLoading: popularQuery.isLoading,
+      isError: popularQuery.isError,
+      refetch: popularQuery.refetch,
+      hasNextPage,
+      // A "próxima página" é só revelar mais itens da lista já carregada.
+      // O observer só chama isto quando hasNextPage é true.
+      fetchNextPage: revealMorePopular,
+      isFetchingNextPage: false,
+    };
+  }
+
+  return {
+    ...recentQuery,
+    profiles: recentQuery.data?.pages.flatMap((page) => page.profiles) ?? [],
+  };
 };
 
 /**

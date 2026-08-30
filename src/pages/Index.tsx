@@ -121,8 +121,7 @@ const Index = () => {
       <Header />
       <AppSidebar />
 
-      {/* pb-24 no mobile abre espaço para a bottom nav fixa. */}
-      <main className="px-4 pb-24 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
+      <main className="px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
         <div className="mx-auto flex max-w-[1400px] gap-8">
           <div className="min-w-0 flex-1">
             <StatsBanner />

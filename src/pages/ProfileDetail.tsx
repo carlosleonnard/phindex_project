@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
 import { Footer } from "@/components/Footer";
 import { AppSidebar } from "@/components/AppSidebar";
 import { CommentsSection } from "@/components/CommentsSection";
@@ -658,6 +659,7 @@ export default function ProfileDetail() {
       </div>
 
       <Footer />
+      <BottomNav />
     </div>
   );
 }

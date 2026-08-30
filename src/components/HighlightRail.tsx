@@ -10,7 +10,7 @@
  */
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Vote } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, Vote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import type { FeedProfile } from "@/hooks/use-profile-feed";
@@ -135,12 +135,23 @@ export const HighlightRail = ({
                       </div>
                     )}
 
-                    {profile.vote_count > 0 && (
-                      <div className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-white backdrop-blur-sm">
+                    {/* Votos e comentários — visíveis mesmo em zero. */}
+                    <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-end gap-1">
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-phindex-dark/90 px-1.5 py-0.5 text-white ring-1 ring-inset ring-white/20 backdrop-blur-sm"
+                        title={`${profile.vote_count} votes`}
+                      >
                         <Vote className="h-3 w-3" />
                         <span className="text-xs tabular-nums">{profile.vote_count}</span>
-                      </div>
-                    )}
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-category-primary/90 px-1.5 py-0.5 text-white ring-1 ring-inset ring-white/20 backdrop-blur-sm"
+                        title={`${profile.comment_count} comments`}
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span className="text-xs tabular-nums">{profile.comment_count}</span>
+                      </span>
+                    </div>
                   </div>
 
                   <h3 className="mt-2 truncate text-sm font-medium text-foreground" title={profile.name}>

@@ -10,7 +10,7 @@
  */
 
 import { useRef, useState, useCallback, memo } from "react";
-import { Heart, Search, Vote } from "lucide-react";
+import { Heart, MessageSquare, Search, Vote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useSavedProfileIds, useToggleSaved } from "@/hooks/use-saved-profiles";
@@ -184,13 +184,30 @@ const PhenotypeCardComponent = ({
           className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent"
         />
 
-        {/* Selo de votos */}
-        {profile.vote_count > 0 && (
-          <div className="pointer-events-none absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-white backdrop-blur-sm">
+        {/* Selos de votos e comentários — sempre visíveis, inclusive em zero,
+            para que um perfil novo mostre que ainda não tem participação em vez
+            de simplesmente omitir a informação. */}
+        <div className="pointer-events-none absolute bottom-3 left-3 flex items-center gap-1.5">
+          {/* Duas cores da paleta: votos no teal escuro (--phindex-dark) e
+              comentários no verde dos ícones de categoria (--category-primary).
+              A paleta do site é quase toda teal, então a distinção vem
+              principalmente do valor (claro/escuro), que lê melhor que matiz
+              sobre uma foto. Ambas passam contraste com o texto branco. */}
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-phindex-dark/90 px-2.5 py-1 text-white ring-1 ring-inset ring-white/20 backdrop-blur-sm"
+            title={`${profile.vote_count} votes`}
+          >
             <Vote className="h-3.5 w-3.5" />
             <span className="text-sm tabular-nums">{profile.vote_count}</span>
-          </div>
-        )}
+          </span>
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-category-primary/90 px-2.5 py-1 text-white ring-1 ring-inset ring-white/20 backdrop-blur-sm"
+            title={`${profile.comment_count} comments`}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="text-sm tabular-nums">{profile.comment_count}</span>
+          </span>
+        </div>
 
         {/* Confirmação visual do duplo toque. */}
         {burst && (
@@ -262,6 +279,7 @@ export const PhenotypeCard = memo(
     previous.profile.id === next.profile.id &&
     previous.profile.vote_count === next.profile.vote_count &&
     previous.profile.save_count === next.profile.save_count &&
+    previous.profile.comment_count === next.profile.comment_count &&
     previous.profile.most_voted_phenotype === next.profile.most_voted_phenotype &&
     previous.variant === next.variant
 );
