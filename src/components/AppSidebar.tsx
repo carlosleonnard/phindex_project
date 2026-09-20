@@ -1,8 +1,25 @@
+/**
+ * SIDEBAR (AppSidebar.tsx)
+ *
+ * Navegação persistente em telas largas. Três grupos, do mais usado ao menos:
+ * destinos principais, recortes do acervo (regiões e categorias) e suporte.
+ *
+ * As regiões trazem um ponto colorido — os únicos pontos não-teal da
+ * navegação, que servem para achar a linha sem ler o rótulo.
+ *
+ * As categorias são doze; mostrar todas empurrava suporte para fora da
+ * primeira tela. Quatro ficam visíveis e o resto abre sob demanda — a menos
+ * que a categoria ativa esteja entre as escondidas, caso em que a lista já
+ * nasce aberta para a página atual aparecer marcada.
+ */
+
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/use-auth";
+import { CONTINENT_ORDER, CONTINENT_META } from "@/constants/regions";
+import { CATEGORY_SLUG_MAP } from "@/constants/categories";
+import { cn } from "@/lib/utils";
 import {
   Users,
   Film,
@@ -23,233 +40,236 @@ import {
   Award,
   Gamepad2,
   Home,
-  Search,
-  Heart
+  Compass,
+  Bookmark,
+  ChevronDown,
 } from "lucide-react";
-import { CATEGORY_SLUG_MAP } from "@/constants/categories";
 
 /** Destinos de descoberta, espelhando a bottom nav do mobile. */
 const PRIMARY_NAV = [
   { Icon: Home, name: "Home", path: "/" },
-  { Icon: Search, name: "Explore", path: "/explore" },
-  { Icon: Gamepad2, name: "Guess the phenotype", path: "/game" },
-  { Icon: Heart, name: "Saved", path: "/saved" },
+  { Icon: Compass, name: "Explore", path: "/explore" },
+  { Icon: Gamepad2, name: "Guess the phenotype", path: "/game", badge: "DAILY" },
+  { Icon: Award, name: "Leaderboard", path: "/leaderboard" },
+  { Icon: Bookmark, name: "Saved", path: "/saved" },
 ];
+
+/** As quatro primeiras aparecem sempre; as demais ficam atrás de "Show all". */
+const CATEGORIES = [
+  { Icon: Users, name: "Community" },
+  { Icon: Film, name: "Pop Culture" },
+  { Icon: Building, name: "Politics" },
+  { Icon: Shield, name: "Military" },
+  { Icon: Music, name: "Music and Entertainment" },
+  { Icon: Palette, name: "Arts" },
+  { Icon: Brain, name: "Philosophy" },
+  { Icon: Microscope, name: "Sciences" },
+  { Icon: Trophy, name: "Sports" },
+  { Icon: Briefcase, name: "Business" },
+  { Icon: Skull, name: "Criminals" },
+  { Icon: Church, name: "Religion" },
+];
+
+const VISIBLE_CATEGORIES = 4;
+
+const SUPPORT_NAV = [
+  { Icon: GitBranch, name: "Phenotype flow", path: "/phenotype-flow" },
+  { Icon: HelpCircle, name: "Help & FAQ", path: "/faq" },
+  { Icon: Mail, name: "Contact", path: "/contact" },
+];
+
+/** Rótulo de grupo. Discreto por definição: organiza sem competir com os itens. */
+const GroupLabel = ({ children }: { children: React.ReactNode }) => (
+  <h3 className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+    {children}
+  </h3>
+);
+
+/**
+ * Uma linha de navegação. O estado ativo é marcado por fundo + cor + peso, não
+ * só por cor: quem não distingue teal de cinza ainda vê onde está.
+ */
+const NavRow = ({
+  icon: Icon,
+  label,
+  isActive,
+  onClick,
+  badge,
+  dot,
+}: {
+  icon?: typeof Home;
+  label: string;
+  isActive?: boolean;
+  onClick: () => void;
+  badge?: string;
+  dot?: string;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-current={isActive ? "page" : undefined}
+    className={cn(
+      "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left",
+      "transition-colors duration-150",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      isActive
+        ? "bg-primary/10 font-semibold text-primary"
+        : "text-foreground hover:bg-muted/70"
+    )}
+  >
+    {Icon && (
+      <Icon
+        className={cn(
+          "h-[18px] w-[18px] shrink-0 transition-colors",
+          isActive ? "text-primary" : "text-primary/70 group-hover:text-primary"
+        )}
+      />
+    )}
+
+    {dot && (
+      <span
+        aria-hidden="true"
+        className="h-2 w-2 shrink-0 rounded-full"
+        style={{ backgroundColor: `hsl(${dot})` }}
+      />
+    )}
+
+    <span className="min-w-0 flex-1 truncate text-[15px]">{label}</span>
+
+    {badge && (
+      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+        {badge}
+      </span>
+    )}
+  </button>
+);
 
 export const AppSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
-  const handleRegionClick = (region: string) => {
-    const regionSlug = region.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace('á', 'a')
-      .replace('é', 'e')
-      .replace('í', 'i')
-      .replace('ó', 'o')
-      .replace('ú', 'u')
-      .replace('ã', 'a')
-      .replace('õ', 'o')
-      .replace('ç', 'c');
+  const categorySlug = (name: string) =>
+    CATEGORY_SLUG_MAP[name] || name.toLowerCase().replace(/\s+/g, "-");
 
-    navigate(`/region/${regionSlug}`);
-  };
+  const isCategoryActive = (name: string) =>
+    location.pathname === `/category/${categorySlug(name)}`;
 
-  const handleCategoryClick = (category: string) => {
-    const categorySlug = CATEGORY_SLUG_MAP[category] || category.toLowerCase().replace(/\s+/g, '-');
-    navigate(`/category/${categorySlug}`);
-  };
-
-  const isRegionActive = (region: string) => {
-    const regionSlug = region.toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace('á', 'a')
-      .replace('é', 'e')
-      .replace('í', 'i')
-      .replace('ó', 'o')
-      .replace('ú', 'u')
-      .replace('ã', 'a')
-      .replace('õ', 'o')
-      .replace('ç', 'c');
-
-    return location.pathname === `/region/${regionSlug}`;
-  };
-
-  const isCategoryActive = (category: string) => {
-    const categorySlug = CATEGORY_SLUG_MAP[category] || category.toLowerCase().replace(/\s+/g, '-');
-    return location.pathname === `/category/${categorySlug}`;
-  };
+  // Uma categoria escondida e ativa força a lista aberta: a página atual
+  // precisa aparecer marcada mesmo sem o usuário ter clicado em "Show all".
+  const hiddenActive = CATEGORIES.slice(VISIBLE_CATEGORIES).some((category) =>
+    isCategoryActive(category.name)
+  );
+  const categoriesExpanded = showAllCategories || hiddenActive;
+  const visibleCategories = categoriesExpanded
+    ? CATEGORIES
+    : CATEGORIES.slice(0, VISIBLE_CATEGORIES);
 
   return (
-    <div className="w-80 hidden lg:block fixed left-0 top-16 h-screen z-40">
-      <div className="bg-card border-r border-border/50 h-full overflow-y-auto pt-6 px-6 pb-12">
-        <div className="space-y-8">
-          {/* Destinos principais da descoberta social */}
-          <nav aria-label="Discover">
-            <ul className="space-y-1">
-              {PRIMARY_NAV.map((item) => {
-                const isActive = location.pathname === item.path;
-                return (
-                  <li key={item.path}>
-                    <button
-                      className={`flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg transition-colors ${
-                        isActive
-                          ? "bg-phindex-teal/10 text-phindex-teal"
-                          : "hover:bg-muted/50"
-                      }`}
-                      aria-current={isActive ? "page" : undefined}
-                      onClick={() => navigate(item.path)}
-                    >
-                      <item.Icon
-                        className="h-5 w-5 shrink-0"
-                        color={isActive ? undefined : "#007a75"}
-                      />
-                      <span className="text-base">{item.name}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+    <div className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-80 lg:block">
+      <nav
+        aria-label="Main"
+        className="h-full overflow-y-auto overscroll-contain border-r border-border/60 bg-card px-4 py-5 scrollbar-hide"
+      >
+        <ul className="space-y-0.5">
+          {PRIMARY_NAV.map((item) => (
+            <li key={item.path}>
+              <NavRow
+                icon={item.Icon}
+                label={item.name}
+                badge={item.badge}
+                isActive={location.pathname === item.path}
+                onClick={() => navigate(item.path)}
+              />
+            </li>
+          ))}
+        </ul>
 
-          <Separator />
+        <Separator className="my-5" />
 
-          <div>
-            <h3 className="text-xl font-semibold mb-6 text-phindex-dark">PHENOTYPE REGION</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                "Africa", "Asia", "Europe", "Americas",
-                "Middle East", "Oceania"
-              ].map((region) => (
-                <Button
-                  key={region}
-                  variant={isRegionActive(region) ? "default" : "outline"}
-                  size="sm"
-                  className="text-sm py-3 px-4 h-auto whitespace-nowrap overflow-hidden text-ellipsis"
-                  onClick={() => handleRegionClick(region)}
-                  title={region}
-                >
-                  <span className="hidden xl:inline">{region}</span>
-                  <span className="xl:hidden">
-                    {region === "Middle East" ? "M.E" :
-                     region}
-                  </span>
-                </Button>
-              ))}
-            </div>
-          </div>
+        <section>
+          <GroupLabel>Regions</GroupLabel>
+          <ul className="space-y-0.5">
+            {CONTINENT_ORDER.map((continent) => {
+              const meta = CONTINENT_META[continent];
+              return (
+                <li key={continent}>
+                  <NavRow
+                    label={continent}
+                    dot={meta.dot}
+                    isActive={location.pathname === `/region/${meta.slug}`}
+                    onClick={() => navigate(`/region/${meta.slug}`)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-          <div>
-            <h3 className="text-xl font-semibold mb-6 text-phindex-dark">CATEGORIES</h3>
-            <div className="space-y-4">
-              {/* Community Section */}
+        <Separator className="my-5" />
+
+        <section>
+          <GroupLabel>Categories</GroupLabel>
+          <ul className="space-y-0.5">
+            {visibleCategories.map((category) => (
+              <li key={category.name}>
+                <NavRow
+                  icon={category.Icon}
+                  label={category.name}
+                  isActive={isCategoryActive(category.name)}
+                  onClick={() => navigate(`/category/${categorySlug(category.name)}`)}
+                />
+              </li>
+            ))}
+          </ul>
+
+          {!hiddenActive && (
+            <button
+              type="button"
+              onClick={() => setShowAllCategories((open) => !open)}
+              aria-expanded={categoriesExpanded}
+              className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[15px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <ChevronDown
+                className={cn(
+                  "h-[18px] w-[18px] shrink-0 transition-transform duration-200",
+                  categoriesExpanded && "rotate-180"
+                )}
+              />
+              {categoriesExpanded ? "Show less" : `Show all ${CATEGORIES.length}`}
+            </button>
+          )}
+        </section>
+
+        <Separator className="my-5" />
+
+        <section className="pb-4">
+          <GroupLabel>Support</GroupLabel>
+          <ul className="space-y-0.5">
+            {SUPPORT_NAV.map((item) => (
+              <li key={item.path}>
+                <NavRow
+                  icon={item.Icon}
+                  label={item.name}
+                  isActive={location.pathname === item.path}
+                  onClick={() => navigate(item.path)}
+                />
+              </li>
+            ))}
+            <li>
               <button
-                className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-                  isCategoryActive("Community")
-                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
-                    : "hover:bg-muted/50"
-                }`}
-                onClick={() => handleCategoryClick("Community")}
-              >
-                <Users className="h-5 w-5" style={{ color: 'hsl(var(--category-primary))' }} />
-                <span className="text-base">Community</span>
-              </button>
-
-              {/* Separator */}
-              <div className="border-t border-border/30 my-4"></div>
-
-              {/* Other Categories */}
-              {[
-                { Icon: Film, name: "Pop Culture" },
-                { Icon: Music, name: "Music and Entertainment" },
-                { Icon: Palette, name: "Arts" },
-                { Icon: Brain, name: "Philosophy" },
-                { Icon: Microscope, name: "Sciences" },
-                { Icon: Trophy, name: "Sports" },
-                { Icon: Briefcase, name: "Business" },
-                { Icon: Building, name: "Politics" },
-                { Icon: Skull, name: "Criminals" },
-                { Icon: Church, name: "Religion" },
-                { Icon: Shield, name: "Military" },
-               ].map((category) => {
-                const isActive = isCategoryActive(category.name);
-                return (
-                  <button
-                    key={category.name}
-                    className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-                      isActive
-                        ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
-                        : "hover:bg-muted/50"
-                    }`}
-                    onClick={() => handleCategoryClick(category.name)}
-                  >
-                    <category.Icon
-                      className="h-5 w-5"
-                      color="#007a75"
-                    />
-                    <span className="text-base">{category.name}</span>
-                  </button>
-                );
-               })}
-            </div>
-          </div>
-
-          {/* Separator */}
-          <Separator className="my-6" />
-
-          {/* More Info Section */}
-          <div>
-            <h3 className="text-xl font-semibold mb-6 text-phindex-dark">MORE INFO</h3>
-            <div className="space-y-4">
-              <button
-                className={`flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors ${
-                  location.pathname === '/leaderboard'
-                    ? "bg-phindex-teal/10 text-phindex-teal border border-phindex-teal/20"
-                    : "hover:bg-muted/50"
-                }`}
-                onClick={() => navigate('/leaderboard')}
-              >
-                <Award className="h-5 w-5" color="#007a75" />
-                <span className="text-base">Leaderboard</span>
-              </button>
-
-              <button
-                className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
-                onClick={() => navigate('/phenotype-flow')}
-              >
-                <GitBranch className="h-5 w-5" color="#007a75" />
-                <span className="text-base">Phenotype Flow</span>
-              </button>
-
-
-              <button
-                className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
-                onClick={() => navigate('/contact')}
-              >
-                <Mail className="h-5 w-5" color="#007a75" />
-                <span className="text-base">Contact</span>
-              </button>
-
-              <button
-                className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-muted/50"
-                onClick={() => navigate('/faq')}
-              >
-                <HelpCircle className="h-5 w-5" color="#007a75" />
-                <span className="text-base">FAQ</span>
-              </button>
-
-              <button
-                className="flex items-center gap-4 w-full text-left p-3 rounded-lg transition-colors hover:bg-destructive/10 text-destructive hover:text-destructive"
+                type="button"
                 onClick={() => signOut()}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[15px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="text-base">Logout</span>
+                <LogOut className="h-[18px] w-[18px] shrink-0" />
+                Log out
               </button>
-            </div>
-          </div>
-        </div>
-      </div>
+            </li>
+          </ul>
+        </section>
+      </nav>
     </div>
   );
 };

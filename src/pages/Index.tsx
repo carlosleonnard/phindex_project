@@ -1,11 +1,12 @@
 /**
  * PÁGINA INICIAL (Index.tsx)
  *
- * O feed de descoberta do Phindex. A página é organizada em três faixas:
+ * O feed de descoberta do Phindex. A página é organizada em quatro faixas:
  *
- * 1. Trilhos de destaque  — leitura rápida de quem está em alta
- * 2. Feed vertical        — cards grandes com scroll infinito e action bar
- * 3. Painel de descoberta — tendências e atividade (apenas em telas largas)
+ * 1. Banner              — a apresentação do produto
+ * 2. Barra de filtros    — recorte por região, fixa no topo ao rolar
+ * 3. Trilho + feed       — quem está em alta, e a grade com scroll infinito
+ * 4. Painel de descoberta — o que precisa de voto (apenas em telas largas)
  */
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -23,6 +24,11 @@ import { DiscoveryPanel } from "@/components/DiscoveryPanel";
 import { PhenotypeCard } from "@/components/PhenotypeCard";
 import { Button } from "@/components/ui/button";
 import { useProfileFeed, useHighlightProfiles, type FeedSort } from "@/hooks/use-profile-feed";
+import {
+  CONTINENT_ORDER,
+  profileContinent,
+  type Continent,
+} from "@/constants/regions";
 import { cn } from "@/lib/utils";
 
 const websiteSchema = {
@@ -40,10 +46,13 @@ const websiteSchema = {
 const SORT_OPTIONS: { value: FeedSort; label: string }[] = [
   { value: "recent", label: "Recent" },
   { value: "popular", label: "Most voted" },
+  { value: "needs-votes", label: "Needs votes" },
 ];
 
 const Index = () => {
   const [sort, setSort] = useState<FeedSort>("recent");
+  /** `null` = todas as regiões. */
+  const [region, setRegion] = useState<Continent | null>(null);
   // Dois modais distintos: cada botão já define se o perfil é de uma pessoa
   // famosa ou da comunidade, então a pergunta some do formulário.
   const [showFamousModal, setShowFamousModal] = useState(false);
@@ -81,17 +90,27 @@ const Index = () => {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const mostVoted = useMemo(
+  /**
+   * O filtro de região roda no cliente, sobre as páginas já carregadas: a
+   * região vem do voto geográfico (uma sub-região como "Levant"), que o banco
+   * não guarda como continente. É o mesmo critério do Explore. Com o filtro
+   * ativo a rolagem infinita continua trazendo páginas, então a lista cresce
+   * conforme o usuário desce.
+   */
+  const visibleProfiles = useMemo(
     () =>
-      [...highlights]
-        .filter((profile) => !profile.is_anonymous)
-        .sort((a, b) => b.vote_count - a.vote_count)
-        .slice(0, 14),
-    [highlights]
+      region
+        ? feedProfiles.filter((profile) => profileContinent(profile) === region)
+        : feedProfiles,
+    [feedProfiles, region]
   );
 
-  const community = useMemo(
-    () => highlights.filter((profile) => profile.is_anonymous).slice(0, 14),
+  const mostClassified = useMemo(
+    () =>
+      [...highlights]
+        .filter((profile) => !profile.is_anonymous && profile.vote_count > 0)
+        .sort((a, b) => b.vote_count - a.vote_count)
+        .slice(0, 12),
     [highlights]
   );
 
@@ -122,173 +141,257 @@ const Index = () => {
       <AppSidebar />
 
       <main className="px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
-        <div className="mx-auto flex max-w-[1400px] gap-8">
-          <div className="min-w-0 flex-1">
-            <StatsBanner />
+        <div className="mx-auto max-w-[1400px]">
+          <StatsBanner />
 
-            <HighlightRail
-              title="Famous people"
-              description="The public figures the community has classified most"
-              profiles={mostVoted}
-              isLoading={highlightsLoading}
-              ranked
-              action={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowFamousModal(true)}
-                  className="shrink-0 gap-1.5 rounded-full"
+          {/* O trilho fica FORA da grade de duas colunas, ocupando a largura
+              inteira: ele rola na horizontal, então cada pixel a mais mostra
+              mais um rosto. O painel lateral começa só na altura do Discover,
+              onde a leitura passa a ser vertical e a coluna estreita ajuda. */}
+          <HighlightRail
+            title="Most classified"
+            description="Famous people the community is voting on right now"
+            profiles={mostClassified}
+            isLoading={highlightsLoading}
+            ranked
+            seeAllPath="/explore"
+          />
+
+          {/* BARRA DE FILTROS — fica logo acima do Discover, que é o que ela
+              filtra: o trilho de destaques acima não responde a estes
+              controles, então tê-los ali sugeria um alcance que não existe.
+              Continua grudando no topo ao rolar, para o recorte permanecer
+              acessível depois que o feed já passou vários cards. */}
+          <div className="sticky top-16 z-30 -mx-4 mb-4 flex items-center gap-3 border-b border-border/60 bg-background/90 px-4 py-3 backdrop-blur-md">
+            <div
+              role="group"
+              aria-label="Filter by region"
+              className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              <button
+                type="button"
+                onClick={() => setRegion(null)}
+                aria-pressed={region === null}
+                className={cn(
+                  "shrink-0 rounded-full px-4 py-1.5 text-sm transition-colors duration-200",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  region === null
+                    ? "bg-phindex-dark font-medium text-white"
+                    : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                )}
+              >
+                All regions
+              </button>
+
+              {CONTINENT_ORDER.map((continent) => {
+                const isActive = region === continent;
+                return (
+                  <button
+                    key={continent}
+                    type="button"
+                    onClick={() => setRegion(isActive ? null : continent)}
+                    aria-pressed={isActive}
+                    className={cn(
+                      "shrink-0 rounded-full px-4 py-1.5 text-sm transition-colors duration-200",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isActive
+                        ? "bg-phindex-dark font-medium text-white"
+                        : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                    )}
+                  >
+                    {continent}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div
+              role="group"
+              aria-label="Sort feed"
+              className="hidden shrink-0 items-center gap-1 rounded-full bg-muted p-1 sm:flex"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setSort(option.value)}
+                  aria-pressed={sort === option.value}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-sm transition-colors duration-200",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    sort === option.value
+                      ? "bg-card font-medium text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
-                  <Plus className="h-4 w-4" />
-                  Add famous person
-                </Button>
-              }
-            />
-
-            <HighlightRail
-              title="From the community"
-              description="Profiles submitted by Phindex members"
-              profiles={community}
-              isLoading={highlightsLoading}
-              action={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowCommunityModal(true)}
-                  className="shrink-0 gap-1.5 rounded-full"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add to community
-                </Button>
-              }
-            />
-
-            {/* FEED */}
-            <section aria-labelledby="feed-heading" className="pt-2">
-              <div className="sticky top-16 z-30 -mx-4 mb-4 flex items-center justify-between gap-4 border-b border-border/60 bg-background/90 px-4 py-3 backdrop-blur-md">
-                <h2 id="feed-heading" className="text-xl font-semibold tracking-tight text-foreground">
-                  Discover
-                </h2>
-
-                <div
-                  role="group"
-                  aria-label="Sort feed"
-                  className="flex items-center gap-1 rounded-full bg-muted p-1"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setSort(option.value)}
-                      aria-pressed={sort === option.value}
-                      className={cn(
-                        "rounded-full px-3 py-1.5 text-sm transition-colors duration-200",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        sort === option.value
-                          ? "bg-card text-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {isError ? (
-                <div className="rounded-2xl border border-border/60 bg-card p-8 text-center">
-                  <p className="text-foreground">We couldn&rsquo;t load the feed.</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Check your connection and try again.
-                  </p>
-                  <Button onClick={() => refetch()} className="mt-4 rounded-full">
-                    Retry
-                  </Button>
-                </div>
-              ) : feedLoading ? (
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="overflow-hidden rounded-2xl border border-border/60 bg-card"
-                      aria-hidden="true"
-                    >
-                      <div className="aspect-[4/5] animate-pulse bg-muted sm:aspect-[640/607]" />
-                      <div className="space-y-2 p-5">
-                        <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-                        <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : feedProfiles.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
-                  <h3 className="text-lg font-semibold text-foreground">
-                    The index is empty
-                  </h3>
-                  <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                    Be the first to add a face and let the community classify it.
-                  </p>
-                  <div className="mt-5 flex flex-wrap justify-center gap-3">
-                    <Button
-                      onClick={() => setShowFamousModal(true)}
-                      className="gap-1.5 rounded-full"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add famous person
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCommunityModal(true)}
-                      className="gap-1.5 rounded-full"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add to community
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid gap-5 sm:grid-cols-2">
-                  {feedProfiles.map((profile, index) => (
-                    <div
-                      key={profile.id}
-                      className="motion-safe:animate-[feedItemIn_400ms_cubic-bezier(0.22,1,0.36,1)_backwards]"
-                      // Escalona só dentro da página recém-chegada.
-                      style={{ animationDelay: `${(index % 12) * 40}ms` }}
-                    >
-                      <PhenotypeCard profile={profile} variant="feed" priority={index < 2} />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Sentinela + estado de carregamento da próxima página. */}
-              <div ref={sentinelRef} className="h-px" aria-hidden="true" />
-
-              {isFetchingNextPage && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  Loading more&hellip;
-                </p>
-              )}
-
-              {!hasNextPage && feedProfiles.length > 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  You&rsquo;ve reached the end of the index.
-                </p>
-              )}
-            </section>
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* PAINEL DIREITO */}
-          <aside className="hidden w-80 shrink-0 xl:block">
-            {/* Fixo na viewport, mas com rolagem própria: sem a altura máxima,
-                um painel mais alto que a janela ficava cortado pela metade e
-                não havia como alcançar o que estava embaixo.
-                scrollbar-hide esconde a barra sem desabilitar a rolagem. */}
-            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain scrollbar-hide pb-4">
-              <DiscoveryPanel profiles={highlights} isLoading={highlightsLoading} />
+          <div className="flex gap-8">
+            <div className="min-w-0 flex-1">
+              {/* FEED */}
+              <section aria-labelledby="feed-heading" className="pb-2">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2
+                      id="feed-heading"
+                      className="text-[26px] font-semibold leading-tight tracking-tight text-foreground"
+                    >
+                      Discover
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      New profiles from the Phindex community
+                    </p>
+                  </div>
+
+                  {/* Em telas estreitas a ordenação sai da barra fixa, que já
+                      está cheia com as regiões, e aparece aqui. */}
+                  <div
+                    role="group"
+                    aria-label="Sort feed"
+                    className="flex items-center gap-1 rounded-full bg-muted p-1 sm:hidden"
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setSort(option.value)}
+                        aria-pressed={sort === option.value}
+                        className={cn(
+                          "rounded-full px-3 py-1.5 text-sm transition-colors duration-200",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          sort === option.value
+                            ? "bg-card font-medium text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {isError ? (
+                  <div className="rounded-2xl border border-border/60 bg-card p-8 text-center">
+                    <p className="text-foreground">We couldn&rsquo;t load the feed.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Check your connection and try again.
+                    </p>
+                    <Button onClick={() => refetch()} className="mt-4 rounded-full">
+                      Retry
+                    </Button>
+                  </div>
+                ) : feedLoading ? (
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <div
+                        key={index}
+                        className="overflow-hidden rounded-2xl border border-border/60 bg-card"
+                        aria-hidden="true"
+                      >
+                        <div className="aspect-[4/3] animate-pulse bg-muted" />
+                        <div className="space-y-2.5 p-4">
+                          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                          <div className="h-6 w-1/2 animate-pulse rounded-full bg-muted" />
+                          <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : visibleProfiles.length === 0 ? (
+                  /* Duas ausências diferentes, duas saídas diferentes: um
+                     filtro que não casou se resolve limpando o filtro; um
+                     índice vazio se resolve adicionando o primeiro rosto. */
+                  region && feedProfiles.length > 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Nothing from this region yet
+                      </h3>
+                      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                        No loaded profile matches this region. Keep scrolling to
+                        load more, or clear the filter.
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={() => setRegion(null)}
+                        className="mt-5 rounded-full"
+                      >
+                        Show all regions
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        The index is empty
+                      </h3>
+                      <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                        Be the first to add a face and let the community classify it.
+                      </p>
+                      <div className="mt-5 flex flex-wrap justify-center gap-3">
+                        <Button
+                          onClick={() => setShowFamousModal(true)}
+                          className="gap-1.5 rounded-full"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add famous person
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowCommunityModal(true)}
+                          className="gap-1.5 rounded-full"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add to community
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {visibleProfiles.map((profile, index) => (
+                      <div
+                        key={profile.id}
+                        className="motion-safe:animate-[feedItemIn_400ms_cubic-bezier(0.22,1,0.36,1)_backwards]"
+                        // Escalona só dentro da página recém-chegada.
+                        style={{ animationDelay: `${(index % 12) * 40}ms` }}
+                      >
+                        <PhenotypeCard profile={profile} variant="feed" priority={index < 3} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Sentinela + estado de carregamento da próxima página. */}
+                <div ref={sentinelRef} className="h-px" aria-hidden="true" />
+
+                {isFetchingNextPage && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Loading more&hellip;
+                  </p>
+                )}
+
+                {!hasNextPage && visibleProfiles.length > 0 && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    You&rsquo;ve reached the end of the index.
+                  </p>
+                )}
+              </section>
             </div>
-          </aside>
+
+            {/* PAINEL DIREITO */}
+            <aside className="hidden w-80 shrink-0 xl:block">
+              {/* Fixo na viewport, mas com rolagem própria: sem a altura máxima,
+                  um painel mais alto que a janela ficava cortado pela metade e
+                  não havia como alcançar o que estava embaixo.
+                  scrollbar-hide esconde a barra sem desabilitar a rolagem. */}
+              <div className="sticky top-32 max-h-[calc(100vh-9rem)] overflow-y-auto overscroll-contain scrollbar-hide pb-4">
+                <DiscoveryPanel profiles={highlights} isLoading={highlightsLoading} />
+              </div>
+            </aside>
+          </div>
         </div>
       </main>
 

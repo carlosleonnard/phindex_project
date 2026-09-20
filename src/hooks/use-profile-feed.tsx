@@ -15,7 +15,7 @@ import type { UserProfile } from './use-user-profiles';
 
 export const FEED_PAGE_SIZE = 12;
 
-export type FeedSort = 'recent' | 'popular';
+export type FeedSort = 'recent' | 'popular' | 'needs-votes';
 
 /** Perfil enriquecido com os agregados de voto usados pelo card. */
 export interface FeedProfile extends UserProfile {
@@ -24,6 +24,18 @@ export interface FeedProfile extends UserProfile {
   most_voted_phenotype: string | null;
   save_count: number;
   comment_count: number;
+  /**
+   * Os dois fenótipos mais votados, em ordem. O card mostra ambos porque a
+   * classificação raramente é unânime: ver o segundo lugar diz mais sobre o
+   * rosto do que só o vencedor.
+   */
+  top_phenotypes: string[];
+  /**
+   * Proporção de votos de fenótipo que caíram na opção vencedora, de 0 a 100.
+   * É o "consenso": 100 significa que todo mundo classificou igual.
+   * `null` quando ainda não há voto de fenótipo — nesse caso não há o que medir.
+   */
+  agreement: number | null;
 }
 
 interface VoteRow {
@@ -33,17 +45,25 @@ interface VoteRow {
   characteristic_type: string | null;
 }
 
+/** Classificações da mais votada para a menos votada. */
+const rankClassifications = (counts: Record<string, number>): string[] =>
+  Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([classification]) => classification);
+
 /** Retorna a classificação com mais ocorrências, ou null se não houver votos. */
-const topClassification = (counts: Record<string, number>): string | null => {
-  let best: string | null = null;
-  let bestCount = 0;
-  for (const [classification, count] of Object.entries(counts)) {
-    if (count > bestCount) {
-      best = classification;
-      bestCount = count;
-    }
-  }
-  return best;
+const topClassification = (counts: Record<string, number>): string | null =>
+  rankClassifications(counts)[0] ?? null;
+
+/**
+ * Percentual de votos concentrados na classificação vencedora.
+ * Retorna null sem votos, para distinguir "ninguém votou" de "0% de acordo".
+ */
+const agreementRatio = (counts: Record<string, number>): number | null => {
+  const values = Object.values(counts);
+  const total = values.reduce((sum, count) => sum + count, 0);
+  if (total === 0) return null;
+  return Math.round((Math.max(...values) / total) * 100);
 };
 
 /**
@@ -116,14 +136,21 @@ export const attachAggregates = async (profiles: UserProfile[]): Promise<FeedPro
       (commentCountByProfile[comment.profile_id] || 0) + 1;
   }
 
-  return profiles.map((profile) => ({
-    ...profile,
-    vote_count: votersByProfile[profile.id]?.size || 0,
-    most_voted_geographic: topClassification(geographicByProfile[profile.id] || {}),
-    most_voted_phenotype: topClassification(phenotypeByProfile[profile.id] || {}),
-    save_count: saveCountByProfile[profile.id] || 0,
-    comment_count: commentCountByProfile[profile.id] || 0,
-  }));
+  return profiles.map((profile) => {
+    const phenotypeCounts = phenotypeByProfile[profile.id] || {};
+    const rankedPhenotypes = rankClassifications(phenotypeCounts);
+
+    return {
+      ...profile,
+      vote_count: votersByProfile[profile.id]?.size || 0,
+      most_voted_geographic: topClassification(geographicByProfile[profile.id] || {}),
+      most_voted_phenotype: rankedPhenotypes[0] ?? null,
+      top_phenotypes: rankedPhenotypes.slice(0, 2),
+      agreement: agreementRatio(phenotypeCounts),
+      save_count: saveCountByProfile[profile.id] || 0,
+      comment_count: commentCountByProfile[profile.id] || 0,
+    };
+  });
 };
 
 /**
@@ -162,14 +189,13 @@ export const useProfileFeed = (sort: FeedSort = 'recent') => {
 
       const enriched = await attachAggregates((data || []) as UserProfile[]);
 
-      return [...enriched].sort((a, b) => {
-        if (b.vote_count !== a.vote_count) return b.vote_count - a.vote_count;
-        // Desempate estável: sem ele, perfis empatados podem trocar de posição
-        // entre páginas e acabar duplicados ou omitidos na rolagem.
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
+      // O pool é devolvido sem ordem imposta: cada sort do cliente ordena
+      // como precisa, sobre a mesma lista em cache.
+      return enriched;
     },
-    enabled: sort === 'popular',
+    // 'popular' e 'needs-votes' ranqueiam a base inteira no cliente, então
+    // ambos dependem deste pool. 'recent' pagina direto no banco.
+    enabled: sort === 'popular' || sort === 'needs-votes',
   });
 
   const recentQuery = useInfiniteQuery({
@@ -204,7 +230,7 @@ export const useProfileFeed = (sort: FeedSort = 'recent') => {
 
   // Trocar de aba recomeça a contagem, para não herdar o scroll da anterior.
   useEffect(() => {
-    if (sort === 'popular') setPopularPages(1);
+    if (sort !== 'recent') setPopularPages(1);
   }, [sort]);
 
   // Identidade estável: o observer do scroll infinito tem fetchNextPage nas
@@ -213,8 +239,28 @@ export const useProfileFeed = (sort: FeedSort = 'recent') => {
     setPopularPages((pages) => pages + 1);
   }, []);
 
-  if (sort === 'popular') {
-    const ranked = popularQuery.data ?? [];
+  if (sort === 'popular' || sort === 'needs-votes') {
+    const pool = popularQuery.data ?? [];
+
+    // Desempate estável em ambos os casos: sem ele, perfis empatados trocam de
+    // posição entre páginas e acabam duplicados ou omitidos na rolagem.
+    const byNewest = (a: FeedProfile, b: FeedProfile) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+    const ranked =
+      sort === 'popular'
+        ? [...pool].sort((a, b) =>
+            b.vote_count !== a.vote_count
+              ? b.vote_count - a.vote_count
+              : byNewest(a, b)
+          )
+        : // Menos votados primeiro: é onde um voto novo pesa mais.
+          [...pool].sort((a, b) =>
+            a.vote_count !== b.vote_count
+              ? a.vote_count - b.vote_count
+              : byNewest(a, b)
+          );
+
     const visible = ranked.slice(0, popularPages * FEED_PAGE_SIZE);
     const hasNextPage = visible.length < ranked.length;
 

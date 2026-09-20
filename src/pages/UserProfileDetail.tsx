@@ -1,4 +1,4 @@
-import { useParams, Navigate, useNavigate } from "react-router-dom";
+import { useParams, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Edit, Trash2, Vote, MessageCircle, Users, MessageSquare, MapPin } from "lucide-react";
@@ -25,13 +25,14 @@ import { usePhysicalVoting } from "@/hooks/use-physical-voting";
 import { useGeographicVoting } from "@/hooks/use-geographic-voting";
 import { useGeographicVoteCounts } from "@/hooks/use-geographic-vote-counts";
 import { useProfileCreator } from "@/hooks/use-profile-creator";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { EditUserProfileModal } from "@/components/EditUserProfileModal";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/use-admin";
 
 export default function UserProfileDetail() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
@@ -79,6 +80,35 @@ export default function UserProfileDetail() {
   
   // Calculate total votes for Primary Geographic
   const primaryGeographicTotalVotes = geographicVotes['Primary Geographic']?.reduce((sum, vote) => sum + vote.count, 0) || 0;
+
+  /**
+   * Chegando com #comments (o contador de comentários no card da home leva
+   * para cá), rola até a seção de comentários.
+   *
+   * Espera o perfil carregar: enquanto a query está em voo a página mostra o
+   * estado de carregamento e a seção nem existe no DOM. O rAF duplo dá à
+   * lista recém-montada uma chance de ocupar a altura real antes de medirmos,
+   * senão a rolagem para no lugar errado. A ref garante que isso aconteça uma
+   * vez só, e não a cada re-render enquanto o hash continua na URL.
+   */
+  const didScrollToComments = useRef(false);
+
+  useEffect(() => {
+    if (location.hash !== '#comments' || isLoading || !profile) return;
+    if (didScrollToComments.current) return;
+
+    didScrollToComments.current = true;
+
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document
+          .querySelector('[data-comments-section]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [location.hash, isLoading, profile]);
 
   if (isLoading) {
     return (

@@ -149,6 +149,25 @@ export default {
 					'&::-webkit-scrollbar': {
 						display: 'none'
 					}
+				},
+				// Barra de rolagem fina, nas cores do tema: aparece para dizer
+				// que a lista continua, sem o peso da barra cinza do sistema.
+				'.scrollbar-slim': {
+					'scrollbar-width': 'thin',
+					'scrollbar-color': 'hsl(var(--border)) transparent',
+					'&::-webkit-scrollbar': {
+						width: '6px'
+					},
+					'&::-webkit-scrollbar-track': {
+						background: 'transparent'
+					},
+					'&::-webkit-scrollbar-thumb': {
+						background: 'hsl(var(--border))',
+						'border-radius': '9999px'
+					},
+					'&::-webkit-scrollbar-thumb:hover': {
+						background: 'hsl(var(--muted-foreground) / 0.5)'
+					}
 				}
 			})
 		}
