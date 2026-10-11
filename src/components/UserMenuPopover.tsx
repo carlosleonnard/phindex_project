@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -45,19 +45,23 @@ export const UserMenuPopover = ({ user }: UserMenuPopoverProps) => {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage 
-              src={profile?.avatar_url || undefined} 
-              alt={profile?.nickname || "User"} 
+        <button
+          type="button"
+          aria-label="Your account"
+          className="relative ml-1 inline-flex h-10 w-10 items-center justify-center rounded-full border-0 bg-transparent p-0"
+        >
+          <Avatar className="h-10 w-10">
+            <AvatarImage
+              src={profile?.avatar_url || undefined}
+              alt={profile?.nickname || "User"}
             />
-            <AvatarFallback className="bg-primary/10 text-primary font-medium">
-              {profile?.nickname?.charAt(0).toUpperCase() || "U"}
+            <AvatarFallback className="bg-kt-ink font-sc text-[15px] tracking-[0.04em] text-kt-paper">
+              {(profile?.nickname || "u").slice(0, 2).toLowerCase()}
             </AvatarFallback>
           </Avatar>
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0" align="end">
+      <PopoverContent className="w-60 rounded-[3px] border-kt-rule p-0" align="end">
         <div className="p-4 border-b border-border">
           <div className="flex items-center space-x-2">
             <Avatar className="h-8 w-8">
@@ -81,8 +85,14 @@ export const UserMenuPopover = ({ user }: UserMenuPopoverProps) => {
         </div>
         
         <div className="p-2 space-y-1">
+          <Link to={`/member/${user.id}`}>
+            <Button variant="ghost" size="sm" className="w-full justify-start h-9 px-3">
+              <UserRound className="h-4 w-4 mr-2" />
+              Your member page
+            </Button>
+          </Link>
           <Link to="/settings">
-            <Button variant="ghost" size="sm" className="w-full justify-start h-8 px-2">
+            <Button variant="ghost" size="sm" className="w-full justify-start h-9 px-3">
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </Button>

@@ -1,84 +1,114 @@
 /**
- * CARD DE FENÓTIPO (PhenotypeCard.tsx)
+ * CARTÃO DE PERFIL (PhenotypeCard.tsx)
  *
- * Unidade central do feed. Mostra o rosto, como a comunidade classificou e o
- * convite para votar.
+ * A unidade das grades do site, em duas densidades:
  *
- * Os dois fenótipos mais votados aparecem juntos (1º e 2º) porque a
- * classificação raramente é unânime — o segundo lugar é informação, não ruído.
- * Um perfil sem votos não mostra chips vazios: mostra o convite para ser o
- * primeiro a classificar, que é a ação que falta ali.
+ *   "feed" — o cartão grande da home: foto 4:3, como a comunidade leu o rosto
+ *            (medidor de consenso + os dois fenótipos mais votados) e o convite
+ *            para votar. Duplo toque na foto salva o perfil.
+ *   "grid" — o cartão compacto de categoria, região, explore e salvos: foto no
+ *            formato padrão do índice (640:607) e uma linha de leitura.
  *
- * Suporta duas densidades:
- * - "feed"  : card do feed principal da home
- * - "grid"  : card médio para grades multi-coluna (Explore, Saved)
+ * Um rosto sem voto nenhum não mostra medidor vazio: mostra a hachura de "ainda
+ * não lido" e o convite para ser o primeiro.
  */
 
-import { useRef, useState, useCallback, memo } from "react";
-import { Heart, MessageSquare, Sparkles, Vote, ArrowRight, EyeOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { memo, useCallback, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSavedProfileIds, useToggleSaved } from "@/hooks/use-saved-profiles";
+import { LOW_VOTE_THRESHOLD } from "@/hooks/use-index";
 import type { FeedProfile } from "@/hooks/use-profile-feed";
+import { ConsensusMeter, NoVotesBar, VoteProgress } from "@/components/kt/Meters";
+import { CenLink } from "@/components/kt/Centromere";
+import { FacePhoto, SC } from "@/components/kt/Misc";
 
 interface PhenotypeCardProps {
   profile: FeedProfile;
   variant?: "feed" | "grid";
   /** Prioriza o carregamento das primeiras imagens visíveis. */
   priority?: boolean;
+  /** Termo de busca a destacar no nome, país e fenótipo. */
+  highlight?: string;
 }
 
-/** Chip de classificação. O primeiro lugar é sólido; o segundo, discreto. */
-const PhenotypeChip = ({ rank, label }: { rank: number; label: string }) => (
-  <span
+/** Destaca as ocorrências de `term` com <mark>. */
+export const highlightText = (text: string, term?: string): ReactNode => {
+  const needle = term?.trim();
+  if (!needle) return text;
+  const lower = text.toLowerCase();
+  const query = needle.toLowerCase();
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let index = lower.indexOf(query);
+  while (index !== -1) {
+    if (index > cursor) parts.push(text.slice(cursor, index));
+    parts.push(<mark key={index}>{text.slice(index, index + needle.length)}</mark>);
+    cursor = index + needle.length;
+    index = lower.indexOf(query, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts.length > 0 ? parts : text;
+};
+
+/** "46% agree", "split · 38%", "clear · 71%". */
+export const agreementLabel = (agreement: number | null): string => {
+  if (agreement === null) return "";
+  if (agreement >= 70) return `clear · ${agreement}%`;
+  if (agreement < 45) return `split · ${agreement}%`;
+  return `${agreement}% agree`;
+};
+
+/** O rótulo de origem do cartão: categoria (ou "community") e país. */
+export const originLabel = (profile: FeedProfile, withCategory = false): string => {
+  const isCommunity = profile.category === "User Profiles";
+  const kind = isCommunity ? "community" : (profile.subcategory || profile.category || "").toLowerCase();
+  const country = (profile.country || "").toLowerCase();
+  if (withCategory) return [kind, country].filter(Boolean).join(" · ");
+  return country || kind;
+};
+
+const SaveButton = ({ profile, saved, onToggle }: { profile: FeedProfile; saved: boolean; onToggle: () => void }) => (
+  <button
+    type="button"
+    onClick={(event) => {
+      event.stopPropagation();
+      onToggle();
+    }}
+    aria-label={saved ? `Remove ${profile.name} from saved` : `Save ${profile.name}`}
+    aria-pressed={saved}
     className={cn(
-      "inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs",
-      rank === 1
-        ? "bg-primary/10 font-medium text-primary"
-        : "bg-muted text-muted-foreground"
+      "absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors duration-200",
+      saved ? "border-kt-ink bg-kt-ink text-kt-paper" : "border-kt-rule bg-white text-kt-slate hover:text-kt-ink"
     )}
   >
-    <span className="shrink-0 text-[10px] tabular-nums opacity-70">{rank}º</span>
-    <span className="truncate">{label}</span>
-  </span>
+    <Heart className={cn("h-[18px] w-[18px]", saved && "fill-current")} strokeWidth={1.6} aria-hidden="true" />
+  </button>
 );
 
-const PhenotypeCardComponent = ({
-  profile,
-  variant = "feed",
-  priority = false,
-}: PhenotypeCardProps) => {
+const PhenotypeCardComponent = ({ profile, variant = "feed", priority = false, highlight }: PhenotypeCardProps) => {
   const navigate = useNavigate();
   const { savedIds } = useSavedProfileIds();
   const toggleSaved = useToggleSaved();
-
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
   const [burst, setBurst] = useState(false);
   const lastTapRef = useRef(0);
 
   const isSaved = savedIds.has(profile.id);
-  const isFeed = variant === "feed";
-
-  const openProfile = useCallback(() => {
-    navigate(`/user-profile/${profile.slug}`);
-  }, [navigate, profile.slug]);
-
-  /** O contador de comentários leva direto à seção de comentários do perfil. */
-  const openComments = useCallback(() => {
-    navigate(`/user-profile/${profile.slug}#comments`);
-  }, [navigate, profile.slug]);
+  const href = `/user-profile/${profile.slug}`;
+  const isAnonymous = profile.is_anonymous || profile.category === "User Profiles";
+  const votes = profile.vote_count;
+  const [first, second] = profile.top_phenotypes ?? [];
 
   const handleSave = useCallback(() => {
     if (!isSaved) {
-      // A animação só dispara ao salvar, não ao remover.
       setBurst(true);
       window.setTimeout(() => setBurst(false), 600);
     }
     toggleSaved.mutate({ profileId: profile.id, isSaved });
   }, [isSaved, toggleSaved, profile.id]);
 
-  /** Double tap na imagem salva o perfil (microinteração do brief). */
+  /** Duplo toque na foto salva; um toque simples abre, depois da janela. */
   const handleImageClick = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
@@ -87,28 +117,79 @@ const PhenotypeCardComponent = ({
       return;
     }
     lastTapRef.current = now;
-    // Um clique simples navega, mas só depois da janela do duplo toque.
     window.setTimeout(() => {
       if (lastTapRef.current !== 0) {
         lastTapRef.current = 0;
-        openProfile();
+        navigate(href);
       }
     }, 300);
-  }, [handleSave, openProfile]);
+  }, [handleSave, navigate, href]);
 
-  const phenotypes = profile.top_phenotypes ?? [];
+  if (variant === "grid") {
+    const needsVotes = votes < LOW_VOTE_THRESHOLD;
+    return (
+      <article className="group/card flex flex-col overflow-hidden rounded-[3px] border border-kt-rule bg-white transition-[box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(25,42,67,.35)] motion-reduce:hover:translate-y-0">
+        <Link
+          to={href}
+          aria-label={`Open ${profile.name}${needsVotes ? ", needs votes" : ""}`}
+          className="relative block aspect-[640/607] overflow-hidden bg-kt-wash"
+        >
+          <FacePhoto src={profile.front_image_url} alt="" priority={priority} />
+          {needsVotes && (
+            <span className="absolute left-2.5 top-2.5 rounded-full border border-kt-b50 bg-white px-2.5 pb-1 pt-[3px] font-sc text-[13px] leading-[1.3] tracking-[0.05em] text-kt-teal">
+              needs votes
+            </span>
+          )}
+        </Link>
+        <div className="flex flex-1 flex-col gap-[9px] px-4 py-3.5">
+          <SC as="p" className="m-0 truncate text-[13px] text-kt-body">
+            {highlightText(originLabel(profile, true), highlight)}
+          </SC>
+          <h3 className="-mt-1 mb-0 text-[18px] font-semibold leading-[1.2]">
+            <Link to={href} className="text-kt-ink no-underline">
+              {highlightText(profile.name, highlight)}
+            </Link>
+          </h3>
+
+          {votes >= LOW_VOTE_THRESHOLD && profile.agreement !== null ? (
+            <>
+              <ConsensusMeter agreement={profile.agreement} height={8} thin tick={false} />
+              <p className="m-0 flex justify-between gap-2 text-[15px]">
+                <span className="truncate">{highlightText(first ?? "", highlight)}</span>
+                <span className="text-kt-body">{profile.agreement}%</span>
+              </p>
+            </>
+          ) : (
+            <>
+              <VoteProgress count={votes} height={8} />
+              <p className="m-0 flex justify-between gap-2 text-[15px]">
+                <span className="truncate">
+                  {votes} of {LOW_VOTE_THRESHOLD} votes
+                  {first && (
+                    <span className="text-kt-body">
+                      {" · "}
+                      {highlightText(first, highlight)} so far
+                    </span>
+                  )}
+                </span>
+                <Link to={href} className="shrink-0 font-sc text-[15px] tracking-[0.05em] text-kt-teal">
+                  vote
+                </Link>
+              </p>
+            </>
+          )}
+
+          <p className="mb-0 mt-auto border-t border-kt-rule pt-[9px] text-[14px] text-kt-body">
+            {votes} {votes === 1 ? "vote" : "votes"} · {profile.comment_count}{" "}
+            {profile.comment_count === 1 ? "comment" : "comments"}
+          </p>
+        </div>
+      </article>
+    );
+  }
 
   return (
-    <article
-      className={cn(
-        "group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card",
-        "shadow-[0_1px_2px_hsl(var(--primary)/0.05),0_6px_20px_-14px_hsl(var(--primary)/0.2)]",
-        "transition-[box-shadow,transform] duration-300 ease-out",
-        "hover:shadow-[0_2px_4px_hsl(var(--primary)/0.07),0_18px_44px_-20px_hsl(var(--primary)/0.3)]",
-        "motion-safe:hover:-translate-y-0.5"
-      )}
-    >
-      {/* IMAGEM */}
+    <article className="group/card relative flex flex-col overflow-hidden rounded-[3px] border border-kt-rule bg-white transition-[box-shadow,transform] duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-24px_rgba(25,42,67,.35)] motion-reduce:hover:translate-y-0">
       <div
         role="button"
         tabIndex={0}
@@ -117,167 +198,83 @@ const PhenotypeCardComponent = ({
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            openProfile();
+            navigate(href);
           }
         }}
-        className={cn(
-          "relative block w-full cursor-pointer overflow-hidden bg-muted",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-          isFeed ? "aspect-[4/3]" : "aspect-[640/607]"
-        )}
+        className="relative block aspect-[4/3] cursor-pointer overflow-hidden bg-kt-wash"
       >
-        {/* Placeholder enquanto a imagem carrega, evitando salto de layout. */}
-        {!imageLoaded && !imageFailed && (
-          <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-muted to-secondary" />
-        )}
-
-        {imageFailed ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-secondary text-muted-foreground">
-            <EyeOff className="h-6 w-6 opacity-50" />
-            <span className="text-sm">Image unavailable</span>
-          </div>
-        ) : (
-          <img
-            src={profile.front_image_url}
-            alt={profile.name}
-            loading={priority ? "eager" : "lazy"}
-            // React 18 repassa este atributo em minúsculas; o camelCase só é
-            // reconhecido a partir do React 19.
-            {...{ fetchpriority: priority ? "high" : "auto" }}
-            decoding="async"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageFailed(true)}
-            className={cn(
-              "h-full w-full object-cover transition-[transform,opacity,filter] duration-500 ease-out",
-              "motion-safe:group-hover:scale-[1.03]",
-              imageLoaded ? "opacity-100 blur-0" : "opacity-0 blur-sm"
-            )}
-          />
-        )}
-
-        {/* Perfis da comunidade são anônimos por escolha de quem postou; o
-            selo explica por que não há nome de pessoa ali. */}
-        {profile.is_anonymous && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-phindex-dark/85 px-2.5 py-1 text-[11px] font-medium text-white ring-1 ring-inset ring-white/20 backdrop-blur-sm">
-            <EyeOff className="h-3 w-3" />
-            Anonymous
+        <FacePhoto src={profile.front_image_url} alt="" priority={priority} />
+        <span
+          className={cn(
+            "absolute left-3 top-3 rounded-full px-2.5 pb-1 pt-[3px] font-sc text-[13px] leading-[1.3] tracking-[0.05em]",
+            isAnonymous ? "bg-kt-ink text-kt-paper" : "border border-kt-rule bg-white text-kt-ink"
+          )}
+        >
+          {isAnonymous ? "anonymous" : (profile.subcategory || profile.category || "").toLowerCase()}
+        </span>
+        {burst && (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Heart className="h-24 w-24 fill-white text-white drop-shadow-lg motion-safe:animate-[saveBurst_600ms_cubic-bezier(0.22,1,0.36,1)]" />
           </span>
         )}
-
-        {/* Salvar fica sobre a foto, no canto oposto ao selo. */}
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            handleSave();
-          }}
-          aria-label={
-            isSaved ? `Remove ${profile.name} from saved` : `Save ${profile.name}`
-          }
-          aria-pressed={isSaved}
-          className={cn(
-            "absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full",
-            "bg-card/90 shadow-sm ring-1 ring-inset ring-border/50 backdrop-blur-sm",
-            "transition-[color,background-color,transform] duration-200",
-            "hover:scale-105 hover:bg-card",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            isSaved ? "text-rose-500" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <Heart className={cn("h-[18px] w-[18px]", isSaved && "fill-current")} />
-        </button>
-
-        {/* Confirmação visual do duplo toque. */}
-        {burst && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <Heart className="h-24 w-24 fill-white text-white drop-shadow-lg motion-safe:animate-[saveBurst_600ms_cubic-bezier(0.22,1,0.36,1)]" />
-          </div>
-        )}
       </div>
+      <SaveButton profile={profile} saved={isSaved} onToggle={handleSave} />
 
-      {/* CORPO */}
-      <div className={cn("flex flex-1 flex-col gap-3", isFeed ? "p-4" : "p-3.5")}>
-        <h3
-          className={cn(
-            "truncate font-semibold text-foreground",
-            isFeed ? "text-[17px]" : "text-base"
-          )}
-          title={profile.name}
-        >
-          {profile.name}
+      <div className="flex flex-1 flex-col gap-3.5 px-[18px] pb-3.5 pt-4">
+        <div className="flex justify-between gap-2.5 font-sc text-[13px] tracking-[0.06em] text-kt-body">
+          <span className="truncate">{originLabel(profile)}</span>
+          <span className={votes > 0 ? "text-kt-teal" : undefined}>
+            {votes > 0 ? `${votes} ${votes === 1 ? "vote" : "votes"}` : "no votes yet"}
+          </span>
+        </div>
+        <h3 className="-mt-1 mb-0 truncate text-[22px] font-semibold leading-[1.15]" title={profile.name}>
+          <Link to={href} className="text-kt-ink no-underline">
+            {profile.name}
+          </Link>
         </h3>
 
-        {/* Classificação, ou o convite quando ainda não há nenhuma. */}
-        <div className="flex min-h-[28px] flex-wrap items-center gap-1.5">
-          {phenotypes.length > 0 ? (
-            phenotypes.map((phenotype, index) => (
-              <PhenotypeChip key={phenotype} rank={index + 1} label={phenotype} />
-            ))
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-500">
-              <Sparkles className="h-3 w-3" />
-              Be the first to classify
-            </span>
-          )}
-        </div>
-
-        {/* RODAPÉ: o que a comunidade já fez, e o que falta você fazer. */}
-        <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-          {/* Votos e comentários são contadores clicáveis, com destinos
-              diferentes: votos abrem o perfil, comentários abrem o perfil já
-              na seção de comentários. Ambos aparecem mesmo em zero — um perfil
-              sem comentário nenhum mostra "0", e não um espaço vazio que não
-              explica se falta gente ou falta a funcionalidade. */}
-          <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openProfile();
-              }}
-              title={`${profile.vote_count} ${profile.vote_count === 1 ? "vote" : "votes"}`}
-              className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-            >
-              <Vote className="h-3.5 w-3.5" />
-              <span className="font-medium tabular-nums text-foreground">
-                {profile.vote_count}
-              </span>
-              <span className="sr-only">
-                {profile.vote_count === 1 ? "vote" : "votes"}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                openComments();
-              }}
-              title={`${profile.comment_count} ${profile.comment_count === 1 ? "comment" : "comments"}`}
-              className="inline-flex items-center gap-1.5 rounded-full px-1.5 py-1 transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span className="font-medium tabular-nums text-foreground">
-                {profile.comment_count}
-              </span>
-              <span className="sr-only">
-                {profile.comment_count === 1 ? "comment" : "comments"}
-              </span>
-            </button>
+        {votes > 0 && profile.agreement !== null ? (
+          <div>
+            <ConsensusMeter agreement={profile.agreement} />
+            <div className="mt-[9px] flex flex-wrap items-baseline gap-x-3.5 gap-y-1 text-[16px]">
+              {first && (
+                <span>
+                  <em className="text-kt-teal">1</em> {first}
+                </span>
+              )}
+              {second && (
+                <span className="text-kt-body">
+                  <em>2</em> {second}
+                </span>
+              )}
+              <span className="ml-auto text-[14px] text-kt-body">{agreementLabel(profile.agreement)}</span>
+            </div>
           </div>
+        ) : (
+          <div>
+            <NoVotesBar />
+            <p className="mb-0 mt-[9px] text-[16px] text-kt-body">No one has read this face yet.</p>
+          </div>
+        )}
 
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              openProfile();
-            }}
-            className="group/vote inline-flex shrink-0 items-center gap-1 rounded-full text-sm font-medium text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
-          >
-            Vote
-            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/vote:translate-x-0.5" />
-          </button>
-        </div>
+        {votes > 0 ? (
+          <div className="mt-auto flex items-center gap-4 border-t border-kt-rule pt-3 text-[15px] text-kt-body">
+            <span>{profile.save_count} saved</span>
+            <Link to={`${href}#comments`} className="text-kt-body">
+              {profile.comment_count} {profile.comment_count === 1 ? "comment" : "comments"}
+            </Link>
+            <Link
+              to={href}
+              className="ml-auto inline-flex min-h-9 items-center rounded-full border-[1.5px] border-kt-teal px-3.5 font-sc text-[15px] tracking-[0.05em] text-kt-teal no-underline transition-colors hover:bg-kt-teal/[0.06]"
+            >
+              vote
+            </Link>
+          </div>
+        ) : (
+          <CenLink to={href} size="sm" className="mt-auto self-start">
+            be the first to vote
+          </CenLink>
+        )}
       </div>
     </article>
   );
@@ -291,5 +288,6 @@ export const PhenotypeCard = memo(
     previous.profile.save_count === next.profile.save_count &&
     previous.profile.comment_count === next.profile.comment_count &&
     previous.profile.most_voted_phenotype === next.profile.most_voted_phenotype &&
-    previous.variant === next.variant
+    previous.variant === next.variant &&
+    previous.highlight === next.highlight
 );

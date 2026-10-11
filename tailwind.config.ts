@@ -11,9 +11,12 @@ export default {
 	prefix: "",
 	theme: {
 		fontFamily: {
-			sans: ["'Vollkorn'", 'serif'],
-			serif: ["'Vollkorn'", 'serif'],
-			mono: ["'Vollkorn'", 'serif'],
+			sans: ["'Vollkorn'", 'Georgia', "'Times New Roman'", 'serif'],
+			serif: ["'Vollkorn'", 'Georgia', "'Times New Roman'", 'serif'],
+			mono: ["'Vollkorn'", 'Georgia', "'Times New Roman'", 'serif'],
+			// Corte em versalete da mesma família: substitui caixa alta com
+			// tracking largo em rótulos, contagens e números de índice.
+			sc: ["'Vollkorn SC'", "'Vollkorn'", 'Georgia', 'serif'],
 		},
 		container: {
 			center: true,
@@ -23,6 +26,10 @@ export default {
 			}
 		},
 		extend: {
+			// Tempos nomeados: as formas arbitrárias (duration-[350ms], ease-[cubic-bezier(...)])
+			// são ambíguas com o tailwindcss-animate e o Tailwind não as gera.
+			transitionDuration: { 250: '250ms', 350: '350ms' },
+			transitionTimingFunction: { kt: 'cubic-bezier(.22,1,.36,1)' },
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -77,7 +84,40 @@ export default {
 				'modal-text': 'hsl(var(--modal-text))',
 				'modal-accent': 'hsl(var(--modal-accent))',
 				'category-primary': 'hsl(var(--category-primary))',
-				'category-secondary': 'hsl(var(--category-secondary))'
+				'category-secondary': 'hsl(var(--category-secondary))',
+				/**
+				 * KARYOTYPE — a paleta do redesign, em hex porque as faixas de
+				 * cromossomo combinam estes valores dentro de gradientes.
+				 * São os mesmos tokens de index.css; `b25/b50/b75` são o teal
+				 * a 25, 50 e 75% sobre branco (as classes gpos do G-banding).
+				 */
+				kt: {
+					paper: '#F9FAFB',
+					sheet: '#FFFFFF',
+					wash: '#F0F4F4',
+					wash2: '#E8EEEF',
+					seg: '#E3ECEE',
+					rule: '#DCE0E5',
+					ink: '#192A43',
+					slate: '#304A50',
+					body: '#4F6772',
+					mute: '#6C8C93',
+					teal: '#287A8A',
+					glow: '#349DB2',
+					deep: '#001F23',
+					deep2: '#0A363D',
+					b25: '#C9DEE2',
+					b50: '#94BCC5',
+					b75: '#5E9BA7'
+				},
+				region: {
+					africa: '#EE9D2B',
+					americas: '#3FA673',
+					asia: '#DF5549',
+					europe: '#2E8B9E',
+					mideast: '#8D69BF',
+					oceania: '#428CD7'
+				}
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
@@ -128,6 +168,22 @@ export default {
 				'slide-up': {
 					'0%': { transform: 'translateY(100%)', opacity: '0' },
 					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				'band-in': {
+					from: { clipPath: 'inset(0 100% 0 0)' },
+					to: { clipPath: 'inset(0 0 0 0)' }
+				},
+				rise: {
+					from: { opacity: '0', transform: 'translateY(16px)' },
+					to: { opacity: '1', transform: 'none' }
+				},
+				probe: {
+					'0%, 100%': { boxShadow: '0 0 0 3px rgba(52,157,178,.55)' },
+					'50%': { boxShadow: '0 0 0 8px rgba(52,157,178,.12)' }
+				},
+				drift: {
+					'0%, 100%': { transform: 'translateX(0)' },
+					'50%': { transform: 'translateX(6px)' }
 				}
 			},
 			animation: {
@@ -135,7 +191,12 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'float': 'float 3s ease-in-out infinite',
 				'glow': 'glow 2s ease-in-out infinite',
-				'slide-up': 'slide-up 0.5s ease-out'
+				'slide-up': 'slide-up 0.5s ease-out',
+				'band-in': 'band-in 1.4s cubic-bezier(.22,1,.36,1) .35s backwards',
+				rise: 'rise .9s cubic-bezier(.22,1,.36,1) backwards',
+				'rise-fast': 'rise .5s cubic-bezier(.22,1,.36,1) backwards',
+				probe: 'probe 2.8s ease-in-out infinite',
+				drift: 'drift 3.2s ease-in-out infinite'
 			}
 		}
 	},

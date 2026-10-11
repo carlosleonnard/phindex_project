@@ -2,16 +2,15 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { Helmet } from "react-helmet-async";
-import { Header } from "@/components/Header";
-import { BottomNav } from "@/components/BottomNav";
-import { AppSidebar } from "@/components/AppSidebar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AppLayout } from "@/components/AppLayout";
+import { LoginModal } from "@/components/LoginModal";
+import { CenButton, outlineCapsule } from "@/components/kt/Centromere";
+import { InitialsAvatar, SC } from "@/components/kt/Misc";
+import { EmptySheet } from "@/components/kt/Listing";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Save, AlertCircle, Bell } from "lucide-react";
+import { Camera, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BadgesSection } from "@/components/BadgesSection";
@@ -27,6 +26,7 @@ const Settings = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [nicknameError, setNicknameError] = useState("");
+  const [loginOpen, setLoginOpen] = useState(false);
 
   // Load profile data on component mount
   useEffect(() => {
@@ -184,168 +184,149 @@ const Settings = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background">
+      <AppLayout>
         <Helmet>
           <title>Settings | Phindex</title>
           <meta name="robots" content="noindex, nofollow" />
         </Helmet>
-        <Header />
-        <AppSidebar />
-        <main className="lg:ml-80 pt-16">
-          <div className="container mx-auto px-4 py-8">
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p>You need to be logged in to access settings.</p>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-      </div>
+        <SC as="p" className="m-0 text-[16px] text-kt-teal">
+          your account
+        </SC>
+        <h1 className="mb-0 mt-1 text-[clamp(48px,5.8vw,84px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+          Settings
+        </h1>
+        <EmptySheet
+          className="mt-8"
+          title="Log in to change your settings"
+          action={
+            <CenButton size="sm" onClick={() => setLoginOpen(true)}>
+              log in
+            </CenButton>
+          }
+        >
+          Your nickname, photo and email alerts live here.
+        </EmptySheet>
+        <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+      </AppLayout>
     );
   }
 
+  const fieldLabel = "font-sc text-[15px] font-semibold tracking-[0.06em] text-kt-slate";
+
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <Helmet>
         <title>Settings | Phindex</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <Header />
-      <AppSidebar />
-      <main className="lg:ml-80 pt-16">
-        <div className="container mx-auto px-4 py-8 space-y-6">
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">Profile Settings</CardTitle>
-              <CardDescription>
-                Update your personal information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {isLoading ? (
-                <div className="text-center py-8">
-                  <p>Loading profile information...</p>
-                </div>
-              ) : (
-                <>
-                  {/* Profile Image Section */}
-                  <div className="flex flex-col items-center space-y-4">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage src={profileImage} alt={nickname} />
-                      <AvatarFallback className="text-2xl">
-                        {nickname ? nickname.charAt(0).toUpperCase() : 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="hidden"
-                        id="profile-image-upload"
-                        disabled={isUploading}
-                      />
-                      <Label 
-                        htmlFor="profile-image-upload"
-                        className="cursor-pointer"
-                      >
-                        <Button 
-                          variant="outline" 
-                          className="cursor-pointer" 
-                          disabled={isUploading}
-                          type="button"
-                          asChild
-                        >
-                          <span>
-                            <Camera className="h-4 w-4 mr-2" />
-                            {isUploading ? "Uploading..." : "Change Photo"}
-                          </span>
-                        </Button>
-                      </Label>
-                    </div>
-                  </div>
+      <SC as="p" className="m-0 text-[16px] text-kt-teal">
+        your account
+      </SC>
+      <h1 className="mb-0 mt-1 text-[clamp(48px,5.8vw,84px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+        Settings
+      </h1>
+      <p className="mb-0 mt-3 text-[19px] italic text-kt-body">Your nickname, photo and email alerts.</p>
 
-                  {/* Nickname Section */}
-                  <div className="space-y-2">
-                    <Label htmlFor="nickname">Nickname</Label>
-                    <Input
-                      id="nickname"
-                      value={nickname}
-                      onChange={(e) => handleNicknameChange(e.target.value)}
-                      placeholder="Enter your nickname"
-                      className={nicknameError ? "border-destructive" : ""}
-                    />
-                    {nicknameError && (
-                      <div className="flex items-center space-x-2 text-sm text-destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>{nicknameError}</span>
-                      </div>
+      <div className="mt-8 grid max-w-[860px] gap-8">
+        <section
+          aria-labelledby="profile-title"
+          className="rounded-[3px] border border-kt-rule bg-white p-[clamp(18px,3vw,32px)]"
+        >
+          <h2 id="profile-title" className="m-0 text-[30px] font-medium leading-[1.15] text-kt-ink">
+            Profile
+          </h2>
+          {isLoading ? (
+            <div className="mt-6 space-y-4" aria-busy="true">
+              <div className="h-24 w-24 animate-pulse rounded-full bg-kt-wash" />
+              <div className="h-11 animate-pulse rounded-full bg-kt-wash" />
+              <div className="h-11 animate-pulse rounded-full bg-kt-wash" />
+            </div>
+          ) : (
+            <div className="mt-6 space-y-7">
+              <div className="flex flex-wrap items-center gap-5">
+                {profileImage ? (
+                  <img src={profileImage} alt="" className="h-24 w-24 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <InitialsAvatar name={nickname || user.email} size={96} dark />
+                )}
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="sr-only"
+                    id="profile-image-upload"
+                    disabled={isUploading}
+                  />
+                  <label
+                    htmlFor="profile-image-upload"
+                    className={outlineCapsule(
+                      cn("min-h-11 cursor-pointer text-[16px]", isUploading && "pointer-events-none opacity-60")
                     )}
-                    <p className="text-sm text-muted-foreground">
-                      Your nickname must be unique and at least 3 characters long. This is the name that appears in comments.
-                    </p>
-                  </div>
+                  >
+                    <Camera className="h-4 w-4" strokeWidth={1.7} aria-hidden="true" />
+                    {isUploading ? "uploading…" : "change photo"}
+                  </label>
+                </div>
+              </div>
 
-                  {/* Email Section (Read-only) */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={user.email || ""}
-                      disabled
-                      className="bg-muted"
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Email cannot be changed through this page.
-                    </p>
-                  </div>
+              <div className="space-y-2">
+                <label htmlFor="nickname" className={fieldLabel}>
+                  nickname
+                </label>
+                <Input
+                  id="nickname"
+                  value={nickname}
+                  onChange={(e) => handleNicknameChange(e.target.value)}
+                  placeholder="Enter your nickname"
+                  aria-invalid={!!nicknameError}
+                  aria-describedby="nickname-help"
+                  className={nicknameError ? "border-destructive" : ""}
+                />
+                {nicknameError && (
+                  <p className="m-0 flex items-center gap-2 text-[15px] text-destructive" role="alert">
+                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                    {nicknameError}
+                  </p>
+                )}
+                <p id="nickname-help" className="m-0 text-[15px] text-kt-body">
+                  Unique, at least 3 characters. It’s the name that appears on your comments and on the leaderboard.
+                </p>
+              </div>
 
-                  {/* Email Notifications Section */}
-                  <div className="space-y-3 border rounded-lg p-4">
-                    <div className="flex items-center gap-2">
-                      <Bell className="h-4 w-4 text-muted-foreground" />
-                      <h3 className="text-sm font-medium">Email Notifications</h3>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="email-notifications" className="text-sm">
-                          Receive email alerts
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Get notified by email when someone likes your comment, replies to you, or votes on your profile.
-                        </p>
-                      </div>
-                      <Switch
-                        id="email-notifications"
-                        checked={emailNotifications}
-                        onCheckedChange={setEmailNotifications}
-                      />
-                    </div>
-                  </div>
+              <div className="space-y-2">
+                <label htmlFor="email" className={fieldLabel}>
+                  email
+                </label>
+                <Input id="email" value={user.email || ""} disabled className="bg-kt-wash" />
+                <p className="m-0 text-[15px] text-kt-body">Email can’t be changed here.</p>
+              </div>
 
-                  {/* Save Button */}
-                  <div className="pt-4">
-                    <Button
-                      onClick={handleSave}
-                      disabled={isUpdating || isUploading || !!nicknameError || !nickname.trim()}
-                      className="w-full"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {isUpdating ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          {/* Badges Section */}
-          <div className="max-w-2xl mx-auto">
-            <BadgesSection />
-          </div>
-        </div>
-      </main>
-      <BottomNav />
-    </div>
+              <div className="flex items-start justify-between gap-6 border-t border-kt-rule pt-5">
+                <div>
+                  <label htmlFor="email-notifications" className={fieldLabel}>
+                    email alerts
+                  </label>
+                  <p className="mb-0 mt-1 max-w-[52ch] text-[15px] text-kt-body">
+                    Get an email when someone likes your comment, replies to you, or votes on a face you added.
+                  </p>
+                </div>
+                <Switch id="email-notifications" checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+              </div>
+
+              <CenButton
+                onClick={handleSave}
+                disabled={isUpdating || isUploading || !!nicknameError || !nickname.trim()}
+              >
+                {isUpdating ? "saving…" : "save changes"}
+              </CenButton>
+            </div>
+          )}
+        </section>
+
+        <BadgesSection />
+      </div>
+    </AppLayout>
   );
 };
 

@@ -1,7 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetch-all";
 
 export type LeaderboardPeriod = "week" | "month" | "all";
+
+export interface GameRecord {
+  score: number;
+  total: number;
+  created_at: string;
+}
 
 export interface LeaderboardEntry {
   userId: string;
@@ -10,6 +17,10 @@ export interface LeaderboardEntry {
   totalCorrect: number;
   totalQuestions: number;
   accuracyPercentage: number;
+  /** Posição na classificação completa do período (1 = primeiro). */
+  rank: number;
+  /** Últimas dez partidas, da mais antiga para a mais recente. */
+  recent: GameRecord[];
 }
 
 const getDateFilter = (period: LeaderboardPeriod): string | null => {
@@ -27,36 +38,54 @@ const getDateFilter = (period: LeaderboardPeriod): string | null => {
   return null;
 };
 
-export const useLeaderboard = (period: LeaderboardPeriod = "all") => {
-  return useQuery({
-    queryKey: ["leaderboard", period],
-    queryFn: async () => {
+/**
+ * Classificação COMPLETA do período — todos os jogadores, com posição e as
+ * últimas partidas de cada um. A página do ranking corta nos dez primeiros e
+ * usa a lista inteira para achar a posição de quem está logado.
+ *
+ * Ordem: acertos, depois precisão.
+ */
+export const useLeaderboardData = (period: LeaderboardPeriod = "all") =>
+  useQuery({
+    queryKey: ["leaderboard-full", period],
+    queryFn: async (): Promise<LeaderboardEntry[]> => {
       const dateFilter = getDateFilter(period);
 
-      let query = supabase
-        .from("game_results")
-        .select("user_id, score, total_questions, created_at");
-
-      if (dateFilter) {
-        query = query.gte("created_at", dateFilter);
-      }
-
-      const { data: gameResults, error } = await query;
+      const { data: gameResults, error } = await fetchAllRows<{
+        user_id: string;
+        score: number;
+        total_questions: number;
+        created_at: string;
+      }>((from, to) => {
+        let query = supabase
+          .from("game_results")
+          .select("user_id, score, total_questions, created_at")
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true });
+        if (dateFilter) query = query.gte("created_at", dateFilter);
+        return query.range(from, to);
+      });
       if (error) throw error;
 
-      // Aggregate by user_id
-      const userStats = new Map<string, { totalGames: number; totalCorrect: number; totalQuestions: number }>();
+      const userStats = new Map<
+        string,
+        { totalGames: number; totalCorrect: number; totalQuestions: number; games: GameRecord[] }
+      >();
 
-      gameResults?.forEach((result) => {
-        const existing = userStats.get(result.user_id) || { totalGames: 0, totalCorrect: 0, totalQuestions: 0 };
-        userStats.set(result.user_id, {
-          totalGames: existing.totalGames + 1,
-          totalCorrect: existing.totalCorrect + result.score,
-          totalQuestions: existing.totalQuestions + result.total_questions,
-        });
+      gameResults.forEach((result) => {
+        const existing = userStats.get(result.user_id) || {
+          totalGames: 0,
+          totalCorrect: 0,
+          totalQuestions: 0,
+          games: [],
+        };
+        existing.totalGames += 1;
+        existing.totalCorrect += result.score;
+        existing.totalQuestions += result.total_questions;
+        existing.games.push({ score: result.score, total: result.total_questions, created_at: result.created_at });
+        userStats.set(result.user_id, existing);
       });
 
-      // Fetch user nicknames
       const userIds = Array.from(userStats.keys());
       if (userIds.length === 0) return [];
 
@@ -64,29 +93,36 @@ export const useLeaderboard = (period: LeaderboardPeriod = "all") => {
         .from("profiles")
         .select("id, nickname")
         .in("id", userIds);
-
       if (profilesError) throw profilesError;
 
-      const profilesMap = new Map(profiles?.map(p => [p.id, p.nickname]) || []);
+      const nicknames = new Map(profiles?.map((profile) => [profile.id, profile.nickname]) || []);
 
-      const leaderboard: LeaderboardEntry[] = Array.from(userStats.entries()).map(([userId, stats]) => ({
+      const leaderboard = Array.from(userStats.entries()).map(([userId, stats]) => ({
         userId,
-        nickname: profilesMap.get(userId) || "Anonymous Player",
+        nickname: nicknames.get(userId) || "Anonymous Player",
         totalGames: stats.totalGames,
         totalCorrect: stats.totalCorrect,
         totalQuestions: stats.totalQuestions,
-        accuracyPercentage: stats.totalQuestions > 0
-          ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100)
-          : 0,
+        accuracyPercentage:
+          stats.totalQuestions > 0 ? Math.round((stats.totalCorrect / stats.totalQuestions) * 100) : 0,
+        rank: 0,
+        recent: stats.games.slice(-10),
       }));
 
-      // Sort by total correct, then accuracy, and limit to top 10
       leaderboard.sort((a, b) => {
         if (b.totalCorrect !== a.totalCorrect) return b.totalCorrect - a.totalCorrect;
         return b.accuracyPercentage - a.accuracyPercentage;
       });
+      leaderboard.forEach((entry, index) => {
+        entry.rank = index + 1;
+      });
 
-      return leaderboard.slice(0, 10);
+      return leaderboard;
     },
   });
+
+/** Os dez primeiros do período — o recorte usado nos painéis. */
+export const useLeaderboard = (period: LeaderboardPeriod = "all") => {
+  const query = useLeaderboardData(period);
+  return { ...query, data: query.data?.slice(0, 10) };
 };

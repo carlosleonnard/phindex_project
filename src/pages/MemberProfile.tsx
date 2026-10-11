@@ -1,259 +1,343 @@
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
-import { Header } from '@/components/Header';
-import { BottomNav } from '@/components/BottomNav';
-import { AppSidebar } from '@/components/AppSidebar';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Skeleton } from '@/components/ui/skeleton';
-import { MessageSquare, Heart, Trophy, ChevronLeft, CalendarDays, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useMemberData } from '@/hooks/use-member-data';
-import { LEVEL_COLORS, LEVEL_NAMES } from '@/hooks/use-badges';
+/**
+ * PÁGINA DE MEMBRO (MemberProfile.tsx)
+ *
+ * Cabeçalho com apelido, "membro desde", posição no ranking e três números;
+ * as insígnias como quatro cromossomos de dez faixas (níveis conquistados em
+ * tinta, a fatia teal é o progresso até o próximo); atividade recente; o
+ * cartão escuro do jogo e os rostos que o membro adicionou.
+ */
+
+import { useMemo } from "react";
+import { Helmet } from "react-helmet-async";
+import { Link, useParams } from "react-router-dom";
+import { AppLayout, Crumbs } from "@/components/AppLayout";
+import { CenLink } from "@/components/kt/Centromere";
+import { FacePhoto, InitialsAvatar, SC, timeAgo } from "@/components/kt/Misc";
+import { EmptySheet } from "@/components/kt/Listing";
+import { KT, bandSeparators } from "@/components/kt/bands";
+import { useMemberData, type MemberGame } from "@/hooks/use-member-data";
+import { useLeaderboardData } from "@/hooks/use-leaderboard";
+import { useIndexProfiles } from "@/hooks/use-index";
+import { LEVELS, type Difficulty } from "@/hooks/use-map-game";
+import { CATEGORY_LABELS, LEVEL_NAMES, type BadgeCategory } from "@/hooks/use-badges";
+import { BADGE_TRACKS, BadgeTrack } from "@/components/kt/BadgeTrack";
+
+/** Tons do jogo sobre fundo escuro: 80%+ · 60–79 · 40–59 · abaixo. */
+const darkShade = (pct: number) => (pct >= 80 ? KT.wash : pct >= 60 ? KT.glow : pct >= 40 ? "#1E6370" : "#16454D");
+
+const darkFormBands = (games: MemberGame[]) => {
+  const recent = games.slice(-10);
+  const stops = Array.from({ length: 10 }, (_, band) => {
+    const game = recent[band];
+    const color = game ? darkShade(game.total_questions ? (game.score / game.total_questions) * 100 : 0) : "transparent";
+    return `${color} 0 ${(band + 1) * 10}%`;
+  });
+  return `${bandSeparators(10, KT.deep)},linear-gradient(90deg,${stops.join(",")})`;
+};
+
+const scoreBar = (score: number, total: number) => {
+  const width = (100 / Math.max(1, total)).toFixed(3);
+  const filled = (score / Math.max(1, total)) * 100;
+  return `repeating-linear-gradient(90deg,transparent 0 calc(${width}% - 1px),${KT.sheet} calc(${width}% - 1px) ${width}%),linear-gradient(90deg,${KT.ink} 0 ${filled}%,${KT.b50} 0 100%)`;
+};
+
+const LEVEL_LABEL: Record<string, string> = Object.fromEntries(
+  (Object.keys(LEVELS) as Difficulty[]).map((key) => [key, LEVELS[key].name.toLowerCase()])
+);
+
+type Activity = { id: string; at: string; body: React.ReactNode };
 
 const MemberProfile = () => {
-  const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
-  const { profile, stats, badges, recentComments, likesReceived, isLoading } = useMemberData(userId ?? '');
+  const { userId = "" } = useParams<{ userId: string }>();
+  const { profile, stats, badges, thresholds, recentComments, likesTotal, recentLikes, games, isLoading } =
+    useMemberData(userId);
+  const { data: week = [] } = useLeaderboardData("week");
+  const { data: allTime = [] } = useLeaderboardData("all");
+  const { profiles } = useIndexProfiles();
+
+  const added = useMemo(
+    () =>
+      profiles
+        .filter((item) => item.user_id === userId)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [profiles, userId]
+  );
+
+  const weekRank = week.find((entry) => entry.userId === userId)?.rank;
+  const allRank = allTime.find((entry) => entry.userId === userId)?.rank;
+  const rankLabel = weekRank ? `#${weekRank} this week` : allRank ? `#${allRank} all time` : null;
+
+  const levelOf = (category: string) =>
+    badges.filter((item) => item.badge?.category === category).reduce((max, item) => Math.max(max, item.badge.level), 0);
+
+  const gameTotals = games.reduce(
+    (totals, game) => ({ correct: totals.correct + game.score, questions: totals.questions + game.total_questions }),
+    { correct: 0, questions: 0 }
+  );
+  const accuracy = gameTotals.questions ? Math.round((gameTotals.correct / gameTotals.questions) * 100) : null;
+
+  const activity: Activity[] = useMemo(() => {
+    const items: Activity[] = [];
+    recentComments.forEach((comment) => {
+      const excerpt = comment.content.length > 140 ? `${comment.content.slice(0, 137).trimEnd()}…` : comment.content;
+      items.push({
+        id: `c-${comment.id}`,
+        at: comment.created_at,
+        body: (
+          <>
+            Commented on{" "}
+            {comment.profileSlug ? (
+              <Link to={`/user-profile/${comment.profileSlug}`} className="text-kt-ink">
+                {comment.profileName}
+              </Link>
+            ) : (
+              "a profile"
+            )}
+            : <em className="text-kt-slate">“{excerpt}”</em>
+          </>
+        ),
+      });
+    });
+    games
+      .slice(-5)
+      .forEach((game, index) =>
+        items.push({
+          id: `g-${game.created_at}-${index}`,
+          at: game.created_at,
+          body: (
+            <>
+              Played <Link to="/game" className="text-kt-ink">Guess the phenotype</Link>
+              {game.difficulty && LEVEL_LABEL[game.difficulty] ? ` · ${LEVEL_LABEL[game.difficulty]}` : ""} · {game.score} of{" "}
+              {game.total_questions}
+              <span
+                aria-hidden="true"
+                className="ml-1.5 inline-block h-[9px] w-[60px] rounded-full border border-kt-ink align-middle"
+                style={{ background: scoreBar(game.score, game.total_questions) }}
+              />
+            </>
+          ),
+        })
+      );
+    recentLikes.forEach((like) =>
+      items.push({
+        id: `l-${like.id}`,
+        at: like.created_at,
+        body: like.likerNickname ? (
+          <>
+            A comment was liked by <strong className="font-semibold">{like.likerNickname}</strong>
+          </>
+        ) : (
+          "A comment was liked"
+        ),
+      })
+    );
+    badges.slice(0, 5).forEach((item) => {
+      if (!item.badge) return;
+      const track = CATEGORY_LABELS[item.badge.category as BadgeCategory] ?? item.badge.category;
+      items.push({
+        id: `b-${item.badge_id}`,
+        at: item.earned_at,
+        body: (
+          <>
+            Earned <strong className="font-semibold">{LEVEL_NAMES[item.badge.level] ?? item.badge.name}</strong> in{" "}
+            {track.toLowerCase()}
+          </>
+        ),
+      });
+    });
+    added.slice(0, 5).forEach((face) =>
+      items.push({
+        id: `f-${face.id}`,
+        at: face.created_at,
+        body: (
+          <>
+            Added a face:{" "}
+            <Link to={`/user-profile/${face.slug}`} className="text-kt-ink">
+              {face.name}
+            </Link>
+          </>
+        ),
+      })
+    );
+    return items.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 8);
+  }, [recentComments, games, recentLikes, badges, added]);
 
   if (isLoading) {
-    return <MemberProfileSkeleton />;
+    return (
+      <AppLayout>
+        <div aria-busy="true" className="space-y-4">
+          <div className="h-24 animate-pulse rounded-[3px] bg-kt-wash" />
+          <div className="h-64 animate-pulse rounded-[3px] bg-kt-wash" />
+        </div>
+      </AppLayout>
+    );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <AppSidebar />
-        <main className="lg:ml-80 pt-16">
-          <div className="container mx-auto px-4 py-16 text-center">
-            <p className="text-muted-foreground">Member not found.</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>
-              Go back
-            </Button>
-          </div>
-        </main>
-      </div>
+      <AppLayout>
+        <EmptySheet title="Member not found" action={<CenLink to="/leaderboard" size="sm">see the leaderboard</CenLink>}>
+          This member may have left Phindex, or the link is wrong.
+        </EmptySheet>
+      </AppLayout>
     );
   }
 
-  const initials = profile.nickname?.slice(0, 2).toUpperCase() ?? '??';
-  const memberSince = formatDistanceToNow(new Date(profile.created_at), { addSuffix: true });
+  const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", { month: "long", year: "numeric" }).toLowerCase();
+  const nickname = profile.nickname || "member";
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <AppSidebar />
-      <main className="lg:ml-80 pt-16">
-        <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
+    <AppLayout>
+      <Helmet>
+        <title>{`${nickname} | Phindex member`}</title>
+        <meta name="robots" content="noindex, follow" />
+      </Helmet>
 
-          {/* Back button */}
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
+      <Crumbs items={[{ label: "Leaderboard", to: "/leaderboard" }, { label: nickname }]} />
 
-          {/* Hero card */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-5">
-                <Avatar className="h-20 w-20 ring-2 ring-border">
-                  <AvatarImage src={profile.avatar_url ?? ''} alt={profile.nickname} />
-                  <AvatarFallback className="text-2xl font-bold">{initials}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-2xl font-bold truncate">{profile.nickname}</h1>
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    <span>Member {memberSince}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats row */}
-              <div className="grid grid-cols-3 gap-3 mt-6">
-                <StatPill
-                  icon={<MessageSquare className="h-4 w-4" />}
-                  label="Comments"
-                  value={stats?.total_comments ?? recentComments.length}
-                />
-                <StatPill
-                  icon={<Trophy className="h-4 w-4" />}
-                  label="Badges"
-                  value={badges.length}
-                />
-                <StatPill
-                  icon={<Heart className="h-4 w-4" />}
-                  label="Likes received"
-                  value={likesReceived.length}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Badges */}
-          {badges.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-amber-500" />
-                  Badges earned · {badges.length}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <TooltipProvider>
-                  <div className="flex flex-wrap gap-3">
-                    {badges.map((ub) => {
-                      const levelColor = LEVEL_COLORS[ub.badge.level] ?? LEVEL_COLORS[1];
-                      const levelName = LEVEL_NAMES[ub.badge.level] ?? 'Bronze';
-                      return (
-                        <Tooltip key={ub.badge_id}>
-                          <TooltipTrigger asChild>
-                            <div className="relative flex flex-col items-center justify-center w-16 h-20 rounded-xl border-2 border-primary/40 bg-gradient-to-b from-primary/5 to-transparent shadow-sm cursor-default">
-                              <span className="text-2xl mb-0.5">{ub.badge.icon}</span>
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-primary">
-                                Lv.{ub.badge.level}
-                              </span>
-                              <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-r ${levelColor} flex items-center justify-center`}>
-                                <span className="text-white text-[8px] font-bold">✓</span>
-                              </div>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-52">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <span>{ub.badge.icon}</span>
-                                <span className="font-semibold text-sm">{ub.badge.name}</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground">{ub.badge.description}</p>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                {levelName} · Level {ub.badge.level}
-                              </Badge>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                  </div>
-                </TooltipProvider>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Recent Comments */}
-          {recentComments.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-blue-500" />
-                  Recent comments
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {recentComments.map((comment) => (
-                  <div key={comment.id} className="group flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm line-clamp-2">{comment.content}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                        </span>
-                        {(comment.likes_count ?? 0) > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Heart className="h-3 w-3" />
-                            {comment.likes_count}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <Link
-                      to={`/profile/${comment.profile_id}`}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                    </Link>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Recent Likes Received */}
-          {likesReceived.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Heart className="h-4 w-4 text-rose-500" />
-                  Recent likes received
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {likesReceived.map((like) => (
-                  <div key={like.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40">
-                    <div className="flex items-center gap-2">
-                      <Heart className="h-3.5 w-3.5 text-rose-400 fill-rose-400" />
-                      <span className="text-sm text-muted-foreground">Comment liked</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(like.created_at), { addSuffix: true })}
-                    </span>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {badges.length === 0 && recentComments.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground text-sm">
-                This member hasn't been active yet.
-              </CardContent>
-            </Card>
-          )}
-
+      <div className="mt-[22px] flex flex-wrap items-center gap-x-7 gap-y-5 border-b-[1.5px] border-kt-ink pb-7">
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="h-24 w-24 shrink-0 rounded-full object-cover" />
+        ) : (
+          <InitialsAvatar name={nickname} size={96} dark />
+        )}
+        <div className="min-w-0 flex-[1_1_300px]">
+          <SC as="p" className="m-0 text-[15px] text-kt-teal">
+            member since {memberSince}
+            {rankLabel ? ` · ${rankLabel}` : ""}
+          </SC>
+          <h1 className="mb-0 mt-0.5 break-words text-[clamp(46px,5.4vw,76px)] font-medium leading-[0.95] tracking-[-0.025em] text-kt-ink">
+            {nickname}
+          </h1>
         </div>
-      </main>
-      <BottomNav />
-    </div>
+        <dl className="m-0 flex flex-wrap gap-x-8 gap-y-3">
+          {[
+            { label: "comments", value: stats?.total_comments ?? recentComments.length },
+            { label: "badges", value: badges.length },
+            { label: "likes received", value: likesTotal },
+          ].map((item) => (
+            <div key={item.label}>
+              <SC as="dt" className="text-[13px] text-kt-body">
+                {item.label}
+              </SC>
+              <dd className="m-0 text-[30px] leading-[1.1] text-kt-ink">{item.value.toLocaleString("en-US")}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div className="mt-8 flex flex-wrap items-start gap-x-12 gap-y-10">
+        <div className="min-w-0 flex-[999_1_440px]">
+          <section aria-labelledby="badges-title">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1.5">
+              <h2 id="badges-title" className="m-0 text-[30px] font-medium leading-[1.15] text-kt-ink">
+                Badges
+              </h2>
+              <span className="text-[15px] italic text-kt-body">four tracks, ten levels each</span>
+            </div>
+            <div className="mt-[18px] border-b border-kt-rule">
+              {BADGE_TRACKS.map((track) => (
+                <BadgeTrack
+                  key={track.category}
+                  label={CATEGORY_LABELS[track.category]}
+                  level={levelOf(track.category)}
+                  stat={stats ? stats[track.statKey] ?? 0 : null}
+                  unit={track.unit}
+                  thresholds={thresholds.filter((item) => item.category === track.category)}
+                />
+              ))}
+            </div>
+            <p className="mb-0 mt-3 text-[15px] text-kt-body">
+              Ink bands are earned levels; the teal sliver is progress toward the next one.
+            </p>
+          </section>
+
+          <section aria-labelledby="act-title" className="mt-10">
+            <h2 id="act-title" className="mb-1.5 mt-0 text-[30px] font-medium leading-[1.15] text-kt-ink">
+              Recent activity
+            </h2>
+            {activity.length === 0 ? (
+              <p className="m-0 border-t border-kt-rule pt-3.5 text-[17px] text-kt-body">Nothing yet.</p>
+            ) : (
+              <ul className="m-0 list-none border-b border-kt-rule p-0">
+                {activity.map((item) => (
+                  <li key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3.5 border-t border-kt-rule py-3.5">
+                    <p className="m-0 text-[17px] leading-[1.45]">{item.body}</p>
+                    <span className="whitespace-nowrap text-[14px] text-kt-body">{timeAgo(item.at, true)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <aside className="flex min-w-0 max-w-[330px] flex-[1_1_280px] flex-col gap-5 max-[859px]:max-w-none">
+          <section aria-labelledby="game-card" className="rounded-[3px] bg-kt-deep p-[22px] text-kt-wash">
+            <div className="flex items-baseline justify-between gap-2.5">
+              <SC as="h2" className="m-0 text-[16px] font-semibold text-kt-b50">
+                <span id="game-card">origin game</span>
+              </SC>
+              {rankLabel && (
+                <Link to="/leaderboard" className="text-[15px] text-kt-b50">
+                  {rankLabel}
+                </Link>
+              )}
+            </div>
+            {accuracy === null ? (
+              <p className="mb-0 mt-3.5 text-[17px] text-kt-b50">No games played yet.</p>
+            ) : (
+              <>
+                <p className="mb-0 mt-3.5 text-[54px] leading-none text-kt-paper">{accuracy}%</p>
+                <p className="mb-0 mt-1.5 text-[15px] text-kt-b50">
+                  {gameTotals.correct} of {gameTotals.questions} correct · {games.length} {games.length === 1 ? "game" : "games"}
+                </p>
+                <div
+                  aria-hidden="true"
+                  className="mt-4 box-border h-3 rounded-full border border-kt-b50"
+                  style={{ background: darkFormBands(games) }}
+                />
+                <p className="mb-0 mt-1.5 text-[13px] italic text-kt-b50">last 10 games, newest on the right</p>
+              </>
+            )}
+            <Link
+              to="/game"
+              className="mt-3.5 inline-flex min-h-11 items-center rounded-full border-[1.5px] border-kt-b50 px-[18px] text-[16px] text-kt-wash no-underline transition-colors hover:bg-white/5 hover:text-kt-paper"
+            >
+              {accuracy === null ? "play a round" : `challenge ${nickname}`}
+            </Link>
+          </section>
+
+          <section aria-labelledby="added-title" className="rounded-[3px] border border-kt-rule bg-white p-5">
+            <div className="flex items-baseline justify-between gap-2.5">
+              <SC as="h2" className="m-0 text-[16px] font-semibold text-kt-ink">
+                <span id="added-title">faces added</span>
+              </SC>
+              <span className="text-[15px] text-kt-body">{added.length}</span>
+            </div>
+            {added.length === 0 ? (
+              <p className="mb-0 mt-2.5 text-[15px] text-kt-body">No faces added yet.</p>
+            ) : (
+              <>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {added.slice(0, 6).map((face) => (
+                    <Link
+                      key={face.id}
+                      to={`/user-profile/${face.slug}`}
+                      aria-label={face.name}
+                      className="block aspect-square overflow-hidden rounded-[3px] bg-kt-wash"
+                    >
+                      <FacePhoto src={face.front_image_url} alt="" />
+                    </Link>
+                  ))}
+                </div>
+                {added.length > 6 && <p className="mb-0 mt-2.5 text-[15px] text-kt-body">and {added.length - 6} more</p>}
+              </>
+            )}
+          </section>
+        </aside>
+      </div>
+    </AppLayout>
   );
 };
-
-const StatPill = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) => (
-  <div className="flex flex-col items-center justify-center gap-1 p-3 rounded-xl bg-muted/50 border border-border/40">
-    <div className="text-muted-foreground">{icon}</div>
-    <span className="text-xl font-bold">{value}</span>
-    <span className="text-[11px] text-muted-foreground">{label}</span>
-  </div>
-);
-
-const MemberProfileSkeleton = () => (
-  <div className="min-h-screen bg-background">
-    <Header />
-    <AppSidebar />
-    <main className="lg:ml-80 pt-16">
-      <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
-        <Skeleton className="h-9 w-20" />
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-center gap-5">
-              <Skeleton className="h-20 w-20 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-7 w-40" />
-                <Skeleton className="h-4 w-28" />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
-            </div>
-          </CardContent>
-        </Card>
-        <Skeleton className="h-48 rounded-xl" />
-        <Skeleton className="h-48 rounded-xl" />
-      </div>
-    </main>
-  </div>
-);
 
 export default MemberProfile;

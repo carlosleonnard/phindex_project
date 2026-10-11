@@ -1,168 +1,145 @@
-import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, User, Calendar, Filter, MessageSquare } from "lucide-react";
+/**
+ * PÁGINA DE CATEGORIA (CategoryPage.tsx)
+ *
+ * Um recorte do índice por categoria (Sports, Sciences, Community…):
+ *
+ *   cabeçalho  — nome, descrição, números e a figura "onde a comunidade os
+ *                coloca": a distribuição por região dos perfis da categoria;
+ *   subáreas   — cápsulas com contagem (não existem em Community);
+ *   filtros    — região (cromossomo), fenótipo e ordenação;
+ *   grade      — doze cartões por página, com paginação em cápsula;
+ *   outras categorias, com contagem, para seguir navegando.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Header } from "@/components/Header";
-import { BottomNav } from "@/components/BottomNav";
-import { Footer } from "@/components/Footer";
-import { AppSidebar } from "@/components/AppSidebar";
-import { useUserProfiles } from "@/hooks/use-user-profiles";
-import { useCommentCounts } from "@/hooks/use-comment-counts";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { EmptyState } from "@/components/EmptyState";
+import { ChevronDown } from "lucide-react";
+import { AppLayout, Crumbs } from "@/components/AppLayout";
+import { PhenotypeCard } from "@/components/PhenotypeCard";
+import { RegionFilter, SortTabs } from "@/components/kt/RegionFilter";
+import { SC } from "@/components/kt/Misc";
 import {
-  SLUG_TO_CATEGORY,
+  EmptySheet,
+  GRID_CLASS,
+  GridSkeleton,
+  LISTING_SORTS,
+  Pagination,
+  RegionShareFigure,
+  SORT_LABEL,
+  chipClass,
+  sortListing,
+  type ListingSort,
+} from "@/components/kt/Listing";
+import { useIndexProfiles } from "@/hooks/use-index";
+import {
   CATEGORY_DESCRIPTIONS,
-  CATEGORY_IMAGES,
+  CATEGORY_OPTIONS,
+  CATEGORY_SLUG_MAP,
+  SLUG_TO_CATEGORY,
   SUBCATEGORIES,
 } from "@/constants/categories";
+import { profileContinent, type Continent } from "@/constants/regions";
+import { cn } from "@/lib/utils";
 
-const PROFILES_PER_PAGE = 12;
-
-// Same mapping used in use-geographic-region-profiles
-const geographicToRegionMapping: Record<string, string[]> = {
-  "europe": ["Eastern Europe", "Central Europe", "Southern Europe", "Northern Europe"],
-  "africa": ["North Africa", "East Africa", "Sub-Saharan Africa"],
-  "middle-east": ["Levant", "Anatólia", "Anatolia", "Arabian Peninsula", "Persian Plateau"],
-  "asia": ["Central Asia", "Eastern Asia", "Southern Asia", "Southeastern Asia"],
-  "americas": ["Northern America", "Central America", "Southern America"],
-  "oceania": ["Australia and New Zealand", "Melanesia", "Polynesia"],
-};
-
-const belongsToRegion = (mostVotedGeographic: string | undefined | null, regionSlug: string): boolean => {
-  if (!mostVotedGeographic) return false;
-  const classifications = geographicToRegionMapping[regionSlug] || [];
-  return classifications.some(c => c.toLowerCase() === mostVotedGeographic.toLowerCase());
-};
+const PER_PAGE = 12;
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>();
-  const navigate = useNavigate();
-  const { profiles, profilesLoading } = useUserProfiles();
-  const [currentPage, setCurrentPage] = useState(1);
+  const slug = category ?? "";
+  const dbCategory = SLUG_TO_CATEGORY[slug];
+  const isCommunity = slug === "community";
+  const displayName = isCommunity ? "Community" : dbCategory;
+  const description = CATEGORY_DESCRIPTIONS[slug];
+  const subcategoryOptions = isCommunity || !dbCategory ? [] : SUBCATEGORIES[dbCategory] ?? [];
 
-  // Filters
-  const [subcategoryFilter, setSubcategoryFilter] = useState("");
-  const [specificPhenotypeFilter, setSpecificPhenotypeFilter] = useState("");
-  const [regionFilter, setRegionFilter] = useState("");
+  const { profiles, isLoading } = useIndexProfiles();
+  const [subcategory, setSubcategory] = useState<string | null>(null);
+  const [region, setRegion] = useState<Continent | null>(null);
+  const [phenotype, setPhenotype] = useState("");
+  const [sort, setSort] = useState<ListingSort>("popular");
+  const [page, setPage] = useState(1);
 
-  const categoryName = category ? (SLUG_TO_CATEGORY[category] || "Unknown Category") : "Unknown Category";
-  const categoryDescription = category ? (CATEGORY_DESCRIPTIONS[category] || "Category not found") : "Category not found";
-  const isCommunity = category === "community";
-  const subcategoryOptions = SUBCATEGORIES[categoryName] || [];
+  useEffect(() => {
+    setSubcategory(null);
+    setRegion(null);
+    setPhenotype("");
+    setPage(1);
+  }, [slug]);
 
-  // Get profiles for this category
-  const categoryProfiles = useMemo(() => {
-    return profiles?.filter(profile => {
-      const dbCategoryName = SLUG_TO_CATEGORY[category || ""];
-      return profile.category === dbCategoryName;
-    }) || [];
-  }, [profiles, category]);
+  useEffect(() => setPage(1), [subcategory, region, phenotype, sort]);
 
-  // Collect unique specific phenotypes filtered by selected region
-  const uniquePhenotypes = useMemo(() => {
-    const set = new Set<string>();
-    categoryProfiles.forEach(p => {
-      if (!p.most_voted_phenotype) return;
-      if (regionFilter) {
-        const regionSlug = regionFilter.toLowerCase().replace(/\s+/g, '-');
-        if (!belongsToRegion(p.most_voted_geographic, regionSlug)) return;
-      }
-      set.add(p.most_voted_phenotype);
+  const categoryProfiles = useMemo(
+    () => profiles.filter((profile) => profile.category === dbCategory),
+    [profiles, dbCategory]
+  );
+
+  const subCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    categoryProfiles.forEach((profile) => {
+      if (profile.subcategory) counts[profile.subcategory] = (counts[profile.subcategory] || 0) + 1;
     });
-    return Array.from(set).sort();
-  }, [categoryProfiles, regionFilter]);
+    return counts;
+  }, [categoryProfiles]);
 
-  // Collect unique regions filtered by selected phenotype
-  const availableRegions = useMemo(() => {
-    const set = new Set<string>();
-    const allRegions = ["Africa", "Asia", "Europe", "Americas", "Middle East", "Oceania"];
-    categoryProfiles.forEach(p => {
-      if (specificPhenotypeFilter && p.most_voted_phenotype !== specificPhenotypeFilter) return;
-      if (!p.most_voted_geographic) return;
-      for (const region of allRegions) {
-        const regionSlug = region.toLowerCase().replace(/\s+/g, '-');
-        if (belongsToRegion(p.most_voted_geographic, regionSlug)) {
-          set.add(region);
-        }
-      }
-    });
-    return allRegions.filter(r => set.has(r));
-  }, [categoryProfiles, specificPhenotypeFilter]);
+  const phenotypeOptions = useMemo(
+    () =>
+      [...new Set(categoryProfiles.map((profile) => profile.most_voted_phenotype).filter(Boolean) as string[])].sort(),
+    [categoryProfiles]
+  );
 
-  // Apply filters
-  const filteredProfiles = useMemo(() => {
-    return categoryProfiles.filter(profile => {
-      if (subcategoryFilter && profile.subcategory !== subcategoryFilter) return false;
-
-      if (specificPhenotypeFilter && profile.most_voted_phenotype !== specificPhenotypeFilter) return false;
-
-      if (regionFilter) {
-        const regionSlug = regionFilter.toLowerCase().replace(/\s+/g, '-');
-        if (!belongsToRegion(profile.most_voted_geographic, regionSlug)) return false;
-      }
-
+  const filtered = useMemo(() => {
+    const list = categoryProfiles.filter((profile) => {
+      if (subcategory && profile.subcategory !== subcategory) return false;
+      if (region && profileContinent(profile) !== region) return false;
+      if (phenotype && profile.most_voted_phenotype !== phenotype) return false;
       return true;
     });
-  }, [categoryProfiles, subcategoryFilter, specificPhenotypeFilter, regionFilter]);
+    return sortListing(list, sort);
+  }, [categoryProfiles, subcategory, region, phenotype, sort]);
 
-  const categoryProfileIds = useMemo(
-    () => filteredProfiles.map((profile) => profile.id),
-    [filteredProfiles]
-  );
-  const commentCounts = useCommentCounts(categoryProfileIds);
+  const otherCategories = useMemo(() => {
+    const counts: Record<string, number> = {};
+    profiles.forEach((profile) => {
+      counts[profile.category] = (counts[profile.category] || 0) + 1;
+    });
+    return [{ label: "Community", value: "User Profiles", slug: "community" }]
+      .concat(CATEGORY_OPTIONS.map((name) => ({ label: name, value: name, slug: CATEGORY_SLUG_MAP[name] })))
+      .filter((item) => item.slug !== slug)
+      .map((item) => ({ ...item, count: counts[item.value] || 0 }))
+      .sort((a, b) => b.count - a.count);
+  }, [profiles, slug]);
 
-  if (!category || !SLUG_TO_CATEGORY[category]) {
+  const totalVotes = categoryProfiles.reduce((sum, profile) => sum + profile.vote_count, 0);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const visible = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const hasFilters = Boolean(subcategory || region || phenotype);
+
+  if (!dbCategory) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20">
-        <Header />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Category not found</h1>
-            <Button onClick={() => navigate("/")} variant="outline">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </div>
-        </div>
-        <Footer />
-      </div>
+      <AppLayout>
+        <h1 className="m-0 text-[40px] font-medium text-kt-ink">Category not found</h1>
+        <p className="mt-2 text-[18px] text-kt-body">
+          There’s no category at this address. <Link to="/explore">Explore the index</Link> instead.
+        </p>
+      </AppLayout>
     );
   }
 
-  const catTitle = `${categoryName} Phenotypes | Phindex`;
-  const catDescription = `Browse ${categoryName} phenotype profiles on Phindex. See physical trait classifications and vote on characteristics.`;
-  const catUrl = `https://www.phenotypeindex.com/category/${category}`;
-  // Os ícones de categoria são SVG e crawlers não os renderizam; usa o card padrão.
-  const catImage = "https://www.phenotypeindex.com/og-default.png";
-
+  const catTitle = `${displayName} Phenotypes | Phindex`;
+  const catDescription = `Browse ${displayName} phenotype profiles on Phindex. See physical trait classifications and vote on characteristics.`;
+  const catUrl = `https://www.phenotypeindex.com/category/${slug}`;
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
-      { "@type": "ListItem", "position": 2, "name": categoryName, "item": catUrl }
-    ]
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", position: 2, name: displayName, item: catUrl },
+    ],
   };
-
-  const hasActiveFilters = subcategoryFilter || specificPhenotypeFilter || regionFilter;
-
-  const clearFilters = () => {
-    setSubcategoryFilter("");
-    setSpecificPhenotypeFilter("");
-    setRegionFilter("");
-    setCurrentPage(1);
-  };
-
-  // Count active filters for grid layout
-  const filterCount = (isCommunity ? 0 : 1) + 1 + 1; // subcategory (if not community) + specific phenotype + region
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-phindex-dark/20 flex flex-col">
+    <AppLayout>
       <Helmet>
         <title>{catTitle}</title>
         <meta name="description" content={catDescription} />
@@ -172,7 +149,7 @@ export default function CategoryPage() {
         <meta property="og:url" content={catUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta property="og:image" content={catImage} />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/png" />
@@ -180,290 +157,155 @@ export default function CategoryPage() {
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content={catTitle} />
         <meta name="twitter:description" content={catDescription} />
-        <meta name="twitter:image" content={catImage} />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
-      <Header />
 
-      <div className="container mx-auto px-4 py-8 flex-1">
-        <div className="lg:ml-80 pt-20">
-          {/* Sidebar */}
-          <AppSidebar />
+      <Crumbs items={[{ label: "Discover", to: "/community" }, { label: "Categories", to: "/explore" }, { label: displayName }]} />
 
-          {/* Breadcrumbs and back button */}
-          <div className="mb-6">
-            <Breadcrumbs
-              items={[
-                { label: 'Categories', href: '/' },
-                { label: categoryName }
-              ]}
-              className="mb-4"
-            />
-            <Button
-              onClick={() => navigate("/")}
-              variant="secondary"
-              size="sm"
-              className="bg-card/95 backdrop-blur-sm border border-border/50 hover:bg-card shadow-lg"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </div>
-
-          {/* Main Content */}
-          <div>
-            {/* Category Banner */}
-            <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: 220 }}>
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-white" />
-              {category && CATEGORY_IMAGES[category] && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[90%] aspect-square">
-                  <img
-                    src={CATEGORY_IMAGES[category]}
-                    alt={`${categoryName} icon`}
-                    className="w-full h-full object-contain opacity-80 animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
-                  />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-r from-slate-100/95 via-slate-100/70 to-transparent" />
-              <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220 }}>
-                <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
-                  {categoryName.toUpperCase()}
-                </h1>
-                <h2 className="text-2xl md:text-3xl font-black text-primary leading-tight tracking-tight mb-3 animate-[fadeSlideIn_0.8s_ease-out_0.15s_both]">
-                  PHENOTYPES
-                </h2>
-                <p className="text-slate-500 text-sm max-w-md animate-[fadeSlideIn_0.8s_ease-out_0.3s_both]">
-                  {categoryDescription}
-                </p>
-                <div className="flex items-center gap-3 mt-4 animate-[fadeSlideIn_0.8s_ease-out_0.45s_both]">
-                  <div className="bg-white/60 backdrop-blur-md border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" />
-                    <div>
-                      <div className="text-lg font-bold text-slate-800 leading-none">{filteredProfiles.length}</div>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Profiles</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Filters Section */}
-            <div className="mb-6 p-4 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl">
-              <div className="flex items-center gap-2 mb-3">
-                <Filter className="h-4 w-4 text-phindex-teal" />
-                <h3 className="text-sm font-semibold text-foreground">Filters</h3>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isCommunity ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-3`}>
-                {/* Subcategory Filter - hidden for Community */}
-                {!isCommunity && (
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Subcategory</label>
-                    <select
-                      value={subcategoryFilter}
-                      onChange={(e) => { setSubcategoryFilter(e.target.value); setCurrentPage(1); }}
-                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                      <option value="">All subcategories</option>
-                      {subcategoryOptions.map((sub) => (
-                        <option key={sub} value={sub}>{sub}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Specific Phenotype Filter - dropdown */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Specific Phenotype</label>
-                  <select
-                    value={specificPhenotypeFilter}
-                    onChange={(e) => { setSpecificPhenotypeFilter(e.target.value); setCurrentPage(1); }}
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="">All phenotypes</option>
-                    {uniquePhenotypes.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Region Filter */}
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Region</label>
-                  <select
-                    value={regionFilter}
-                    onChange={(e) => { setRegionFilter(e.target.value); setCurrentPage(1); }}
-                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value="">All regions</option>
-                    {["Africa", "Asia", "Europe", "Americas", "Middle East", "Oceania"].map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Profiles Grid */}
-            {profilesLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <Card key={index} className="bg-gradient-card border-border/50 animate-pulse">
-                    <CardContent className="p-4">
-                      <div className="w-full h-48 bg-muted rounded-lg mb-4"></div>
-                      <div className="h-4 bg-muted rounded mb-2"></div>
-                      <div className="h-3 bg-muted rounded w-2/3"></div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredProfiles.length > 0 ? (
-              <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProfiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
-                  <Link
-                    key={profile.id}
-                    to={`/user-profile/${profile.slug}`}
-                    className="group block"
-                  >
-                    <Card className="bg-gradient-card border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg h-full">
-                      <CardContent className="p-4 h-full flex flex-col">
-                        <div className="relative overflow-hidden rounded-lg mb-4">
-                          <img
-                            src={profile.front_image_url}
-                            alt={`${profile.name} phenotype profile photo`}
-                            loading="lazy"
-                            decoding="async"
-                            className="profile-image-thumbnail rounded-lg transition-transform duration-300 group-hover:scale-105"
-                            onError={(e) => {
-                              e.currentTarget.src = '/placeholder.svg';
-                            }}
-                          />
-                          <div className="absolute top-2 right-2">
-                            <Badge
-                              variant={profile.is_anonymous ? "secondary" : "default"}
-                              className="text-xs"
-                            >
-                              {profile.is_anonymous ? "Anonymous" : "Famous"}
-                            </Badge>
-                          </div>
-                          {profile.most_voted_phenotype && (
-                            <div className="absolute top-10 right-2">
-                              <Badge variant="secondary" className="text-xs truncate max-w-[100px] bg-accent/50 text-accent-foreground">
-                                {profile.most_voted_phenotype}
-                              </Badge>
-                            </div>
-                          )}
-                          {/* Comentários — mostrado inclusive em zero. */}
-                          <div className="absolute bottom-2 left-2 bg-category-primary/90 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
-                            <MessageSquare className="h-3 w-3" />
-                            <span>{commentCounts[profile.id] || 0}</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 flex-1 flex flex-col">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm font-medium text-muted-foreground">
-                              {profile.country}
-                            </span>
-                          </div>
-
-                          <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                            {profile.name}
-                          </h3>
-
-                          <div className="flex items-center justify-between text-xs text-muted-foreground min-h-[20px]">
-                            <span className="flex items-center gap-1 flex-1 truncate">
-                              <span className="w-3 h-3 rounded-full bg-primary/20 flex-shrink-0"></span>
-                              <span className="truncate">{profile.ancestry}</span>
-                            </span>
-                            <span className="flex-shrink-0 ml-2">{profile.height}m</span>
-                          </div>
-
-                          <div className="flex items-center justify-between mt-auto">
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <Badge variant="outline" className="text-xs truncate max-w-[120px]">
-                                {profile.category}
-                              </Badge>
-                              {profile.subcategory && (
-                                <Badge variant="secondary" className="text-xs truncate max-w-[100px]">
-                                  {profile.subcategory}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(profile.created_at).toLocaleDateString('en-US')}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {filteredProfiles.length > PROFILES_PER_PAGE && (
-                <div className="flex items-center justify-center gap-2 mt-8">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === 1}
-                    onClick={() => { setCurrentPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  >
-                    Previous
-                  </Button>
-                  {Array.from({ length: Math.ceil(filteredProfiles.length / PROFILES_PER_PAGE) }, (_, i) => i + 1).map(page => (
-                    <Button
-                      key={page}
-                      variant={page === currentPage ? "default" : "outline"}
-                      size="sm"
-                      className="min-w-[36px]"
-                      onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage === Math.ceil(filteredProfiles.length / PROFILES_PER_PAGE)}
-                    onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-              </>
-            ) : (
-              <EmptyState
-                icon={Plus}
-                title="No profiles in this category yet"
-                description={`Be the first to add a ${categoryName.toLowerCase()} profile. Help expand our phenotype database!`}
-                action={{
-                  label: "Add Profile",
-                  onClick: () => navigate('/')
-                }}
-                secondaryAction={{
-                  label: "Browse All Categories",
-                  onClick: () => navigate('/')
-                }}
-              />
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-x-14 gap-y-7 border-b-[1.5px] border-kt-ink pb-[30px]">
+        <div className="min-w-0">
+          <SC as="p" className="m-0 text-[16px] text-kt-teal">
+            {isCommunity ? "category · anonymous community" : "category · famous people"}
+          </SC>
+          <h1 className="mb-0 mt-1 text-[clamp(52px,6.2vw,88px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+            {displayName}
+          </h1>
+          {description && <p className="mb-0 mt-3 text-[20px] italic text-kt-body">{description}.</p>}
+          <p className="mb-0 mt-3.5 flex flex-wrap gap-x-5 gap-y-1 text-[16px] text-kt-body">
+            <span>
+              <span className="text-kt-ink">{isLoading ? "…" : categoryProfiles.length}</span> profiles
+            </span>
+            {!isCommunity && (
+              <span>
+                <span className="text-kt-ink">{subcategoryOptions.length}</span> subfields
+              </span>
             )}
-          </div>
+            <span>
+              <span className="text-kt-ink">{isLoading ? "…" : totalVotes.toLocaleString("en-US")}</span> votes cast
+            </span>
+          </p>
         </div>
+        <RegionShareFigure profiles={categoryProfiles} caption="where the community places them" />
       </div>
 
-      <Footer />
-      <BottomNav />
-    </div>
+      {subcategoryOptions.length > 0 && (
+        <div role="group" aria-label="Subfield" className="mt-6 flex flex-wrap gap-2">
+          <button type="button" aria-pressed={subcategory === null} onClick={() => setSubcategory(null)} className={chipClass(subcategory === null)}>
+            All subfields
+          </button>
+          {subcategoryOptions.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={subcategory === option}
+              onClick={() => setSubcategory(subcategory === option ? null : option)}
+              className={chipClass(subcategory === option)}
+            >
+              {option}
+              <span className={cn("text-[14px]", subcategory === option ? "text-kt-b50" : "text-kt-body")}>
+                {subCounts[option] || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-3.5 border-y border-kt-rule py-3.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
+          <RegionFilter value={region} onChange={setRegion} short size="sm" />
+          <div className="flex items-center gap-2.5">
+            <label htmlFor="cat-pheno" className="font-sc text-[14px] tracking-[0.06em] text-kt-body">
+              phenotype
+            </label>
+            <div className="relative">
+              <select
+                id="cat-pheno"
+                value={phenotype}
+                onChange={(event) => setPhenotype(event.target.value)}
+                className="h-[42px] appearance-none rounded-full border border-kt-rule bg-white pl-4 pr-10 font-[inherit] text-[16px] text-kt-ink"
+              >
+                <option value="">All phenotypes</option>
+                {phenotypeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                className="pointer-events-none absolute right-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-kt-slate"
+                strokeWidth={2}
+                aria-hidden="true"
+              />
+            </div>
+          </div>
+        </div>
+        <SortTabs options={LISTING_SORTS} value={sort} onChange={(value) => setSort(value)} />
+      </div>
+
+      <div className="mb-3.5 mt-[18px] flex flex-wrap items-baseline justify-between gap-3">
+        <p className="m-0 text-[15px] text-kt-body" role="status">
+          {isLoading
+            ? "Loading profiles…"
+            : filtered.length === 0
+            ? "No profiles match"
+            : `Showing ${(page - 1) * PER_PAGE + 1}–${Math.min(page * PER_PAGE, filtered.length)} of ${filtered.length} · sorted by ${SORT_LABEL[sort]}`}
+        </p>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={() => {
+              setSubcategory(null);
+              setRegion(null);
+              setPhenotype("");
+            }}
+            className="border-0 bg-transparent p-0 font-[inherit] text-[15px] text-kt-teal underline underline-offset-4"
+          >
+            clear filters
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <GridSkeleton />
+      ) : visible.length === 0 ? (
+        <EmptySheet title={categoryProfiles.length === 0 ? "No faces in this category yet" : "Nothing matches these filters"}>
+          {categoryProfiles.length === 0
+            ? "Be the first to add one — use “add a face” at the top of the page."
+            : "Try another region or phenotype, or clear the filters."}
+        </EmptySheet>
+      ) : (
+        <section aria-label={`${displayName} profiles`} className={GRID_CLASS}>
+          {visible.map((profile, index) => (
+            <PhenotypeCard key={profile.id} profile={profile} variant="grid" priority={index < 4} />
+          ))}
+        </section>
+      )}
+
+      <Pagination
+        page={page}
+        pageCount={pageCount}
+        onChange={(value) => {
+          setPage(value);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+
+      <section aria-labelledby="other-cats" className="mt-[52px] border-t-[1.5px] border-kt-ink pt-[22px]">
+        <h2 id="other-cats" className="mb-3.5 mt-0 font-sc text-[17px] font-semibold tracking-[0.06em] text-kt-ink">
+          other categories
+        </h2>
+        <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+          {otherCategories.map((item) => (
+            <li key={item.slug}>
+              <Link to={`/category/${item.slug}`} className={chipClass(false)}>
+                {item.label}
+                <span className="text-[14px] text-kt-body">{item.count}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </AppLayout>
   );
 }

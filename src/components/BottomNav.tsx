@@ -2,14 +2,14 @@
  * NAVEGAÇÃO INFERIOR MOBILE (BottomNav.tsx)
  *
  * Barra fixa de cinco destinos no mobile:
- * Home · Explore · Adicionar · Alerts · Profile
+ * Community · Explore · Adicionar · Alerts · Profile
  *
  * A barra superior no mobile ficou só com logo e menu sanduíche, então as
  * ações que antes moravam lá (criar, notificações, perfil/login) vivem aqui,
  * ao alcance do polegar. O resto da navegação está no menu sanduíche.
  */
 
-import { Home, Search, Plus, Bell, User } from "lucide-react";
+import { Users, Search, Plus, Bell, User, type LucideIcon } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { forwardRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,7 +19,7 @@ import { NotificationBell } from "./NotificationBell";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  icon: typeof Home;
+  icon: LucideIcon;
   label: string;
   path: string;
   /** Exige login; sem sessão, abre o modal de autenticação. */
@@ -27,7 +27,8 @@ interface NavItem {
 }
 
 const LEFT_ITEMS: NavItem[] = [
-  { icon: Home, label: "Home", path: "/" },
+  // /community e não "/": na raiz o visitante recebe a landing.
+  { icon: Users, label: "Community", path: "/community" },
   { icon: Search, label: "Explore", path: "/explore" },
 ];
 
@@ -44,8 +45,12 @@ const itemClass = (isActive: boolean) =>
     "flex h-full flex-1 flex-col items-center justify-center gap-0.5",
     "transition-colors duration-200",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+    isActive ? "text-kt-teal" : "text-kt-body hover:text-kt-ink"
   );
+
+/** Rótulo sob o ícone. Abaixo de 375px "community" encostaria no vizinho. */
+const labelClass =
+  "font-sc text-[12px] lowercase leading-none tracking-[0.02em] max-[374px]:text-[11px] max-[374px]:tracking-normal";
 
 /**
  * Item de notificações — precisa de ref encaminhada para servir de trigger
@@ -67,12 +72,12 @@ const AlertsTrigger = forwardRef<
     <span className="relative">
       <Bell className="h-5 w-5" />
       {unreadCount > 0 && (
-        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium leading-none text-white">
+        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-kt-teal px-1 text-[10px] font-medium leading-none text-white">
           {unreadCount > 9 ? "9+" : unreadCount}
         </span>
       )}
     </span>
-    <span className="text-[11px] leading-none">Alerts</span>
+    <span className={labelClass}>Alerts</span>
   </button>
 ));
 AlertsTrigger.displayName = "AlertsTrigger";
@@ -101,7 +106,9 @@ export const BottomNav = () => {
   };
 
   const renderItem = (item: NavItem) => {
-    const isActive = location.pathname === item.path;
+    // Com sessão, "/" também mostra o feed.
+    const isActive =
+      location.pathname === item.path || (item.path === "/community" && location.pathname === "/");
     return (
       <button
         key={item.path}
@@ -112,7 +119,7 @@ export const BottomNav = () => {
         className={itemClass(isActive)}
       >
         <item.icon className={cn("h-5 w-5", isActive && "fill-current/10")} />
-        <span className="text-[11px] leading-none">{item.label}</span>
+        <span className={labelClass}>{item.label}</span>
       </button>
     );
   };
@@ -129,10 +136,10 @@ export const BottomNav = () => {
 
       <nav
         aria-label="Primary"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/95 backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-kt-rule bg-kt-paper lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="flex h-16 items-stretch">
+        <div className="flex h-16 items-stretch px-1.5">
           {LEFT_ITEMS.map(renderItem)}
 
           {/* Ação central de criar — elevada para leitura imediata. */}
@@ -141,7 +148,7 @@ export const BottomNav = () => {
               type="button"
               onClick={handleAdd}
               aria-label="Add a profile"
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_4px_12px_hsl(var(--primary)/0.35)] transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-11 w-16 items-center justify-center rounded-full bg-kt-teal text-white transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <Plus className="h-6 w-6" />
             </button>
@@ -164,7 +171,7 @@ export const BottomNav = () => {
               className={itemClass(false)}
             >
               <Bell className="h-5 w-5" />
-              <span className="text-[11px] leading-none">Alerts</span>
+              <span className={labelClass}>Alerts</span>
             </button>
           )}
 
