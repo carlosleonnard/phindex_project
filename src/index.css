@@ -65,8 +65,10 @@
     --input: 210 15% 95%;           /* Fundo dos campos de entrada */
     --ring: 190 55% 35%;            /* Cor do anel de foco (acessibilidade) */
 
-    /* RAIO DAS BORDAS ARREDONDADAS */
-    --radius: 0.5rem;               /* Padrão para border-radius (8px) */
+    /* RAIO DAS BORDAS ARREDONDADAS
+       Folhas de papel: cantos de 3px. O que se pressiona é cápsula
+       (rounded-full), definido nos próprios componentes. */
+    --radius: 0.1875rem;
 
     /* Phindex Design System */
     --phindex-teal: 190 55% 35%;
@@ -188,7 +190,47 @@
   body {
     @apply bg-background text-foreground;
     margin: 0;
-    font-family: 'Vollkorn', serif !important;
+    font-family: 'Vollkorn', Georgia, 'Times New Roman', serif !important;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Foco visível padrão do sistema: contorno teal afastado do elemento.
+     Componentes que desenham o próprio anel (focus-visible:ring) o
+     substituem com outline-none. */
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid #287A8A;
+    outline-offset: 3px;
+  }
+
+  /* Links no meio do texto (sem classe própria): teal sublinhado, tinta no
+     hover. Links de componente trazem as próprias classes e não são afetados. */
+  a:not([class]) {
+    color: #287A8A;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: color 0.2s;
+  }
+
+  a:not([class]):hover {
+    color: #192A43;
+  }
+
+  summary {
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  mark {
+    background: #C9DEE2;
+    color: #192A43;
+    padding: 0 1px;
   }
 
   #root {

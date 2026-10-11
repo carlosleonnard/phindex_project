@@ -20,7 +20,8 @@ import { Analytics } from "@vercel/analytics/react";
 // Vercel Speed Insights para monitoramento de performance
 import { SpeedInsights } from "@vercel/speed-insights/react";
 // Importa todas as páginas da aplicação
-import Index from "./pages/Index"; // Página inicial com lista de perfis
+import Home from "./pages/Home"; // Raiz: landing para visitante, feed para quem entrou
+import Index from "./pages/Index"; // Feed de descoberta, tambem servido em /community
 import Explore from "./pages/Explore"; // Busca e navegação em grade
 import Saved from "./pages/Saved"; // Coleção pessoal de perfis salvos
 import ProfileDetail from "./pages/ProfileDetail"; // Página de detalhes de um perfil específico
@@ -70,8 +71,15 @@ const App = () => (
       <BrowserRouter>
         {/* Container de todas as rotas da aplicação */}
         <Routes>
-          {/* ROTA INICIAL: Feed de descoberta */}
-          <Route path="/" element={<Index />} />
+          {/* ROTA INICIAL: landing pública para visitantes, feed para quem já entrou */}
+          <Route path="/" element={<Home />} />
+
+          {/* ROTA ESTÁTICA: o feed de descoberta com endereço próprio.
+              A landing manda "join the community" para cá, e quem já tem
+              sessão cai no mesmo feed pela raiz — as duas portas levam à
+              mesma página, sem depender de estar logado para alcançá-la.
+              O item "Community" da navegação também aponta para cá. */}
+          <Route path="/community" element={<Index />} />
 
           {/* ROTA ESTÁTICA: Busca e navegação em grade */}
           <Route path="/explore" element={<Explore />} />

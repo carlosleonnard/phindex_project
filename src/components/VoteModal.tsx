@@ -1,17 +1,52 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+/**
+ * O VOTO, PASSO A PASSO (VoteModal.tsx)
+ *
+ * Doze perguntas, uma por vez, e um cromossomo no topo que se preenche faixa a
+ * faixa: o braço curto são as duas obrigatórias (região e fenótipo), o braço
+ * longo os dez traços, que se pode pular. Tocar numa faixa volta à pergunta.
+ *
+ * A leitura da comunidade fica escondida até o voto ser enviado — para não
+ * puxar a resposta — e só então aparece a comparação: onde você concordou com
+ * a maioria e onde leu diferente.
+ *
+ * Os valores gravados são os mesmos de antes (taxonomy.ts e traits.ts); os
+ * rótulos de exibição usam palavras comuns e o termo técnico em itálico. As
+ * segundas e terceiras escolhas de região e fenótipo continuam disponíveis,
+ * como campos opcionais nas duas primeiras perguntas.
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Search, X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { GEOGRAPHIC_OPTIONS, PHENOTYPE_ENTRIES, PHENOTYPE_GROUPS, ALL_SUBREGIONS } from "@/constants/taxonomy";
+import { CONTINENT_ORDER, continentOf, type Continent } from "@/constants/regions";
+import { TRAITS, traitOptionLabel } from "@/constants/traits";
+import { CenButton } from "@/components/kt/Centromere";
+import { FacePhoto, REGION_HEX, RegionDot, SC } from "@/components/kt/Misc";
+import { KT } from "@/components/kt/bands";
+import { cn } from "@/lib/utils";
+
+interface VoteShareLike {
+  classification: string;
+  count: number;
+  percentage: number;
+}
 
 interface VoteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (votes: Record<string, string>) => void;
+  /** Grava os votos; devolve false se o voto principal falhou. */
+  onSubmit: (votes: Record<string, string>) => Promise<boolean | void> | boolean | void;
+  /** Depois da comparação, ao fechar — a página recarrega a leitura. */
+  onFinished?: () => void;
   existingVotes?: Record<string, string>;
   profileId: string;
+  /** A leitura atual, usada só na comparação depois do envio. */
+  community?: {
+    geographic: Record<string, VoteShareLike[]>;
+    phenotype: Record<string, VoteShareLike[]>;
+    physical: Array<{ name: string; votes: Array<{ option: string; count: number }> }>;
+  };
   profileImages?: {
     frontImage: string;
     profileImage?: string;
@@ -20,909 +55,686 @@ interface VoteModalProps {
   };
 }
 
-// Structure: { Division: { MainGroup: [subgroups] } }
-// If MainGroup is null, it's just a standalone phenotype
-type PhenotypeStructure = { 
-  [division: string]: { 
-    [mainGroup: string]: string[] | null 
-  } 
-};
+type StepKind = "region" | "phenotype" | "trait";
 
-const specificPhenotypeOptions: PhenotypeStructure = {
-  "Capoid": {
-    "Strandlooper": null,
-    "Khoid": null,
-    "Sandawe": null,
-    "Sanid": [
-      "Kalaharid",
-      "Karroid"
-    ]
-  },
-  "Negroid": {
-    "Katangid": null,
-    "Hadza": null,
-    "Bantuid": [
-      "North Bantuid",
-      "Central Bantuid",
-      "Chopi-Tswana",
-      "South Bantuid",
-      "Fengu-Pondo",
-      "Xhosaid",
-      "Malagasid"
-    ],
-    "Bambutid": [
-      "East Bambutid",
-      "West Bambutid",
-      "Twa-Cwa"
-    ],
-    "Congolid": [
-      "Mountain Dama",
-      "Congolesid",
-      "Mundu Mangbeto",
-      "West Congolesid",
-      "Guineo Camerunian",
-      "Guinesid",
-      "Sudano Guinesid",
-      "Equatorial Sudanid",
-      "Casamance"
-    ],
-    "Sudanid": [
-      "East Sudanid",
-      "Bobo",
-      "Senegalid",
-      "Middle Nile",
-      "Fezzanid",
-      "Shari"
-    ],
-    "Nilotid": [
-      "Pre Nilotid",
-      "Dinkaid",
-      "Shillukid",
-      "South Nilotid",
-      "Nilo Hamitic"
-    ]
-  },
-  "Caucasoid": {
-    "Ethiopid": [
-      "Proto Ethiopid",
-      "Omotic",
-      "East Ethiopid",
-      "North Ethiopid",
-      "South Ethiopid",
-      "Maasai",
-      "Central Ethiopid",
-      "Saharan Ethiopid",
-      "West Ethiopid",
-      "Danakil",
-      "Moorish",
-      "Siwa"
-    ],
-    "Orientalid": [
-      "Arabid",
-      "Iranid",
-      "Libyid",
-      "Targid",
-      "Egyptid",
-      "Transcaspian",
-      "Yemenid",
-      "Assyroid",
-      "Indo Iranid"
-    ],
-    "Indid": [
-      "Gracile Indid",
-      "Mountain Indid",
-      "Sinhalesid",
-      "Keralid",
-      "North Indid",
-      "Toda",
-      "Indo Brachid",
-      "Central Brachid",
-      "East Brachid",
-      "Indo Nordic",
-      "Tibetid",
-      "Malabarese"
-    ],
-    "Indo Melanid": [
-      "Karnatid",
-      "Kolid"
-    ],
-    "Mediterranid": [
-      "Paleo Sardinian",
-      "Canarid",
-      "Berberid",
-      "Eurafricanid",
-      "Proto Iranid",
-      "Trans Mediterranid",
-      "Gracile Mediterranid",
-      "Pontid",
-      "North Pontid",
-      "Paleo Atlantid",
-      "North Atlantid"
-    ],
-    "Nordid": [
-      "Proto Nordid",
-      "Aisto Nordid",
-      "Hallstatt",
-      "Anglo-Saxon",
-      "Trønder",
-      "Dalofaelid",
-      "Fenno Nordid",
-      "Borreby"
-    ],
-    "East Europid": [
-      "Tavastid",
-      "Savolaxid",
-      "Neo Danubian",
-      "Pre Slavic",
-      "Volgid",
-      "Ladogan"
-    ],
-    "Lappid": [
-      "Scando Lappid",
-      "North Lappid"
-    ],
-    "Alpinid": [
-      "West Alpinid",
-      "Strandid",
-      "East Alpinid",
-      "Gorid",
-      "African Alpinoid",
-      "Baskid"
-    ],
-    "Dinarid": [
-      "Norid",
-      "Litorid",
-      "Mtebid",
-      "Carpathid"
-    ],
-    "Armenoid": [
-      "Armenid",
-      "Anatolid"
-    ],
-    "Turanid": [
-      "East Pamirid",
-      "Central Pamirid",
-      "Plains Pamirid",
-      "Andronovo-Turanid",
-      "Alföld"
-    ]
-  },
-  "Australoid": {
-    "Veddid": [
-      "Malid",
-      "Vedda",
-      "North Gondid",
-      "South Gondid",
-      "Toalid",
-      "Senoid",
-      "Arabian Veddoid",
-      "Khmerid"
-    ],
-    "Negritid": [
-      "North Andamanid",
-      "South Andamanid",
-      "Aetid",
-      "Semangid",
-      "Jahai Semangid"
-    ],
-    "Australid": [
-      "Barrinean",
-      "North Australid",
-      "Desert Australid",
-      "South Australid",
-      "Tasmanid"
-    ],
-    "Melanesid": [
-      "Paleo Melanesid",
-      "Insular Melanesid",
-      "Neo Melanesid",
-      "Mountain Melanesid",
-      "Tapirid",
-      "Bukaid",
-      "Brachio Melanesid",
-      "Fijid"
-    ]
-  },
-  "Mongoloid": {
-    "Polynesid": [
-      "South Polynesid",
-      "Nesiotid",
-      "Micronesid",
-      "Robust Polynesid"
-    ],
-    "Ainuid": [
-      "Aoshima",
-      "Chikuzen",
-      "Ishikawa"
-    ],
-    "South Mongolid": [
-      "Palaungid",
-      "South Palaungid",
-      "East Palaungid",
-      "Proto Malayid",
-      "Dayakid",
-      "Kachinid",
-      "Shanid",
-      "East Shanid",
-      "Deutero Malayid",
-      "Satsuma"
-    ],
-    "Sinid": [
-      "Huanghoid",
-      "Manchu-Korean",
-      "Changkiangid",
-      "Chukiangid",
-      "Tonkinesid",
-      "Annamid",
-      "Kham",
-      "Choshiu",
-      "Yakonin"
-    ],
-    "Tungid": [
-      "Gobid",
-      "Baykal",
-      "Amur-Sakhalin",
-      "Katanga",
-      "Mountain Aralid",
-      "Aralid"
-    ],
-    "Sibirid": [
-      "Uralid",
-      "Yenisey",
-      "Samoyedic",
-      "Chukchid"
-    ],
-    "Eskimid": [
-      "Inuid",
-      "Bering Sea"
-    ],
-    "Pacificid": [
-      "Pacifid",
-      "California Pacifid",
-      "Athabaskid",
-      "Arizonid"
-    ],
-    "Silvid": [
-      "Planid",
-      "Appalacid"
-    ],
-    "Margid": [
-      "Mexicid",
-      "Sonorid",
-      "Californid"
-    ],
-    "Centralid": [
-      "Isthmid",
-      "Maya",
-      "Pueblid"
-    ],
-    "Amazonid": [
-      "North Amazonid",
-      "South Amazonid",
-      "West Amazonid",
-      "Chocó-Motilon"
-    ],
-    "Lagid": [
-      "Lagoa Santa",
-      "South Fuegid",
-      "Huarpid",
-      "Botocudo"
-    ],
-    "Patagonid": [
-      "Bororo",
-      "Pampid"
-    ],
-    "Andid": [
-      "North Andid",
-      "Central Andid",
-      "South Andid"
-    ]
-  }
-};
+interface Step {
+  kind: StepKind;
+  key: string;
+  title: string;
+  short: string;
+  help: string;
+}
 
-const geographicOptions = {
-  "Europe": [
-    "Eastern Europe",
-    "Central Europe", 
-    "Southern Europe",
-    "Northern Europe"
-  ],
-  "Africa": [
-    "North Africa",
-    "East Africa",
-    "Sub-Saharan Africa"
-  ],
-  "Middle East": [
-    "Levant",
-    "Anatolia", 
-    "Arabian Peninsula",
-    "Persian Plateau"
-  ],
-  "Asia": [
-    "Central Asia",
-    "Eastern Asia",
-    "Southern Asia",
-    "Southeastern Asia"
-  ],
-  "Americas": [
-    "Northern America",
-    "Central America",
-    "Southern America"
-  ],
-  "Oceania": [
-    "Australia and New Zealand",
-    "Melanesia",
-    "Polynesia"
-  ]
-};
-
-const characteristics = [
+const STEPS: Step[] = [
   {
-    category: "Skin Color",
-    options: ["Pale", "Fair", "Light brown", "Olive Skin", "Medium brown", "Dark brown", "Black"]
+    kind: "region",
+    key: "Primary Geographic",
+    title: "Region",
+    short: "region",
+    help: "Where does this face most likely come from? Pick the closest sub-region.",
   },
   {
-    category: "Hair Color",
-    options: ["Light Blonde", "Blonde", "Dark Blonde", "Red", "Light Brown", "Brown", "Dark Brown", "Black"]
+    kind: "phenotype",
+    key: "Primary Phenotype",
+    title: "Phenotype",
+    short: "phenotype",
+    help: "Pick the group this face reads as most strongly.",
   },
-  {
-    category: "Hair Texture", 
-    options: ["Straight (Fine/Thin)", "Straight (Medium)", "Straight (Coarse)", "Wavy (Fine/Thin)", "Wavy (Medium)", "Wavy (Coarse)", "Curly (Loose)", "Curly (Tight)", "Kinky (Soft)", "Kinky (Wiry)"]
-  },
-  {
-    category: "Head Type",
-    options: ["Hyperdolichocephalic (Very Long)", "Dolichocephalic (Long)", "Mesocephalic (Medium)", "Brachycephalic (Short)", "Hyperbrachycephalic (Very Short)"]
-  },
-  {
-    category: "Body Type",
-    options: ["Ectomorph", "Mesomorph", "Endomorph"]
-  },
-  {
-    category: "Nasal Breadth",
-    options: ["Hyperleptorrhine (very narrow)", "Leptorrhine (narrow)", "Mesorrhine (medium-wide)", "Platyrrhine (wide)", "Hyperplatyrrhine (very wide)"]
-  },
-  {
-    category: "Facial Breadth",
-    options: ["Leptoprosop (Long)", "Mesoprosop (Medium)", "Euryprosop (Broad)"]
-  },
-  {
-    category: "Jaw Type",
-    options: ["Retrognathous (Backward)","Orthognathous (Straight)", "Prognathous (Projecting)"]
-  },
-  {
-    category: "Eye Color",
-    options: ["Light-blue", "Blue", "Dark-blue", "Gray", "Green", "Hazel", "Light-brown", "Medium-brown", "Dark-brown", "Black-brown", "Black"]
-  },
-  {
-    category: "Head Breadth",
-    options: ["Small-headed","Medium-headed", "Large-headed"]
-  }
+  ...TRAITS.map((trait) => ({
+    kind: "trait" as const,
+    key: trait.key,
+    title: trait.title,
+    short: trait.short,
+    help: trait.help,
+  })),
 ];
 
-export const VoteModal = ({ isOpen, onClose, onSubmit, existingVotes = {}, profileId, profileImages }: VoteModalProps) => {
+const REVIEW = STEPS.length;
+const DONE = STEPS.length + 1;
+
+const BAND = {
+  answered: KT.ink,
+  current: KT.glow,
+  skipped: KT.rule,
+  pending: KT.sheet,
+  match: KT.ink,
+  differs: KT.b50,
+};
+
+const optionRow = (selected: boolean) =>
+  cn(
+    "mb-2 flex min-h-[54px] w-full items-center gap-3.5 rounded-full border-[1.5px] py-2 pl-4 pr-[18px] text-left font-[inherit] text-[17px] leading-[1.2] transition-colors",
+    selected ? "border-kt-ink bg-kt-ink text-kt-paper" : "border-kt-rule bg-white text-kt-ink hover:border-kt-b50"
+  );
+
+/** Glifo de posição na escala: a banda da opção acesa entre as demais. */
+const ScaleGlyph = ({ index, count, selected }: { index: number; count: number; selected: boolean }) => {
+  const from = ((index / count) * 100).toFixed(2);
+  const to = (((index + 1) / count) * 100).toFixed(2);
+  const base = selected ? KT.ink : KT.sheet;
+  const mark = selected ? KT.glow : KT.ink;
+  return (
+    <span
+      aria-hidden="true"
+      className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
+      style={{ background: `linear-gradient(90deg,${base} 0 ${from}%,${mark} 0 ${to}%,${base} 0 100%)` }}
+    />
+  );
+};
+
+const OptionalSelect = ({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+  grouped,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  grouped?: Array<{ group: string; items: string[] }>;
+}) => (
+  <div className="flex flex-col gap-1">
+    <label htmlFor={id} className="font-sc text-[13px] tracking-[0.06em] text-kt-body">
+      {label}
+    </label>
+    <select
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-11 w-full appearance-none rounded-full border border-kt-rule bg-white px-4 font-[inherit] text-[16px] text-kt-ink"
+    >
+      <option value="">none</option>
+      {grouped
+        ? grouped.map((group) => (
+            <optgroup key={group.group} label={group.group}>
+              {group.items.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </optgroup>
+          ))
+        : options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+    </select>
+  </div>
+);
+
+const PHENOTYPE_GROUPED = PHENOTYPE_GROUPS.map((group) => ({
+  group,
+  items: PHENOTYPE_ENTRIES.filter((entry) => entry.group === group).map((entry) => entry.name),
+}));
+
+export const VoteModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  onFinished,
+  existingVotes = {},
+  profileId,
+  community,
+  profileImages,
+}: VoteModalProps) => {
   const storageKey = `pendingVotes_${profileId}`;
   const [votes, setVotes] = useState<Record<string, string>>({});
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const [step, setStep] = useState(0);
+  const [continent, setContinent] = useState<Continent>("Africa");
+  const [query, setQuery] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const advanceTimer = useRef<number>();
 
+  // Abre com os votos já gravados e, por cima, o rascunho local.
   useEffect(() => {
     if (!isOpen) return;
-    
     let saved: Record<string, string> = {};
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem(storageKey);
-        if (raw) saved = JSON.parse(raw);
-      } catch {}
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) saved = JSON.parse(raw);
+    } catch {
+      saved = {};
     }
-    
-    // ALWAYS start with existingVotes from backend (user's previous votes)
-    // Then merge with any in-progress edits from localStorage
-    setVotes({ ...existingVotes, ...saved });
-  }, [existingVotes, isOpen, storageKey]);
+    const merged = Object.fromEntries(
+      Object.entries({ ...existingVotes, ...saved }).filter(([, value]) => Boolean(value))
+    );
+    setVotes(merged);
+    setStep(0);
+    setContinent(continentOf(merged["Primary Geographic"]) ?? "Africa");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(votes));
-    } catch {}
+    } catch {
+      // Sem armazenamento local, o rascunho só não sobrevive a um recarregamento.
+    }
   }, [votes, storageKey]);
 
-  const handleVoteChange = (category: string, value: string) => {
-    setVotes(prev => {
-      const newVotes = { ...prev, [category]: value };
-      
-      // Se mudou um primário, limpa os secundários e terciários correspondentes
-      if (category === "Primary Geographic") {
-        delete newVotes["Secondary Geographic"];
-        delete newVotes["Tertiary Geographic"];
-      } else if (category === "Primary Phenotype") {
-        delete newVotes["Secondary Phenotype"];
-        delete newVotes["Tertiary Phenotype"];
-      } else if (category === "Secondary Geographic") {
-        delete newVotes["Tertiary Geographic"];
-      } else if (category === "Secondary Phenotype") {
-        delete newVotes["Tertiary Phenotype"];
+  useEffect(() => () => window.clearTimeout(advanceTimer.current), []);
+
+  const answeredCount = STEPS.filter((item) => votes[item.key]).length;
+  const primariesDone = Boolean(votes["Primary Geographic"] && votes["Primary Phenotype"]);
+
+  const setVote = (key: string, value: string) => {
+    setVotes((previous) => {
+      const next = { ...previous, [key]: value };
+      if (!value) delete next[key];
+      // Trocar a escolha principal invalida as seguintes (mesma regra de antes).
+      if (key === "Primary Geographic") {
+        delete next["Secondary Geographic"];
+        delete next["Tertiary Geographic"];
+      } else if (key === "Primary Phenotype") {
+        delete next["Secondary Phenotype"];
+        delete next["Tertiary Phenotype"];
+      } else if (key === "Secondary Geographic" && !value) {
+        delete next["Tertiary Geographic"];
+      } else if (key === "Secondary Phenotype" && !value) {
+        delete next["Tertiary Phenotype"];
       }
-      
-      return newVotes;
+      return next;
+    });
+    setSkipped((previous) => {
+      if (!previous.has(key)) return previous;
+      const next = new Set(previous);
+      next.delete(key);
+      return next;
     });
   };
 
-  const handleSubmit = () => {
-    onSubmit(votes);
-    try { localStorage.removeItem(storageKey); } catch {}
-    setVotes({});
+  /** Próxima pergunta sem resposta, ou a revisão. */
+  const nextOpen = (from: number, current: Record<string, string>) => {
+    for (let index = from; index < STEPS.length; index++) {
+      if (!current[STEPS[index].key] && !skipped.has(STEPS[index].key)) return index;
+    }
+    return REVIEW;
+  };
+
+  const pickTrait = (key: string, value: string) => {
+    setVote(key, value);
+    window.clearTimeout(advanceTimer.current);
+    advanceTimer.current = window.setTimeout(() => {
+      setStep((current) => nextOpen(current + 1, { ...votes, [key]: value }));
+    }, 200);
+  };
+
+  const skip = () => {
+    const key = STEPS[step].key;
+    setSkipped((previous) => new Set(previous).add(key));
+    setStep((current) => nextOpen(current + 1, votes));
+  };
+
+  /** Resposta da comunidade antes deste voto, por característica. */
+  const communityTop = (key: string): string | null => {
+    if (!community) return null;
+    if (key === "Primary Geographic") return community.geographic[key]?.[0]?.classification ?? null;
+    if (key === "Primary Phenotype") return community.phenotype[key]?.[0]?.classification ?? null;
+    const list = community.physical.find((item) => item.name === key)?.votes ?? [];
+    const top = [...list].sort((a, b) => b.count - a.count)[0];
+    return top?.option ?? null;
+  };
+
+  const summary = STEPS.map((item) => {
+    const yours = votes[item.key];
+    const top = communityTop(item.key);
+    const label = (value: string) => (item.kind === "trait" ? traitOptionLabel(item.key, value) : value);
+    return {
+      key: item.key,
+      title: item.title,
+      yours: yours ? label(yours) : null,
+      community: top ? label(top) : null,
+      match: Boolean(yours && top && yours === top),
+      firstVote: Boolean(yours && !top),
+    };
+  });
+  const comparable = summary.filter((row) => row.yours && row.community);
+  const matches = comparable.filter((row) => row.match).length;
+
+  const bandColor = (index: number) => {
+    const item = STEPS[index];
+    if (step === DONE) {
+      const row = summary[index];
+      if (!row.yours) return BAND.skipped;
+      if (!row.community) return BAND.answered;
+      return row.match ? BAND.match : BAND.differs;
+    }
+    if (index === step) return BAND.current;
+    if (votes[item.key]) return BAND.answered;
+    if (skipped.has(item.key)) return BAND.skipped;
+    return BAND.pending;
+  };
+
+  const handleSubmit = async () => {
+    if (!primariesDone || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await onSubmit(votes);
+      if (result === false) return;
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // ignorado
+      }
+      setStep(DONE);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const close = () => {
+    if (step === DONE) onFinished?.();
     onClose();
   };
 
-  // Função para obter todas as opções geográficas
-  const getAllGeographicOptions = () => {
-    const allOptions: string[] = [];
-    Object.entries(geographicOptions).forEach(([region, subregions]) => {
-      allOptions.push(...subregions);
-    });
-    return allOptions;
-  };
+  const current = step < STEPS.length ? STEPS[step] : null;
 
-  // Função para filtrar opções disponíveis
-  const getAvailableGeographicOptions = (level: 'secondary' | 'tertiary') => {
-    const selectedPrimary = votes["Primary Geographic"];
-    const selectedSecondary = votes["Secondary Geographic"];
-    const allOptions = getAllGeographicOptions();
-    
-    return allOptions.filter(option => {
-      if (level === 'secondary') {
-        return option !== selectedPrimary;
-      } else { // tertiary
-        return option !== selectedPrimary && option !== selectedSecondary;
-      }
-    });
-  };
+  const phenotypeResults = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return PHENOTYPE_GROUPS.map((name) => ({ name, group: name, isGroup: true }));
+    return PHENOTYPE_ENTRIES.filter(
+      (entry) => entry.name.toLowerCase().includes(needle) || entry.group.toLowerCase().includes(needle)
+    ).slice(0, 80);
+  }, [query]);
 
-  // Função para obter todas as opções de fenótipo (main groups + subgroups)
-  const getAllPhenotypeOptions = () => {
-    const allOptions: string[] = [];
-    Object.values(specificPhenotypeOptions).forEach(divisionGroups => {
-      Object.entries(divisionGroups).forEach(([mainGroup, subgroups]) => {
-        allOptions.push(mainGroup); // Add the main group
-        if (subgroups) {
-          allOptions.push(...subgroups); // Add subgroups if they exist
-        }
-      });
-    });
-    return allOptions;
-  };
-
-  const getAvailablePhenotypeOptions = (level: 'secondary' | 'tertiary') => {
-    const selectedPrimary = votes["Primary Phenotype"];
-    const selectedSecondary = votes["Secondary Phenotype"];
-    const allOptions = getAllPhenotypeOptions();
-    
-    return allOptions.filter(option => {
-      if (level === 'secondary') {
-        return option !== selectedPrimary;
-      } else { // tertiary
-        return option !== selectedPrimary && option !== selectedSecondary;
-      }
-    });
-  };
-
-  const isComplete = votes["Primary Geographic"] !== undefined && votes["Primary Phenotype"] !== undefined;
+  const progressLeft =
+    step === DONE
+      ? "All 12 bands · your read vs. the community"
+      : step === REVIEW
+        ? "Review · 12 bands"
+        : `Band ${step + 1} of 12 · ${step < 2 ? "short arm" : "long arm"}`;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl h-[85vh] flex flex-col bg-gradient-modal border-modal-accent/20 shadow-modal">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-modal-accent">Vote on Physical Characteristics</DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 gap-4 pr-2">
-            {/* Profile Images */}
-            {profileImages && (
-              <Card className="p-4 bg-card border-border shadow-card">
-                <div className="max-w-md mx-auto">
-                  <Carousel className="w-full">
-                    <CarouselContent>
-                      <CarouselItem>
-                        <div className="text-center">
-                          <img 
-                            src={profileImages.frontImage} 
-                            alt={`${profileImages.profileName} - front`}
-                            className="w-full h-80 object-cover rounded-lg mx-auto"
-                          />
-                          <p className="text-xs text-muted-foreground mt-2">Front</p>
-                        </div>
-                      </CarouselItem>
-                      {profileImages.profileImage && (
-                        <CarouselItem>
-                          <div className="text-center">
-                            <img 
-                              src={profileImages.profileImage} 
-                              alt={`${profileImages.profileName} - profile`}
-                              className="w-full h-80 object-cover rounded-lg mx-auto"
-                            />
-                            <p className="text-xs text-muted-foreground mt-2">Profile</p>
-                          </div>
-                        </CarouselItem>
-                      )}
-                    </CarouselContent>
-                    {profileImages.profileImage && (
-                      <>
-                        <CarouselPrevious className="left-2" />
-                        <CarouselNext className="right-2" />
-                      </>
-                    )}
-                  </Carousel>
-                  
-                  {/* Known Ancestry */}
-                  {profileImages.ancestry && (
-                    <div className="mt-4 p-3 bg-muted/30 rounded-lg text-left">
-                      <h4 className="text-sm font-semibold text-phindex-teal mb-2">Known Ancestry</h4>
-                      <p className="text-sm text-foreground leading-relaxed">
-                        {profileImages.ancestry}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
-            
-            {/* General Phenotype Classification Card */}
-            <Card className="p-4 bg-card border-border shadow-card">
-              <div className="space-y-4">
-                <h3 className="font-semibold text-phindex-teal text-lg">General Phenotype Classification</h3>
-                
-                {/* Primary Geographic */}
-                <div className="space-y-3">
-                  <Label className="font-semibold text-foreground">
-                    Primary Geographic
-                    <span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <p className="text-xs text-muted-foreground mb-2">Select the geographic region that best represents the primary ancestry</p>
-                  <Select
-                    value={votes["Primary Geographic"] || ""}
-                    onValueChange={(value) => handleVoteChange("Primary Geographic", value)}
-                  >
-                    <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                      <SelectValue placeholder="Select Primary Geographic" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border-border/50 z-50">
-                      {Object.entries(geographicOptions).map(([region, subregions]) => (
-                        <div key={region}>
-                          <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
-                            {region}
-                          </div>
-                          {subregions.map((subregion) => (
-                            <SelectItem 
-                              key={subregion} 
-                              value={subregion}
-                              className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-6"
-                            >
-                              {subregion}
-                            </SelectItem>
-                          ))}
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+      <DialogContent className="flex h-[100dvh] max-w-[480px] flex-col gap-0 overflow-hidden border-kt-rule bg-kt-paper p-0 text-kt-ink sm:h-[min(860px,92vh)] [&>button]:hidden">
+        <DialogTitle className="sr-only">Your read of {profileImages?.profileName ?? "this face"}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Answer region and phenotype, then up to ten physical traits. The community read stays hidden until you
+          submit.
+        </DialogDescription>
 
-                {/* Secondary Geographic - only show if primary is selected */}
-                {votes["Primary Geographic"] && (
-                  <div className="space-y-3">
-                    <Label className="font-semibold text-foreground">
-                      Secondary Geographic
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-2">Select a secondary geographic region, if applicable</p>
-                    <Select
-                      value={votes["Secondary Geographic"] || ""}
-                      onValueChange={(value) => handleVoteChange("Secondary Geographic", value)}
-                    >
-                      <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                        <SelectValue placeholder="Select Secondary Geographic" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border-border/50 z-50">
-                        {Object.entries(geographicOptions).map(([region, subregions]) => (
-                          <div key={region}>
-                            <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
-                              {region}
-                            </div>
-                            {subregions
-                              .filter(subregion => getAvailableGeographicOptions('secondary').includes(subregion))
-                              .map((subregion) => (
-                                <SelectItem 
-                                  key={subregion} 
-                                  value={subregion}
-                                  className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-6"
-                                >
-                                  {subregion}
-                                </SelectItem>
-                              ))}
-                          </div>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Tertiary Geographic - only show if secondary is selected */}
-                {votes["Secondary Geographic"] && (
-                  <div className="space-y-3">
-                    <Label className="font-semibold text-foreground">
-                      Tertiary Geographic
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-2">Select a tertiary geographic region, if applicable</p>
-                    <Select
-                      value={votes["Tertiary Geographic"] || ""}
-                      onValueChange={(value) => handleVoteChange("Tertiary Geographic", value)}
-                    >
-                      <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                        <SelectValue placeholder="Select Tertiary Geographic" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border-border/50 z-50">
-                        {Object.entries(geographicOptions).map(([region, subregions]) => (
-                          <div key={region}>
-                            <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
-                              {region}
-                            </div>
-                            {subregions
-                              .filter(subregion => getAvailableGeographicOptions('tertiary').includes(subregion))
-                              .map((subregion) => (
-                                <SelectItem 
-                                  key={subregion} 
-                                  value={subregion}
-                                  className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-6"
-                                >
-                                  {subregion}
-                                </SelectItem>
-                              ))}
-                          </div>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Specific Phenotype Classification Card */}
-            <Card className="p-4 bg-card border-border shadow-card">
-              <div className="space-y-4">
-                <h3 className="font-semibold text-phindex-teal text-lg">Specific Phenotype Classification</h3>
-                
-                {/* Primary Phenotype */}
-                <div className="space-y-3">
-                  <Label className="font-semibold text-foreground">
-                    Primary Phenotype
-                    <span className="text-red-500 ml-1">*</span>
-                  </Label>
-                  <p className="text-xs text-muted-foreground mb-2">Select the specific phenotype that best represents the physical characteristics</p>
-                  <Select
-                    value={votes["Primary Phenotype"] || ""}
-                    onValueChange={(value) => handleVoteChange("Primary Phenotype", value)}
-                  >
-                    <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                      <SelectValue placeholder="Select Primary Phenotype" />
-                    </SelectTrigger>
-                      <SelectContent className="bg-background border-border/50 z-50 max-h-[400px]">
-                        {Object.entries(specificPhenotypeOptions).map(([division, divisionGroups]) => (
-                          <div key={division}>
-                            <div className="px-2 py-1.5 text-sm font-bold text-primary bg-muted/70">
-                              {division}
-                            </div>
-                            {Object.entries(divisionGroups).map(([mainGroup, subgroups]) => (
-                              <div key={`${division}-${mainGroup}`}>
-                                {/* Main group (bold, selectable) */}
-                                <SelectItem
-                                  value={mainGroup}
-                                  className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-4 font-semibold"
-                                >
-                                  {mainGroup}
-                                </SelectItem>
-                                {/* Subgroups (indented) */}
-                                {subgroups && subgroups.map((subgroup) => (
-                                  <SelectItem
-                                    key={`${division}-${mainGroup}-${subgroup}`}
-                                    value={subgroup}
-                                    className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-8"
-                                  >
-                                    {subgroup}
-                                  </SelectItem>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Secondary Phenotype - only show if primary is selected */}
-                {votes["Primary Phenotype"] && (
-                  <div className="space-y-3">
-                    <Label className="font-semibold text-foreground">
-                      Secondary Phenotype
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-2">Select a secondary phenotype, if applicable</p>
-                    <Select
-                      value={votes["Secondary Phenotype"] || ""}
-                      onValueChange={(value) => handleVoteChange("Secondary Phenotype", value)}
-                    >
-                      <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                        <SelectValue placeholder="Select Secondary Phenotype" />
-                      </SelectTrigger>
-                        <SelectContent className="bg-background border-border/50 z-50 max-h-[400px]">
-                          {(() => {
-                            const allowed = getAvailablePhenotypeOptions('secondary');
-                            return Object.entries(specificPhenotypeOptions).map(([division, divisionGroups]) => {
-                              // Check if this division has any allowed options
-                              const hasAllowedOptions = Object.entries(divisionGroups).some(([mainGroup, subgroups]) => {
-                                if (allowed.includes(mainGroup)) return true;
-                                if (subgroups && subgroups.some(sg => allowed.includes(sg))) return true;
-                                return false;
-                              });
-                              
-                              if (!hasAllowedOptions) return null;
-                              
-                              return (
-                                <div key={division}>
-                                  <div className="px-2 py-1.5 text-sm font-bold text-primary bg-muted/70">
-                                    {division}
-                                  </div>
-                                  {Object.entries(divisionGroups).map(([mainGroup, subgroups]) => {
-                                    const mainAllowed = allowed.includes(mainGroup);
-                                    const allowedSubgroups = subgroups ? subgroups.filter(sg => allowed.includes(sg)) : [];
-                                    
-                                    if (!mainAllowed && allowedSubgroups.length === 0) return null;
-                                    
-                                    return (
-                                      <div key={`${division}-${mainGroup}`}>
-                                        {mainAllowed && (
-                                          <SelectItem
-                                            value={mainGroup}
-                                            className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-4 font-semibold"
-                                          >
-                                            {mainGroup}
-                                          </SelectItem>
-                                        )}
-                                        {allowedSubgroups.map((subgroup) => (
-                                          <SelectItem
-                                            key={`${division}-${mainGroup}-${subgroup}`}
-                                            value={subgroup}
-                                            className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-8"
-                                          >
-                                            {subgroup}
-                                          </SelectItem>
-                                        ))}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            });
-                          })()}
-                        </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {/* Tertiary Phenotype - only show if secondary is selected */}
-                {votes["Secondary Phenotype"] && (
-                  <div className="space-y-3">
-                    <Label className="font-semibold text-foreground">
-                      Tertiary Phenotype
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-2">Select a tertiary phenotype, if applicable</p>
-                    <Select
-                      value={votes["Tertiary Phenotype"] || ""}
-                      onValueChange={(value) => handleVoteChange("Tertiary Phenotype", value)}
-                    >
-                      <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                        <SelectValue placeholder="Select Tertiary Phenotype" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border-border/50 z-50 max-h-[400px]">
-                         {(() => {
-                            const allowed = getAvailablePhenotypeOptions('tertiary');
-                            return Object.entries(specificPhenotypeOptions).map(([division, divisionGroups]) => {
-                              // Check if this division has any allowed options
-                              const hasAllowedOptions = Object.entries(divisionGroups).some(([mainGroup, subgroups]) => {
-                                if (allowed.includes(mainGroup)) return true;
-                                if (subgroups && subgroups.some(sg => allowed.includes(sg))) return true;
-                                return false;
-                              });
-                              
-                              if (!hasAllowedOptions) return null;
-                              
-                              return (
-                                <div key={division}>
-                                  <div className="px-2 py-1.5 text-sm font-bold text-primary bg-muted/70">
-                                    {division}
-                                  </div>
-                                  {Object.entries(divisionGroups).map(([mainGroup, subgroups]) => {
-                                    const mainAllowed = allowed.includes(mainGroup);
-                                    const allowedSubgroups = subgroups ? subgroups.filter(sg => allowed.includes(sg)) : [];
-                                    
-                                    if (!mainAllowed && allowedSubgroups.length === 0) return null;
-                                    
-                                    return (
-                                      <div key={`${division}-${mainGroup}`}>
-                                        {mainAllowed && (
-                                          <SelectItem
-                                            value={mainGroup}
-                                            className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-4 font-semibold"
-                                          >
-                                            {mainGroup}
-                                          </SelectItem>
-                                        )}
-                                        {allowedSubgroups.map((subgroup) => (
-                                          <SelectItem
-                                            key={`${division}-${mainGroup}-${subgroup}`}
-                                            value={subgroup}
-                                            className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black pl-8"
-                                          >
-                                            {subgroup}
-                                          </SelectItem>
-                                        ))}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            });
-                          })()}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Other characteristics in 2 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {characteristics.map((characteristic) => (
-                <Card key={characteristic.category} className="p-4 bg-card border-border shadow-card">
-                  <div className="space-y-3">
-                    <Label className="font-semibold text-foreground">
-                      {characteristic.category}
-                    </Label>
-                    <p className="text-xs text-muted-foreground mb-2">Evaluate this specific physical characteristic</p>
-                    <Select
-                      value={votes[characteristic.category] || ""}
-                      onValueChange={(value) => handleVoteChange(characteristic.category, value)}
-                    >
-                      <SelectTrigger className="w-full bg-background border-border/50 focus:ring-2 focus:ring-phindex-teal/20">
-                        <SelectValue placeholder={`Select ${characteristic.category}`} />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border-border/50 z-50">
-                        {characteristic.options.map((option) => (
-                          <SelectItem 
-                            key={option} 
-                            value={option}
-                            className="hover:bg-muted focus:bg-muted text-black data-[highlighted]:text-black"
-                          >
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </Card>
-              ))}
+        {/* Cabeçalho */}
+        <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-kt-rule pl-4 pr-1.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="block h-[38px] w-[38px] shrink-0 overflow-hidden rounded-[3px] bg-kt-wash">
+              <FacePhoto src={profileImages?.frontImage} alt="" />
+            </span>
+            <div className="min-w-0">
+              <p className="m-0 truncate text-[17px] leading-[1.15] text-kt-ink">{profileImages?.profileName}</p>
+              <SC as="p" className="m-0 text-[13px] text-kt-body">
+                your read
+              </SC>
             </div>
+          </div>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border-0 bg-transparent text-kt-ink hover:bg-kt-wash2"
+          >
+            <X className="h-[22px] w-[22px]" strokeWidth={1.6} aria-hidden="true" />
+          </button>
+        </header>
+
+        {/* Cromossomo de progresso */}
+        <div className="shrink-0 px-4 pb-3 pt-4">
+          <div className="relative flex h-6">
+            {[STEPS.slice(0, 2), STEPS.slice(2)].map((arm, armIndex) => (
+              <div
+                key={armIndex}
+                className={cn(
+                  "box-border flex overflow-hidden rounded-full border-[1.5px] border-kt-ink",
+                  armIndex === 0 ? "flex-[0_0_18%]" : "flex-1"
+                )}
+              >
+                {arm.map((item, offset) => {
+                  const index = armIndex === 0 ? offset : offset + 2;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      aria-label={`Go to ${item.title}`}
+                      disabled={step === DONE}
+                      onClick={() => setStep(index)}
+                      className="h-full flex-1 border-0 p-0 transition-colors"
+                      style={{
+                        background: bandColor(index),
+                        borderLeft: offset > 0 ? `1px solid ${KT.b25}` : undefined,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-between gap-3 text-[14px] text-kt-body">
+            <span>{progressLeft}</span>
+            {step < REVIEW && <span>{answeredCount} answered</span>}
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={!isComplete}
-            className="bg-phindex-teal hover:bg-phindex-teal/90"
-          >
-            Confirm Vote
-          </Button>
-        </div>
+        {/* Pergunta */}
+        {current && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="shrink-0 px-4 pb-3 pt-1.5">
+              <SC as="p" className="m-0 text-[14px] text-kt-teal">
+                {step < 2 ? `p${step + 1} · short arm · required` : `q${step - 1} · long arm · optional`}
+              </SC>
+              <h2 className="mb-0 mt-0.5 text-[32px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
+                {current.title}
+              </h2>
+              <p className="mb-0 mt-1.5 text-[16px] italic leading-[1.4] text-kt-body">{current.help}</p>
+              {step === 0 && (
+                <p className="mb-0 mt-2.5 rounded-[3px] border border-dashed border-kt-b50 px-3 py-2 text-[14px] leading-[1.4] text-kt-slate">
+                  The community read stays hidden until you finish, so it can’t sway your answers.
+                </p>
+              )}
+            </div>
+
+            {current.kind === "region" && (
+              <div
+                role="group"
+                aria-label="Continent"
+                className="shrink-0 overflow-x-auto whitespace-nowrap px-4 pb-2.5 [scrollbar-width:none] sm:flex sm:flex-wrap sm:gap-y-2 sm:whitespace-normal [&::-webkit-scrollbar]:hidden"
+              >
+                {CONTINENT_ORDER.map((item) => {
+                  const active = item === continent;
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setContinent(item)}
+                      className={cn(
+                        "mr-2 inline-flex min-h-10 items-center gap-[7px] rounded-full border px-3.5 font-[inherit] text-[16px]",
+                        active ? "border-kt-ink bg-kt-ink text-kt-paper" : "border-kt-rule bg-white text-kt-slate"
+                      )}
+                    >
+                      <RegionDot continent={item} size={7} ring={active} />
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {current.kind === "phenotype" && (
+              <div className="shrink-0 px-4 pb-2.5">
+                <label htmlFor="pheno-search" className="sr-only">
+                  Search phenotype groups
+                </label>
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-[15px] top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-kt-body"
+                    strokeWidth={1.7}
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="pheno-search"
+                    type="search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search groups and subgroups"
+                    className="h-[46px] w-full rounded-full border border-kt-rule bg-white pl-[42px] pr-4 font-[inherit] text-[17px] text-kt-ink placeholder:text-kt-mute focus-visible:border-kt-teal focus-visible:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-1">
+              {current.kind === "region" &&
+                GEOGRAPHIC_OPTIONS[continent].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={votes["Primary Geographic"] === option}
+                    onClick={() => setVote("Primary Geographic", option)}
+                    className={optionRow(votes["Primary Geographic"] === option)}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
+                      style={{ background: REGION_HEX[continent] }}
+                    />
+                    {option}
+                  </button>
+                ))}
+
+              {current.kind === "phenotype" &&
+                (phenotypeResults.length === 0 ? (
+                  <p className="mx-1 mt-2 text-[16px] text-kt-body">No group matches “{query}”. Try a shorter name.</p>
+                ) : (
+                  phenotypeResults.map((entry) => {
+                    const selected = votes["Primary Phenotype"] === entry.name;
+                    return (
+                      <button
+                        key={`${entry.group}-${entry.name}`}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setVote("Primary Phenotype", entry.name)}
+                        className={optionRow(selected)}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
+                          style={{
+                            background: selected
+                              ? `linear-gradient(90deg,${KT.ink} 0 30%,${KT.glow} 0 60%,${KT.ink} 0 100%)`
+                              : `linear-gradient(90deg,${KT.sheet} 0 30%,${KT.b50} 0 60%,${KT.sheet} 0 100%)`,
+                          }}
+                        />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span>{entry.name}</span>
+                          {!entry.isGroup && <span className="text-[14px] italic opacity-[.82]">{entry.group}</span>}
+                        </span>
+                      </button>
+                    );
+                  })
+                ))}
+
+              {current.kind === "trait" &&
+                (() => {
+                  const trait = TRAITS.find((item) => item.key === current.key)!;
+                  return trait.options.map((option, index) => {
+                    const selected = votes[trait.key] === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => pickTrait(trait.key, option.value)}
+                        className={optionRow(selected)}
+                      >
+                        <ScaleGlyph index={index} count={trait.options.length} selected={selected} />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span>{option.label}</span>
+                          {option.sub && <span className="text-[14px] italic opacity-[.82]">{option.sub}</span>}
+                        </span>
+                      </button>
+                    );
+                  });
+                })()}
+
+              {/* Escolhas secundária e terciária, opcionais */}
+              {current.kind === "region" && votes["Primary Geographic"] && (
+                <div className="mt-3 grid gap-3 border-t border-kt-rule pt-3">
+                  <OptionalSelect
+                    id="second-region"
+                    label="also reads as (optional)"
+                    value={votes["Secondary Geographic"] ?? ""}
+                    options={ALL_SUBREGIONS.filter((option) => option !== votes["Primary Geographic"])}
+                    onChange={(value) => setVote("Secondary Geographic", value)}
+                  />
+                  {votes["Secondary Geographic"] && (
+                    <OptionalSelect
+                      id="third-region"
+                      label="third choice (optional)"
+                      value={votes["Tertiary Geographic"] ?? ""}
+                      options={ALL_SUBREGIONS.filter(
+                        (option) => option !== votes["Primary Geographic"] && option !== votes["Secondary Geographic"]
+                      )}
+                      onChange={(value) => setVote("Tertiary Geographic", value)}
+                    />
+                  )}
+                </div>
+              )}
+              {current.kind === "phenotype" && votes["Primary Phenotype"] && (
+                <div className="mt-3 grid gap-3 border-t border-kt-rule pt-3">
+                  <OptionalSelect
+                    id="second-phenotype"
+                    label="also reads as (optional)"
+                    value={votes["Secondary Phenotype"] ?? ""}
+                    options={[]}
+                    grouped={PHENOTYPE_GROUPED.map((group) => ({
+                      group: group.group,
+                      items: group.items.filter((item) => item !== votes["Primary Phenotype"]),
+                    }))}
+                    onChange={(value) => setVote("Secondary Phenotype", value)}
+                  />
+                  {votes["Secondary Phenotype"] && (
+                    <OptionalSelect
+                      id="third-phenotype"
+                      label="third choice (optional)"
+                      value={votes["Tertiary Phenotype"] ?? ""}
+                      options={[]}
+                      grouped={PHENOTYPE_GROUPED.map((group) => ({
+                        group: group.group,
+                        items: group.items.filter(
+                          (item) => item !== votes["Primary Phenotype"] && item !== votes["Secondary Phenotype"]
+                        ),
+                      }))}
+                      onChange={(value) => setVote("Tertiary Phenotype", value)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-kt-rule bg-kt-paper px-4 pb-[18px] pt-2.5">
+              <button
+                type="button"
+                disabled={step === 0}
+                onClick={() => setStep((value) => Math.max(0, value - 1))}
+                className="inline-flex min-h-[44px] items-center gap-1.5 border-0 bg-transparent px-1.5 font-[inherit] text-[17px] text-kt-ink disabled:opacity-40"
+              >
+                <ArrowLeft className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+                back
+              </button>
+              {current.kind === "trait" ? (
+                <button
+                  type="button"
+                  onClick={skip}
+                  className="min-h-[44px] rounded-full border-[1.5px] border-kt-teal bg-transparent px-[18px] font-[inherit] text-[17px] text-kt-teal"
+                >
+                  skip this trait
+                </button>
+              ) : (
+                <CenButton
+                  size="sm"
+                  disabled={!votes[current.key]}
+                  onClick={() => setStep((value) => nextOpen(value + 1, votes))}
+                >
+                  next
+                </CenButton>
+              )}
+            </footer>
+          </div>
+        )}
+
+        {/* Revisão e comparação */}
+        {!current && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-2">
+              <SC as="p" className="m-0 text-[14px] text-kt-teal">
+                {step === DONE ? "read complete" : "review"}
+              </SC>
+              <h2 className="mb-0 mt-0.5 text-[34px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
+                {step === DONE ? "Your read is in." : "Your read, before it goes in."}
+              </h2>
+              <p className="mb-0 mt-2 text-[17px] leading-[1.45] text-kt-body">
+                {step === DONE ? (
+                  comparable.length > 0 ? (
+                    <>
+                      You matched the community on{" "}
+                      <strong className="font-semibold text-kt-ink">
+                        {matches} of {comparable.length}
+                      </strong>{" "}
+                      answers. Dark bands agree with the majority; pale ones don’t.
+                    </>
+                  ) : (
+                    "Yours are among the first votes on this face — the community read starts with you."
+                  )
+                ) : primariesDone ? (
+                  "Tap any band to change an answer. Skipped traits stay empty."
+                ) : (
+                  "Region and phenotype are required. Tap their bands to answer them."
+                )}
+              </p>
+              <ul className="m-0 mt-4 list-none p-0">
+                {summary.map((row, index) => (
+                  <li
+                    key={row.key}
+                    className="grid grid-cols-[14px_minmax(0,1fr)_auto] items-baseline gap-2.5 border-t border-kt-rule py-[9px]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="block h-2 w-3.5 box-border rounded-full border border-kt-ink"
+                      style={{ background: bandColor(index) === BAND.current ? BAND.pending : bandColor(index) }}
+                    />
+                    <button
+                      type="button"
+                      disabled={step === DONE}
+                      onClick={() => setStep(index)}
+                      className="min-w-0 border-0 bg-transparent p-0 text-left font-[inherit] disabled:cursor-default"
+                    >
+                      <span className="block text-[16px] leading-[1.25] text-kt-ink">{row.title}</span>
+                      {step === DONE && row.yours && (
+                        <span className="block text-[13px] italic text-kt-body">
+                          {row.firstVote
+                            ? "first vote on this trait"
+                            : row.match
+                              ? "matches the community"
+                              : `community: ${row.community}`}
+                        </span>
+                      )}
+                    </button>
+                    <span className="text-right text-[15px] text-kt-ink">{row.yours ?? <em className="text-kt-body">skipped</em>}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <footer className="flex shrink-0 flex-col items-stretch gap-2.5 border-t border-kt-rule px-4 pb-[18px] pt-3">
+              {step === DONE ? (
+                <CenButton size="md" fullWidth onClick={close}>
+                  see the community read
+                </CenButton>
+              ) : (
+                <>
+                  <CenButton size="md" fullWidth disabled={!primariesDone || submitting} onClick={handleSubmit}>
+                    {submitting ? "sending…" : "submit your read"}
+                  </CenButton>
+                  <button
+                    type="button"
+                    onClick={() => setStep(STEPS.length - 1)}
+                    className="min-h-[44px] border-0 bg-transparent font-[inherit] text-[16px] text-kt-teal underline underline-offset-4"
+                  >
+                    back to the questions
+                  </button>
+                </>
+              )}
+            </footer>
+          </div>
+        )}
+
+        <span className="sr-only" aria-live="polite">
+          {progressLeft}
+        </span>
       </DialogContent>
     </Dialog>
   );

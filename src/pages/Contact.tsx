@@ -1,26 +1,53 @@
+/**
+ * CONTATO (Contact.tsx)
+ *
+ * Um endereço de e-mail e para que escrever. Sem formulário: o e-mail abre no
+ * cliente do usuário e a resposta chega por lá.
+ */
+
+import { useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Header } from "@/components/Header";
-import { BottomNav } from "@/components/BottomNav";
-import { AppSidebar } from "@/components/AppSidebar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Mail, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AppLayout } from "@/components/AppLayout";
+import { CenAnchor, outlineCapsule } from "@/components/kt/Centromere";
+import { SC } from "@/components/kt/Misc";
+
+const EMAIL = "contact@phenotypeindex.com";
+
+const TOPICS = [
+  { title: "technical support", body: "Website issues, bugs or technical difficulties." },
+  { title: "reports & removals", body: "A profile or comment that breaks the rules, or a face that should come down." },
+  { title: "suggestions", body: "Ideas to improve the platform and new features." },
+  { title: "partnerships", body: "Collaboration proposals and research or business partnerships." },
+];
 
 const Contact = () => {
-  const email = "contact@phenotypeindex.com";
+  const [copied, setCopied] = useState(false);
 
-  const handleEmailClick = () => {
-    window.open(`mailto:${email}`, '_blank');
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(EMAIL);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2400);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <Helmet>
         <title>Contact Phindex | Get in Touch</title>
-        <meta name="description" content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification." />
+        <meta
+          name="description"
+          content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification."
+        />
         <link rel="canonical" href="https://www.phenotypeindex.com/contact" />
         <meta property="og:title" content="Contact Phindex | Get in Touch" />
-        <meta property="og:description" content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification." />
+        <meta
+          property="og:description"
+          content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification."
+        />
         <meta property="og:url" content="https://www.phenotypeindex.com/contact" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
@@ -28,99 +55,59 @@ const Contact = () => {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Contact | Phindex" />
-        <meta name="twitter:description" content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification." />
+        <meta
+          name="twitter:description"
+          content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification."
+        />
         <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
       </Helmet>
-      <Header />
-      <AppSidebar />
-      <main className="lg:ml-80 pt-16">
-        <div className="container mx-auto px-4 py-8">
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader className="text-center">
-              <CardTitle className="text-3xl font-bold">Contact Us</CardTitle>
-              <CardDescription className="text-lg">
-                We're here to help you. Get in touch with us!
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Main Contact Card */}
-              <Card className="border-primary/20">
-                <CardContent className="p-6">
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="p-4 bg-primary/10 rounded-full">
-                      <Mail className="h-8 w-8 text-primary" />
-                    </div>
-                    <div className="text-center">
-                      <h3 className="text-xl font-semibold mb-2">Primary Email</h3>
-                      <p className="text-muted-foreground mb-4">
-                        For questions, suggestions or technical support
-                      </p>
-                      <div className="bg-muted/50 p-3 rounded-lg mb-4">
-                        <p className="font-mono text-lg">{email}</p>
-                      </div>
-                      <Button onClick={handleEmailClick} className="w-full">
-                        <Mail className="h-4 w-4 mr-2" />
-                        Send Email
-                        <ExternalLink className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Information Cards */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Technical Support</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Website issues, bugs or technical difficulties.
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Suggestions</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Ideas to improve the platform and new features.
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">Partnerships</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Collaboration proposals and business partnerships.
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold mb-2">General</h4>
-                    <p className="text-sm text-muted-foreground">
-                      General questions about the platform and how to use it.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+      <SC as="p" className="m-0 text-[16px] text-kt-teal">
+        help
+      </SC>
+      <h1 className="mb-0 mt-1 text-[clamp(48px,5.8vw,84px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+        Contact
+      </h1>
+      <p className="mb-0 mt-3 max-w-[52ch] text-[19px] italic text-kt-body">
+        One address for everything. We usually reply within a day on business days.
+      </p>
 
-              {/* Response Time Info */}
-              <Card className="bg-muted/50">
-                <CardContent className="p-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Response time:</strong> We usually respond within 24 hours on business days.
-                  </p>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
+      <div className="mt-8 max-w-[860px] rounded-[3px] border border-kt-rule bg-white px-[clamp(18px,3vw,32px)] py-7">
+        <SC as="p" className="m-0 text-[14px] text-kt-body">
+          write to
+        </SC>
+        <p className="mb-0 mt-1 break-all text-[clamp(26px,3.4vw,40px)] leading-[1.1] text-kt-ink">{EMAIL}</p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <CenAnchor href={`mailto:${EMAIL}`}>send an email</CenAnchor>
+          <button type="button" onClick={copyEmail} className={outlineCapsule("min-h-[52px] font-[inherit] text-[17px]")}>
+            {copied ? "copied" : "copy address"}
+          </button>
+          <span className="sr-only" role="status">
+            {copied ? "Email address copied" : ""}
+          </span>
         </div>
-      </main>
-      <BottomNav />
-    </div>
+      </div>
+
+      <section aria-labelledby="topics-title" className="mt-10 max-w-[860px]">
+        <h2 id="topics-title" className="mb-2 mt-0 text-[30px] font-medium leading-[1.15] text-kt-ink">
+          What to write about
+        </h2>
+        <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-x-10">
+          {TOPICS.map((topic) => (
+            <div key={topic.title} className="border-t border-kt-rule py-4">
+              <SC as="dt" className="text-[16px] font-semibold text-kt-slate">
+                {topic.title}
+              </SC>
+              <dd className="mb-0 ml-0 mt-1 text-[17px] leading-normal text-kt-body">{topic.body}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mb-0 mt-4 border-t border-kt-rule pt-4 text-[15px] text-kt-body">
+          Reporting a profile or comment? Include its link. Many questions are already answered in{" "}
+          <Link to="/faq">About the index</Link>.
+        </p>
+      </section>
+    </AppLayout>
   );
 };
 

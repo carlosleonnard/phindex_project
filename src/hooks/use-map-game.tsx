@@ -1,366 +1,260 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-
-interface GameProfile {
-  id: string;
-  name: string;
-  front_image_url: string;
-  slug: string;
-  is_anonymous: boolean;
-  mostVotedGeographic: string | null;  // Primary Geographic (e.g. "Southern Europe")
-  mostVotedPhenotype: string | null;   // Primary Phenotype (e.g. "North Atlantid")
-}
-
-interface GameStats {
-  totalGames: number;
-  totalCorrect: number;
-  totalQuestions: number;
-  accuracyPercentage: number;
-}
-
-type Difficulty = 'easy' | 'medium' | 'hard';
-
 /**
- * Quem entra no baralho da partida.
- * - 'famous'    : figuras públicas (is_anonymous = false)
- * - 'anonymous' : perfis da comunidade (is_anonymous = true)
- * - 'all'       : os dois misturados
+ * HOOK DO JOGO "GUESS THE PHENOTYPE" (use-map-game.tsx)
+ *
+ * Três fases: setup (nível + baralho) → rodada (um rosto por vez, revelação
+ * manual) → resultado. O gabarito de cada rosto é a resposta da comunidade:
+ *
+ *   easy   — o continente, somando os votos geográficos por continente;
+ *   medium — a sub-região mais votada;
+ *   hard   — o grupo fenotípico (um dos 42), somando os votos de cada subgrupo
+ *            no grupo a que pertence.
+ *
+ * Só entra no baralho quem tem voto no nível E um vencedor único: num empate
+ * não existe "a resposta da comunidade" para comparar.
+ *
+ * Os dados vêm do índice compartilhado (use-index), que já traz as contagens
+ * de voto de cada perfil — nenhuma consulta extra para montar o baralho.
  */
-export type GamePool = 'all' | 'famous' | 'anonymous';
 
-// Maps general phenotype (geographic subregion) → region
-const REGION_MAPPING: Record<string, string[]> = {
-  "Europe": [
-    "Eastern Europe",
-    "Central Europe",
-    "Southern Europe",
-    "Northern Europe"
-  ],
-  "Africa": [
-    "North Africa",
-    "East Africa",
-    "Sub-Saharan Africa"
-  ],
-  "Middle East": [
-    "Levant",
-    "Anatolia",
-    "Arabian Peninsula",
-    "Persian Plateau"
-  ],
-  "Asia": [
-    "Central Asia",
-    "Eastern Asia",
-    "Southern Asia",
-    "Southeastern Asia"
-  ],
-  "Americas": [
-    "Northern America",
-    "Central America",
-    "Southern America"
-  ],
-  "Oceania": [
-    "Australia and New Zealand",
-    "Melanesia",
-    "Polynesia"
-  ]
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
+import { useIndexProfiles } from '@/hooks/use-index';
+import type { FeedProfile } from '@/hooks/use-profile-feed';
+import { CONTINENT_ORDER, continentOf } from '@/constants/regions';
+import { ALL_SUBREGIONS, PHENOTYPE_GROUPS, PHENOTYPE_TAXONOMY, phenotypeGroupOf } from '@/constants/taxonomy';
+
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export type GamePool = 'all' | 'famous' | 'community';
+export type GamePhase = 'setup' | 'round' | 'result';
+
+export interface LevelInfo {
+  label: string;
+  name: string;
+  detail: string;
+  question: string;
+  help: string;
+  count: number;
+}
+
+export const LEVELS: Record<Difficulty, LevelInfo> = {
+  easy: {
+    label: 'easy',
+    name: 'Region',
+    detail: 'Pick the continent.',
+    question: 'Where is this face from?',
+    help: 'Pick the continent most voters chose.',
+    count: 3,
+  },
+  medium: {
+    label: 'medium',
+    name: 'Sub-region',
+    detail: `Six of ${ALL_SUBREGIONS.length} sub-regions.`,
+    question: 'Which sub-region is this face from?',
+    help: 'Pick the sub-region most voters chose.',
+    count: 5,
+  },
+  hard: {
+    label: 'hard',
+    name: 'Phenotype',
+    detail: `Six of ${PHENOTYPE_GROUPS.length} groups.`,
+    question: 'Which phenotype group?',
+    help: 'Pick the group most voters chose.',
+    count: 10,
+  },
 };
 
-// All general phenotypes (geographic subregions) for medium mode
-const ALL_GENERAL_PHENOTYPES: string[] = Object.values(REGION_MAPPING).flat();
+export const LEVEL_ORDER: Difficulty[] = ['easy', 'medium', 'hard'];
+export const NEXT_LEVEL: Record<Difficulty, Difficulty> = { easy: 'medium', medium: 'hard', hard: 'easy' };
 
-// All specific phenotypes (main groups) for hard mode
-const ALL_SPECIFIC_PHENOTYPES: string[] = [
-  // Capoid
-  "Strandlooper", "Khoid", "Sandawe", "Sanid",
-  // Negroid
-  "Katangid", "Hadza", "Bantuid", "Bambutid", "Congolid", "Sudanid", "Nilotid",
-  // Caucasoid
-  "Ethiopid", "Orientalid", "Indid", "Indo Melanid", "Mediterranid", "Nordid",
-  "East Europid", "Lappid", "Alpinid", "Dinarid", "Armenoid", "Turanid",
-  // Australoid
-  "Veddid", "Negritid", "Australid", "Melanesid",
-  // Mongoloid
-  "Polynesid", "Ainuid", "South Mongolid", "Sinid", "Tungid", "Sibirid",
-  "Eskimid", "Pacificid", "Silvid", "Margid", "Centralid", "Amazonid",
-  "Lagid", "Patagonid", "Andid"
-];
+export const DECKS: Record<GamePool, string> = { all: 'Everyone', famous: 'Famous', community: 'Community' };
 
-const REGIONS = ["Europe", "Africa", "Middle East", "Asia", "Americas", "Oceania"];
+export interface GameFace {
+  profile: FeedProfile;
+  /** A resposta da comunidade neste nível. */
+  answer: string;
+  /** Parcela dos votos do nível que foi para a resposta, 0–100. */
+  answerPct: number;
+  /** Votos do nível para este rosto. */
+  votes: number;
+  /** Seis alternativas, já embaralhadas (no fácil, os seis continentes em ordem fixa). */
+  options: string[];
+}
 
-export const useMapGame = () => {
-  const [gameProfiles, setGameProfiles] = useState<GameProfile[]>([]);
-  const [currentProfileIndex, setCurrentProfileIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [gameEnded, setGameEnded] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
-  const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+export interface GamePick {
+  /** Alternativa escolhida; null quando pulou. */
+  label: string | null;
+  correct: boolean;
+  skip: boolean;
+}
+
+export interface GameRecordStats {
+  games: number;
+  correct: number;
+  questions: number;
+}
+
+const DIVISION_OF = new Map(
+  Object.entries(PHENOTYPE_TAXONOMY).flatMap(([division, groups]) => Object.keys(groups).map((group) => [group, division]))
+);
+
+const shuffle = <T,>(list: T[]): T[] => {
+  const copy = [...list];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[other]] = [copy[other], copy[index]];
+  }
+  return copy;
+};
+
+/**
+ * Sorteio sem reposição com peso √votos (Efraimidis–Spirakis): um rosto lido
+ * por muitos votantes tem gabarito mais confiável e aparece mais, mas os de
+ * poucos votos continuam entrando — senão toda partida repetiria os mesmos.
+ */
+const weightedSample = <T extends { votes: number }>(list: T[], count: number): T[] =>
+  list
+    .map((item) => ({ item, key: Math.random() ** (1 / Math.sqrt(Math.max(1, item.votes))) }))
+    .sort((a, b) => b.key - a.key)
+    .slice(0, count)
+    .map(({ item }) => item);
+
+/** Votos do nível, agrupados no vocabulário do nível. */
+const countsForLevel = (profile: FeedProfile, level: Difficulty): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  if (level === 'hard') {
+    Object.entries(profile.pheno_counts || {}).forEach(([name, count]) => {
+      const group = phenotypeGroupOf(name);
+      counts[group] = (counts[group] || 0) + count;
+    });
+    return counts;
+  }
+  Object.entries(profile.geo_counts || {}).forEach(([subregion, count]) => {
+    const key = level === 'easy' ? continentOf(subregion) : subregion;
+    if (key) counts[key] = (counts[key] || 0) + count;
+  });
+  return counts;
+};
+
+/** Vencedor único do nível, ou null (sem votos ou empate no topo). */
+const communityAnswer = (profile: FeedProfile, level: Difficulty) => {
+  const ranked = Object.entries(countsForLevel(profile, level)).sort((a, b) => b[1] - a[1]);
+  if (ranked.length === 0) return null;
+  if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) return null;
+  const votes = ranked.reduce((sum, [, count]) => sum + count, 0);
+  return { answer: ranked[0][0], answerPct: Math.round((ranked[0][1] / votes) * 100), votes };
+};
+
+/**
+ * Cinco distratores: até três "vizinhos" (mesmo continente, mesma divisão
+ * da taxonomia) para a pergunta não se resolver por eliminação, e o resto
+ * sorteado do vocabulário inteiro.
+ */
+const buildOptions = (answer: string, level: Difficulty): string[] => {
+  if (level === 'easy') return [...CONTINENT_ORDER];
+  const vocabulary = level === 'medium' ? ALL_SUBREGIONS : PHENOTYPE_GROUPS;
+  const isNeighbour =
+    level === 'medium'
+      ? (option: string) => continentOf(option) === continentOf(answer)
+      : (option: string) => DIVISION_OF.get(option) === DIVISION_OF.get(answer);
+  const others = vocabulary.filter((option) => option !== answer);
+  const neighbours = shuffle(others.filter(isNeighbour)).slice(0, 3);
+  const rest = shuffle(others.filter((option) => !neighbours.includes(option))).slice(0, 5 - neighbours.length);
+  return shuffle([answer, ...neighbours, ...rest]);
+};
+
+const inPool = (profile: FeedProfile, pool: GamePool) => {
+  if (pool === 'community') return profile.category === 'User Profiles';
+  if (pool === 'famous') return profile.category !== 'User Profiles';
+  return true;
+};
+
+/** Rostos jogáveis neste nível e baralho (sem alternativas ainda). */
+const eligibleFaces = (profiles: FeedProfile[], level: Difficulty, pool: GamePool) =>
+  profiles.flatMap((profile) => {
+    if (!inPool(profile, pool) || !profile.front_image_url) return [];
+    const read = communityAnswer(profile, level);
+    return read ? [{ profile, ...read }] : [];
+  });
+
+export const useMapGame = (initialLevel: Difficulty = 'medium') => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { profiles, isLoading, isError } = useIndexProfiles();
+
+  const [level, setLevel] = useState<Difficulty>(initialLevel);
   const [pool, setPool] = useState<GamePool>('all');
-  const [stats, setStats] = useState<GameStats | null>(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
-  const [options, setOptions] = useState<string[]>([]);
-  const { toast } = useToast();
+  const [phase, setPhase] = useState<GamePhase>('setup');
+  const [faces, setFaces] = useState<GameFace[]>([]);
+  const [index, setIndex] = useState(0);
+  const [picks, setPicks] = useState<GamePick[]>([]);
+  /** Alternativa escolhida no rosto atual: índice, -1 se pulou, null antes de responder. */
+  const [picked, setPicked] = useState<number | null>(null);
+  const savedRef = useRef(false);
+  /** Recorde no início da partida: o resultado soma esta partida a ele. */
+  const [baseRecord, setBaseRecord] = useState<GameRecordStats | null>(null);
 
-  const getQuestionsCount = (diff: Difficulty): number => {
-    switch (diff) {
-      case 'easy': return 3;
-      case 'medium': return 5;
-      case 'hard': return 10;
-      default: return 5;
-    }
-  };
+  /** Quantos rostos cada nível tem disponíveis no baralho escolhido. */
+  const available = useMemo(
+    () =>
+      Object.fromEntries(LEVEL_ORDER.map((key) => [key, eligibleFaces(profiles, key, pool).length])) as Record<
+        Difficulty,
+        number
+      >,
+    [profiles, pool]
+  );
 
-  // Get the region for a given geographic subregion
-  const getRegionForGeographic = (geographic: string): string | null => {
-    for (const [region, subregions] of Object.entries(REGION_MAPPING)) {
-      if (subregions.some(sub => sub.toLowerCase() === geographic.toLowerCase())) {
-        return region;
-      }
-    }
-    return null;
-  };
-
-  // Generate 6 options for the current profile based on difficulty
-  const generateOptions = (profile: GameProfile): string[] => {
-    let correctAnswer: string | null = null;
-    let pool: string[] = [];
-
-    if (difficulty === 'easy') {
-      // Easy: regions. Correct = region mapped from mostVotedGeographic
-      correctAnswer = profile.mostVotedGeographic
-        ? getRegionForGeographic(profile.mostVotedGeographic)
-        : null;
-      pool = REGIONS;
-    } else if (difficulty === 'medium') {
-      // Medium: general phenotypes (geographic subregions). Correct = mostVotedGeographic
-      correctAnswer = profile.mostVotedGeographic;
-      pool = ALL_GENERAL_PHENOTYPES;
-    } else {
-      // Hard: specific phenotypes. Correct = mostVotedPhenotype
-      correctAnswer = profile.mostVotedPhenotype;
-      pool = ALL_SPECIFIC_PHENOTYPES;
-    }
-
-    if (!correctAnswer) {
-      // No votes: return 6 random from pool
-      const shuffled = [...pool].sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, 6);
-    }
-
-    // Build 6 options: correct answer + 5 random distractors
-    const distractors = pool.filter(o => o.toLowerCase() !== correctAnswer!.toLowerCase());
-    const shuffledDistractors = distractors.sort(() => 0.5 - Math.random()).slice(0, 5);
-    const finalOptions = [correctAnswer, ...shuffledDistractors];
-    // Shuffle the final options
-    return finalOptions.sort(() => 0.5 - Math.random());
-  };
-
-  const fetchUserStats = async () => {
-    try {
-      setIsLoadingStats(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: results, error } = await supabase
-        .from('game_results')
-        .select('score, total_questions')
-        .eq('user_id', user.id);
-
+  const record = useQuery({
+    queryKey: ['game-record', user?.id],
+    enabled: !!user?.id,
+    queryFn: async (): Promise<GameRecordStats> => {
+      const { data, error } = await supabase.from('game_results').select('score, total_questions').eq('user_id', user!.id);
       if (error) throw error;
+      return (data || []).reduce(
+        (stats, row) => ({
+          games: stats.games + 1,
+          correct: stats.correct + row.score,
+          questions: stats.questions + row.total_questions,
+        }),
+        { games: 0, correct: 0, questions: 0 }
+      );
+    },
+  });
 
-      if (results && results.length > 0) {
-        const totalGames = results.length;
-        const totalCorrect = results.reduce((sum, r) => sum + r.score, 0);
-        const totalQuestions = results.reduce((sum, r) => sum + r.total_questions, 0);
-        const accuracyPercentage = totalQuestions > 0
-          ? Math.round((totalCorrect / totalQuestions) * 100)
-          : 0;
+  const start = useCallback(
+    (nextLevel: Difficulty = level) => {
+      const deck = weightedSample(eligibleFaces(profiles, nextLevel, pool), LEVELS[nextLevel].count)
+        .map((face) => ({ ...face, options: buildOptions(face.answer, nextLevel) }));
+      if (deck.length === 0) return false;
+      savedRef.current = false;
+      setBaseRecord(record.data ?? null);
+      setLevel(nextLevel);
+      setFaces(deck);
+      setIndex(0);
+      setPicks([]);
+      setPicked(null);
+      setPhase('round');
+      return true;
+    },
+    [level, pool, profiles, record.data]
+  );
 
-        setStats({ totalGames, totalCorrect, totalQuestions, accuracyPercentage });
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    } finally {
-      setIsLoadingStats(false);
-    }
-  };
-
-  const fetchRandomProfiles = async () => {
-    try {
-      setIsLoading(true);
-
-      const questionsCount = getQuestionsCount(difficulty);
-
-      // Fetch random profiles, restricted to the chosen pool.
-      let profilesQuery = supabase
-        .from('user_profiles')
-        .select('id, name, front_image_url, slug, is_anonymous')
-        .limit(100);
-
-      if (pool === 'famous') {
-        profilesQuery = profilesQuery.eq('is_anonymous', false);
-      } else if (pool === 'anonymous') {
-        profilesQuery = profilesQuery.eq('is_anonymous', true);
-      }
-
-      const { data: profiles, error: profilesError } = await profilesQuery;
-
-      if (profilesError) throw profilesError;
-      if (!profiles || profiles.length === 0) {
-        toast({
-          title: "No profiles available",
-          description: pool === 'all'
-            ? "There are no profiles to play with yet."
-            : `There are no ${pool === 'famous' ? 'famous' : 'community'} profiles to play with yet.`,
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      const profileIds = profiles.map(p => p.id);
-
-      // Fetch ALL geographic and phenotype votes in 2 bulk queries
-      const { data: geoVotes, error: geoError } = await supabase
-        .from('votes')
-        .select('profile_id, classification')
-        .in('profile_id', profileIds)
-        .eq('characteristic_type', 'Primary Geographic')
-        .limit(5000);
-
-      if (geoError) {
-        console.error('Error fetching geographic votes:', geoError);
-      }
-
-      const { data: phenoVotes, error: phenoError } = await supabase
-        .from('votes')
-        .select('profile_id, classification')
-        .in('profile_id', profileIds)
-        .eq('characteristic_type', 'Primary Phenotype')
-        .limit(5000);
-
-      if (phenoError) {
-        console.error('Error fetching phenotype votes:', phenoError);
-      }
-
-      // Aggregate votes per profile
-      const geoByProfile: Record<string, Record<string, number>> = {};
-      geoVotes?.forEach(v => {
-        if (!geoByProfile[v.profile_id]) geoByProfile[v.profile_id] = {};
-        geoByProfile[v.profile_id][v.classification] = (geoByProfile[v.profile_id][v.classification] || 0) + 1;
-      });
-
-      const phenoByProfile: Record<string, Record<string, number>> = {};
-      phenoVotes?.forEach(v => {
-        if (!phenoByProfile[v.profile_id]) phenoByProfile[v.profile_id] = {};
-        phenoByProfile[v.profile_id][v.classification] = (phenoByProfile[v.profile_id][v.classification] || 0) + 1;
-      });
-
-      const getMostVoted = (counts: Record<string, number> | undefined): string | null => {
-        if (!counts) return null;
-        const entries = Object.entries(counts);
-        if (entries.length === 0) return null;
-        return entries.sort((a, b) => b[1] - a[1])[0][0];
-      };
-
-      const allProfilesWithVotes = profiles.map(profile => ({
-        ...profile,
-        mostVotedGeographic: getMostVoted(geoByProfile[profile.id]),
-        mostVotedPhenotype: getMostVoted(phenoByProfile[profile.id])
-      }));
-
-      // Filter: only profiles that have the required votes for the current difficulty
-      const eligibleProfiles = allProfilesWithVotes.filter(p => {
-        if (difficulty === 'easy' || difficulty === 'medium') {
-          return p.mostVotedGeographic !== null;
-        } else {
-          return p.mostVotedPhenotype !== null;
-        }
-      });
-
-      if (eligibleProfiles.length === 0) {
-        toast({
-          title: "No eligible profiles",
-          description: "There are no profiles with enough votes to play.",
-          variant: "destructive"
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Shuffle and pick the required number
-      const shuffled = eligibleProfiles.sort(() => 0.5 - Math.random());
-      const selected = shuffled.slice(0, Math.min(questionsCount, eligibleProfiles.length));
-
-      setGameProfiles(selected);
-      setCurrentProfileIndex(0);
-      setScore(0);
-      setGameEnded(false);
-      setFeedback(null);
-      setCorrectAnswer(null);
-
-      // Generate options for first profile
-      if (selected.length > 0) {
-        setOptions(generateOptions(selected[0]));
-      }
-    } catch (error) {
-      console.error('Error fetching profiles:', error);
-      toast({
-        title: "Error loading game",
-        description: "Failed to load profiles for the game.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Update options when profile changes
-  useEffect(() => {
-    if (gameProfiles.length > 0 && currentProfileIndex < gameProfiles.length) {
-      setOptions(generateOptions(gameProfiles[currentProfileIndex]));
-    }
-  }, [currentProfileIndex, difficulty]);
-
-  useEffect(() => {
-    fetchRandomProfiles();
-    fetchUserStats();
-  }, [difficulty, pool]);
-
-  const getCorrectAnswerForProfile = (profile: GameProfile): string | null => {
-    if (difficulty === 'easy') {
-      return profile.mostVotedGeographic
-        ? getRegionForGeographic(profile.mostVotedGeographic)
-        : null;
-    } else if (difficulty === 'medium') {
-      return profile.mostVotedGeographic;
-    } else {
-      return profile.mostVotedPhenotype;
-    }
-  };
+  const current = faces[index] ?? null;
 
   /**
    * Grava o palpite para que o perfil possa mostrar como foi lido às cegas.
    * Falha silenciosa: um erro de rede não pode interromper a partida.
    */
-  const recordGuess = async (
-    profile: GameProfile,
-    guess: string,
-    correct: string,
-    isCorrect: boolean
-  ) => {
+  const recordGuess = async (face: GameFace, guess: string, isCorrect: boolean) => {
+    if (!user) return;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       await supabase.from('game_guesses').insert({
         user_id: user.id,
-        profile_id: profile.id,
-        difficulty,
+        profile_id: face.profile.id,
+        difficulty: level,
         guess,
-        correct_answer: correct,
+        correct_answer: face.answer,
         is_correct: isCorrect,
       });
     } catch (error) {
@@ -368,116 +262,97 @@ export const useMapGame = () => {
     }
   };
 
-  const checkAnswer = (selected: string) => {
-    if (feedback !== null || gameEnded) return;
+  const pick = (optionIndex: number) => {
+    if (phase !== 'round' || picked !== null || !current) return;
+    const label = current.options[optionIndex];
+    if (!label) return;
+    const correct = label === current.answer;
+    setPicked(optionIndex);
+    setPicks((list) => {
+      const next = [...list];
+      next[index] = { label, correct, skip: false };
+      return next;
+    });
+    recordGuess(current, label, correct);
+  };
 
-    const currentProfile = gameProfiles[currentProfileIndex];
-    if (!currentProfile) return;
+  /** Pular revela a resposta e conta como erro. */
+  const skip = () => {
+    if (phase !== 'round' || picked !== null || !current) return;
+    setPicked(-1);
+    setPicks((list) => {
+      const next = [...list];
+      next[index] = { label: null, correct: false, skip: true };
+      return next;
+    });
+  };
 
-    const correct = getCorrectAnswerForProfile(currentProfile);
-
-    const isCorrect = correct ? selected.toLowerCase() === correct.toLowerCase() : false;
-    setFeedback(isCorrect ? 'correct' : 'wrong');
-
-    // Só registra quando existe gabarito: sem ele não há acerto ou erro a medir.
-    if (correct) {
-      recordGuess(currentProfile, selected, correct, isCorrect);
-    }
-
-    if (!isCorrect && correct) {
-      setCorrectAnswer(correct);
+  const next = () => {
+    if (phase !== 'round' || picked === null) return;
+    if (index + 1 < faces.length) {
+      setIndex(index + 1);
+      setPicked(null);
     } else {
-      setCorrectAnswer(null);
-    }
-
-    if (isCorrect) {
-      setScore(score + 1);
-    }
-
-    // Move to next profile after delay
-    setTimeout(() => {
-      setFeedback(null);
-      setCorrectAnswer(null);
-
-      if (currentProfileIndex + 1 >= gameProfiles.length) {
-        setGameEnded(true);
-      } else {
-        setCurrentProfileIndex(currentProfileIndex + 1);
-      }
-    }, 1500);
-  };
-
-  const saveGameResult = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('game_results')
-        .insert({
-          user_id: user.id,
-          score: score,
-          total_questions: gameProfiles.length,
-          difficulty: difficulty
-        });
-
-      if (error) throw error;
-      await fetchUserStats();
-    } catch (error) {
-      console.error('Error saving game result:', error);
-      toast({
-        title: "Error saving result",
-        description: "Failed to save your game result.",
-        variant: "destructive"
-      });
+      setPicked(null);
+      setPhase('result');
     }
   };
 
-  const resetGame = () => {
-    if (gameEnded && gameProfiles.length > 0) {
-      saveGameResult();
-    }
-    fetchRandomProfiles();
+  const quit = () => {
+    setPhase('setup');
+    setPicked(null);
   };
 
-  const skipProfile = () => {
-    if (feedback !== null || gameEnded) return;
+  const score = picks.filter((entry) => entry?.correct).length;
 
-    setFeedback(null);
-    setCorrectAnswer(null);
-
-    if (currentProfileIndex + 1 >= gameProfiles.length) {
-      setGameEnded(true);
-    } else {
-      setCurrentProfileIndex(currentProfileIndex + 1);
-    }
-  };
-
-  // Save result when game ends
+  // Grava a partida uma única vez, ao entrar no resultado.
   useEffect(() => {
-    if (gameEnded && gameProfiles.length > 0) {
-      saveGameResult();
+    if (phase !== 'result' || savedRef.current || !user || faces.length === 0) return;
+    savedRef.current = true;
+    supabase
+      .from('game_results')
+      .insert({ user_id: user.id, score, total_questions: faces.length, difficulty: level })
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error saving game result:', error);
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ['game-record', user.id] });
+        queryClient.invalidateQueries({ queryKey: ['leaderboard-full'] });
+      });
+  }, [phase, user, faces.length, score, level, queryClient]);
+
+  // Carrega a próxima foto enquanto o jogador pensa na atual.
+  useEffect(() => {
+    const upcoming = faces[index + 1]?.profile.front_image_url;
+    if (upcoming) {
+      const image = new Image();
+      image.src = upcoming;
     }
-  }, [gameEnded]);
+  }, [faces, index]);
 
   return {
-    currentProfile: gameProfiles[currentProfileIndex] || null,
-    currentProfileIndex,
-    totalProfiles: gameProfiles.length,
-    score,
-    gameEnded,
-    isLoading,
-    feedback,
-    correctAnswer,
-    difficulty,
+    phase,
+    level,
     pool,
-    stats,
-    isLoadingStats,
-    options,
-    setDifficulty,
+    setLevel,
     setPool,
-    checkAnswer,
-    resetGame,
-    skipProfile
+    available,
+    isLoading,
+    isError,
+    faces,
+    index,
+    current,
+    picks,
+    picked,
+    revealed: phase === 'round' && picked !== null,
+    score,
+    record: record.data ?? null,
+    baseRecord,
+    start,
+    pick,
+    skip,
+    next,
+    quit,
   };
 };

@@ -134,6 +134,8 @@ export const useToggleSaved = () => {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['saved-profile-ids', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['saved-profiles', user?.id] });
+      // As contagens de "saved" dos cartões e do perfil vêm do índice.
+      queryClient.invalidateQueries({ queryKey: ['index-profiles'] });
     },
   });
 };

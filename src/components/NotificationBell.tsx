@@ -220,10 +220,10 @@ export const NotificationBell = ({
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align={align} side={side} sideOffset={8}>
+      <PopoverContent className="w-80 rounded-[3px] border-kt-rule p-0" align={align} side={side} sideOffset={8}>
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold">Notifications</h3>
+            <h3 className="font-sc text-[16px] font-semibold tracking-[0.06em] text-kt-ink">notifications</h3>
             {notifications.length > 0 && (
               <Button 
                 variant="outline" 

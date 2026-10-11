@@ -5,47 +5,58 @@
  * aqui a intenção é ativa: o usuário procura algo específico.
  *
  * A busca é refletida na URL (?q=), então um resultado pode ser compartilhado
- * ou salvo nos favoritos do navegador.
+ * ou salvo nos favoritos do navegador. O índice inteiro vem de useIndexProfiles
+ * e é filtrado no cliente: a base é pequena e o filtro responde na hora.
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
-
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { AppSidebar } from "@/components/AppSidebar";
-import { BottomNav } from "@/components/BottomNav";
+import { AppLayout } from "@/components/AppLayout";
 import { PhenotypeCard } from "@/components/PhenotypeCard";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useHighlightProfiles } from "@/hooks/use-profile-feed";
+import { RegionFilter, SortTabs } from "@/components/kt/RegionFilter";
+import { EmptySheet, GRID_CLASS, GridSkeleton, ShowMoreButton, chipClass, sortListing } from "@/components/kt/Listing";
+import { outlineCapsule } from "@/components/kt/Centromere";
+import { useIndexProfiles } from "@/hooks/use-index";
 import { useDebounce } from "@/hooks/use-debounce";
 import { CATEGORY_OPTIONS } from "@/constants/categories";
-import { CONTINENTS, continentOf } from "@/constants/regions";
+import { profileContinent, type Continent } from "@/constants/regions";
 import { cn } from "@/lib/utils";
 
 /**
  * Categorias filtráveis. "User Profiles" é o valor gravado no banco para os
- * perfis da comunidade — é a maior fatia do índice e estava de fora da lista
- * de categorias de celebridade.
+ * perfis da comunidade — é a maior fatia do índice.
  */
 const EXPLORE_CATEGORIES = [
   { label: "Community", value: "User Profiles" },
   ...CATEGORY_OPTIONS.map((name) => ({ label: name, value: name })),
 ];
 
+const categoryLabel = (value: string) => (value === "User Profiles" ? "Community" : value);
+
 type SortKey = "popular" | "recent";
+
+const SORTS: Array<{ value: SortKey; label: string }> = [
+  { value: "popular", label: "Most voted" },
+  { value: "recent", label: "Recent" },
+];
+
+const STEP = 16;
 
 const Explore = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const urlQuery = searchParams.get("q") ?? "";
 
-  const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
-  const [region, setRegion] = useState<string | null>(null);
+  const [query, setQuery] = useState(urlQuery);
+  const [region, setRegion] = useState<Continent | null>(null);
   const [category, setCategory] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("popular");
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Aberto no desktop; no celular o painel empurraria os resultados para fora da tela.
+  const [filtersOpen, setFiltersOpen] = useState(
+    () => typeof window === "undefined" || window.matchMedia("(min-width: 768px)").matches
+  );
+  const [visibleCount, setVisibleCount] = useState(STEP);
 
   const debouncedQuery = useDebounce(query, 250);
 
@@ -59,78 +70,60 @@ const Explore = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery]);
 
-  // Carrega um conjunto amplo e filtra no cliente: a base é pequena o bastante
-  // e assim o filtro responde instantaneamente, sem ida ao servidor.
-  const { profiles, isLoading } = useHighlightProfiles(300);
+  // Um link para /explore?q=… vindo de dentro do próprio Explore troca a busca.
+  useEffect(() => {
+    if (urlQuery !== debouncedQuery) setQuery(urlQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlQuery]);
+
+  useEffect(() => setVisibleCount(STEP), [debouncedQuery, region, category, sort]);
+
+  const { profiles, isLoading, isError } = useIndexProfiles();
+  const term = debouncedQuery.trim();
 
   const results = useMemo(() => {
-    const term = debouncedQuery.trim().toLowerCase();
-
+    const needle = term.toLowerCase();
     const filtered = profiles.filter((profile) => {
-      if (term) {
+      if (needle) {
         const haystack = [
           profile.name,
           profile.country,
-          profile.category,
+          categoryLabel(profile.category),
+          profile.subcategory ?? "",
           profile.ancestry,
           profile.most_voted_phenotype ?? "",
           profile.most_voted_geographic ?? "",
         ]
           .join(" ")
           .toLowerCase();
-        if (!haystack.includes(term)) return false;
+        if (!haystack.includes(needle)) return false;
       }
-
-      // O voto guarda a sub-região ("North Africa"); o filtro usa o
-      // continente ("Africa"), então a comparação passa pelo mapa.
-      if (region && continentOf(profile.most_voted_geographic) !== region) return false;
+      if (region && profileContinent(profile) !== region) return false;
       if (category && profile.category !== category) return false;
-
       return true;
     });
-
-    return sort === "popular"
-      ? [...filtered].sort((a, b) => b.vote_count - a.vote_count)
-      : [...filtered].sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-  }, [profiles, debouncedQuery, region, category, sort]);
+    return sortListing(filtered, sort);
+  }, [profiles, term, region, category, sort]);
 
   const activeFilterCount = (region ? 1 : 0) + (category ? 1 : 0);
+  const visible = results.slice(0, visibleCount);
+  const remaining = results.length - visible.length;
 
   const clearFilters = () => {
     setRegion(null);
     setCategory(null);
   };
 
-  /** Pílula de filtro reutilizada por região e categoria. */
-  const FilterPill = ({
-    label,
-    active,
-    onClick,
-  }: {
-    label: string;
-    active: boolean;
-    onClick: () => void;
-  }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "rounded-full border px-3.5 py-1.5 text-sm transition-colors duration-200",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground"
-      )}
-    >
-      {label}
-    </button>
-  );
+  const scope = [
+    term && ` match “${term}”`,
+    region && ` in ${region}`,
+    category && ` · ${categoryLabel(category)}`,
+  ]
+    .filter(Boolean)
+    .join("");
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout showSearch={false}>
       <Helmet>
         <title>Explore Phenotypes | Phindex</title>
         <meta
@@ -140,192 +133,160 @@ const Explore = () => {
         <link rel="canonical" href="https://www.phenotypeindex.com/explore" />
       </Helmet>
 
-      <Header />
-      <AppSidebar />
+      <h1 className="m-0 text-[clamp(48px,5.8vw,84px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+        Explore
+      </h1>
+      <p className="mb-0 mt-3 text-[19px] italic text-kt-body">Search the index by name, region, ancestry or category.</p>
 
-      <main className="px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
-        <div className="mx-auto max-w-[1200px]">
-          <div className="py-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Explore
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-              Search the index by name, region, ancestry or category.
-            </p>
-          </div>
-
-          {/* BUSCA */}
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search faces, phenotypes, countries…"
-              aria-label="Search the phenotype index"
-              className="h-12 rounded-full border-border/60 bg-card pl-11 pr-11 text-base"
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label="Clear search"
-                className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* FILTROS */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFiltersOpen((open) => !open)}
-              aria-expanded={filtersOpen}
-              className="gap-1.5 rounded-full"
+      <form role="search" className="mt-[26px]" onSubmit={(event) => event.preventDefault()}>
+        <label htmlFor="explore-q" className="sr-only">
+          Search the phenotype index
+        </label>
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-[22px] top-1/2 h-[22px] w-[22px] -translate-y-1/2 text-kt-ink"
+            strokeWidth={1.6}
+          />
+          <input
+            id="explore-q"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search faces, phenotypes, countries…"
+            autoComplete="off"
+            className="box-border h-[60px] w-full rounded-full border-[1.5px] border-kt-ink bg-white pl-[58px] pr-16 font-[inherit] text-[19px] text-kt-ink placeholder:text-kt-mute sm:text-[21px] [&::-webkit-search-cancel-button]:hidden"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-0 bg-kt-wash text-kt-ink transition-colors hover:bg-kt-seg"
             >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-
-            <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-              {(["popular", "recent"] as SortKey[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSort(key)}
-                  aria-pressed={sort === key}
-                  className={cn(
-                    "rounded-full px-3 py-1.5 text-sm transition-colors duration-200",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    sort === key
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {key === "popular" ? "Most voted" : "Recent"}
-                </button>
-              ))}
-            </div>
-
-            {activeFilterCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="rounded-full text-muted-foreground hover:text-foreground"
-              >
-                Clear filters
-              </Button>
-            )}
-          </div>
-
-          {filtersOpen && (
-            <div className="mt-4 space-y-4 rounded-2xl border border-border/60 bg-card p-4">
-              <div>
-                <h2 className="mb-2 text-sm font-semibold text-foreground">Region</h2>
-                <div className="flex flex-wrap gap-2">
-                  {CONTINENTS.map((item) => (
-                    <FilterPill
-                      key={item}
-                      label={item}
-                      active={region === item}
-                      onClick={() => setRegion(region === item ? null : item)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="mb-2 text-sm font-semibold text-foreground">Category</h2>
-                <div className="flex flex-wrap gap-2">
-                  {EXPLORE_CATEGORIES.map(({ label, value }) => (
-                    <FilterPill
-                      key={value}
-                      label={label}
-                      active={category === value}
-                      onClick={() => setCategory(category === value ? null : value)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+              <X className="h-[18px] w-[18px]" strokeWidth={1.7} aria-hidden="true" />
+            </button>
           )}
+        </div>
+      </form>
 
-          {/* RESULTADOS */}
-          <div className="mt-6">
-            {isLoading ? (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="overflow-hidden rounded-2xl border border-border/60 bg-card"
-                    aria-hidden="true"
-                  >
-                    <div className="aspect-[640/607] animate-pulse bg-muted" />
-                    <div className="space-y-2 p-3.5">
-                      <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                      <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : results.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
-                <h2 className="text-lg font-semibold text-foreground">No matches</h2>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                  {debouncedQuery
-                    ? `Nothing in the index matches “${debouncedQuery}”.`
-                    : "No profiles match these filters."}{" "}
-                  Try a broader search or clear the filters.
-                </p>
-                {(activeFilterCount > 0 || query) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setQuery("");
-                      clearFilters();
-                    }}
-                    className="mt-5 rounded-full"
-                  >
-                    Reset search
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <>
-                <p className="mb-4 text-sm text-muted-foreground" role="status">
-                  {results.length} {results.length === 1 ? "profile" : "profiles"}
-                </p>
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                  {results.map((profile, index) => (
-                    <PhenotypeCard
-                      key={profile.id}
-                      profile={profile}
-                      variant="grid"
-                      priority={index < 4}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+      <div className="mt-4 flex flex-wrap items-center gap-x-[18px] gap-y-3">
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls="explore-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+          className={cn(
+            "inline-flex min-h-11 items-center gap-[9px] rounded-full border-[1.5px] border-kt-ink px-[18px] font-[inherit] text-[16px] transition-colors",
+            filtersOpen ? "bg-kt-ink text-kt-paper" : "bg-white text-kt-ink hover:bg-kt-wash"
+          )}
+        >
+          <SlidersHorizontal className="h-[17px] w-[17px]" strokeWidth={1.7} aria-hidden="true" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-kt-glow px-1 text-[14px] text-kt-deep">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        <SortTabs options={SORTS} value={sort} onChange={(value) => setSort(value)} />
+        {activeFilterCount > 0 && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="ml-auto min-h-11 border-0 bg-transparent px-1 font-[inherit] text-[16px] text-kt-teal underline underline-offset-4 hover:text-kt-ink"
+          >
+            clear filters
+          </button>
+        )}
+      </div>
+
+      {filtersOpen && (
+        <div id="explore-filters" className="mt-3.5 rounded-[3px] border border-kt-rule bg-white px-[22px] py-5">
+          <h2 className="mb-2.5 mt-0 font-sc text-[15px] font-semibold tracking-[0.06em] text-kt-slate">region</h2>
+          <RegionFilter value={region} onChange={setRegion} allLabel="Any" size="sm" label="Region" />
+          <h2 className="mb-2.5 mt-5 font-sc text-[15px] font-semibold tracking-[0.06em] text-kt-slate">category</h2>
+          <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-pressed={category === null}
+              onClick={() => setCategory(null)}
+              className={chipClass(category === null, "text-[15px]")}
+            >
+              Any
+            </button>
+            {EXPLORE_CATEGORIES.map(({ label, value }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={category === value}
+                onClick={() => setCategory(category === value ? null : value)}
+                className={chipClass(category === value, "text-[15px]")}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
-      </main>
+      )}
 
-      <Footer />
-      <BottomNav />
-    </div>
+      <div className="mt-7 flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1.5 border-b-[1.5px] border-kt-ink pb-3">
+        <p role="status" className="m-0 text-[20px] text-kt-ink">
+          {isLoading ? (
+            "Searching the index…"
+          ) : (
+            <>
+              <span className="font-semibold">
+                {results.length} {results.length === 1 ? "face" : "faces"}
+              </span>
+              {scope ? (results.length === 1 ? scope.replace(" match ", " matches ") : scope) : " in the index"}
+            </>
+          )}
+        </p>
+        <p className="m-0 text-[15px] italic text-kt-body">matching names, countries, ancestry and phenotypes</p>
+      </div>
+
+      <div className="mt-5">
+        {isError ? (
+          <EmptySheet title="Couldn’t load the index">Check your connection and reload the page.</EmptySheet>
+        ) : isLoading ? (
+          <GridSkeleton />
+        ) : results.length === 0 ? (
+          <EmptySheet
+            title="No matches"
+            action={
+              (activeFilterCount > 0 || query) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    clearFilters();
+                  }}
+                  className={outlineCapsule("min-h-11 font-[inherit] text-[16px]")}
+                >
+                  reset search
+                </button>
+              )
+            }
+          >
+            {term ? `Nothing in the index matches “${term}”.` : "No profiles match these filters."} Try a broader search or
+            clear the filters.
+          </EmptySheet>
+        ) : (
+          <section aria-label="Search results" className={GRID_CLASS}>
+            {visible.map((profile, index) => (
+              <PhenotypeCard key={profile.id} profile={profile} variant="grid" priority={index < 4} highlight={term} />
+            ))}
+          </section>
+        )}
+      </div>
+
+      {remaining > 0 && (
+        <ShowMoreButton onClick={() => setVisibleCount((count) => count + STEP)}>
+          show {Math.min(STEP, remaining)} more
+        </ShowMoreButton>
+      )}
+    </AppLayout>
   );
 };
 

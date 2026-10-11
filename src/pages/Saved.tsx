@@ -1,132 +1,116 @@
 /**
  * PÁGINA DE SALVOS (Saved.tsx)
  *
- * Coleção pessoal do usuário: os perfis marcados com ❤️ no feed.
+ * Coleção pessoal do usuário: os perfis marcados com o coração no feed.
  * Exige login — sem sessão, não há o que listar.
  */
 
+import { useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Heart } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { AppSidebar } from "@/components/AppSidebar";
-import { BottomNav } from "@/components/BottomNav";
+import { AppLayout } from "@/components/AppLayout";
 import { PhenotypeCard } from "@/components/PhenotypeCard";
-import { Button } from "@/components/ui/button";
+import { LoginModal } from "@/components/LoginModal";
+import { CenButton, CenLink } from "@/components/kt/Centromere";
+import { SortTabs } from "@/components/kt/RegionFilter";
+import { EmptySheet, GRID_CLASS, GridSkeleton, sortListing } from "@/components/kt/Listing";
 import { useAuth } from "@/hooks/use-auth";
 import { useSavedProfiles } from "@/hooks/use-saved-profiles";
 
+type SavedSort = "saved" | "popular" | "needs-votes";
+
+const SORTS: Array<{ value: SavedSort; label: string }> = [
+  { value: "saved", label: "Recently saved" },
+  { value: "popular", label: "Most voted" },
+  { value: "needs-votes", label: "Needs votes" },
+];
+
 const Saved = () => {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  // useSavedProfiles já devolve os perfis com os agregados do feed, na ordem em que foram salvos.
   const { savedProfiles, isLoading } = useSavedProfiles();
+  const [sort, setSort] = useState<SavedSort>("saved");
+  const [loginOpen, setLoginOpen] = useState(false);
 
-  // useSavedProfiles já devolve os perfis com os agregados do feed.
-  const cards = savedProfiles;
-
-  const showEmpty = !isLoading && cards.length === 0;
+  const cards = useMemo(
+    () => (sort === "saved" ? savedProfiles : sortListing(savedProfiles, sort)),
+    [savedProfiles, sort]
+  );
+  const needVotes = savedProfiles.filter((profile) => profile.vote_count < 10).length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <Helmet>
         <title>Saved Profiles | Phindex</title>
         <meta name="description" content="The phenotype profiles you've saved on Phindex." />
         <meta name="robots" content="noindex, follow" />
       </Helmet>
 
-      <Header />
-      <AppSidebar />
-
-      <main className="px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
-        <div className="mx-auto max-w-[1200px]">
-          <div className="py-6">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Saved
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-              Faces you&rsquo;ve kept to revisit.
-            </p>
-          </div>
-
-          {authLoading ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4" aria-hidden="true">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-                  <div className="aspect-[640/607] animate-pulse bg-muted" />
-                  <div className="space-y-2 p-3.5">
-                    <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                    <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : !user ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Heart className="h-5 w-5 text-primary" />
-              </div>
-              <h2 className="mt-4 text-lg font-semibold text-foreground">
-                Sign in to keep a collection
-              </h2>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                Saved profiles are tied to your account, so they follow you across devices.
-              </p>
-              <Button onClick={() => navigate("/")} className="mt-5 rounded-full">
-                Back to the feed
-              </Button>
-            </div>
-          ) : isLoading ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4" aria-hidden="true">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-                  <div className="aspect-[640/607] animate-pulse bg-muted" />
-                  <div className="space-y-2 p-3.5">
-                    <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                    <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : showEmpty ? (
-            <div className="rounded-2xl border border-dashed border-border bg-card/50 p-10 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <Heart className="h-5 w-5 text-primary" />
-              </div>
-              <h2 className="mt-4 text-lg font-semibold text-foreground">
-                Nothing saved yet
-              </h2>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                Tap the heart on any face &mdash; or double-tap the photo &mdash; to keep it here.
-              </p>
-              <Button onClick={() => navigate("/explore")} className="mt-5 rounded-full">
-                Explore the index
-              </Button>
-            </div>
-          ) : (
-            <>
-              <p className="mb-4 text-sm text-muted-foreground" role="status">
-                {cards.length} {cards.length === 1 ? "profile" : "profiles"}
-              </p>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {cards.map((profile, index) => (
-                  <PhenotypeCard
-                    key={profile.id}
-                    profile={profile}
-                    variant="grid"
-                    priority={index < 4}
-                  />
-                ))}
-              </div>
-            </>
-          )}
+      <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 border-b-[1.5px] border-kt-ink pb-6">
+        <div>
+          <p className="m-0 font-sc text-[16px] tracking-[0.06em] text-kt-teal">your collection</p>
+          <h1 className="mb-0 mt-1 text-[clamp(48px,5.8vw,84px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+            Saved
+          </h1>
+          <p className="mb-0 mt-3 text-[19px] italic text-kt-body">Faces you’ve kept to revisit.</p>
         </div>
-      </main>
+        {user && savedProfiles.length > 0 && (
+          <p className="m-0 flex flex-wrap gap-x-5 gap-y-1 text-[16px] text-kt-body">
+            <span>
+              <span className="text-kt-ink">{savedProfiles.length}</span> saved
+            </span>
+            <span>
+              <span className="text-kt-ink">{needVotes}</span> still need votes
+            </span>
+          </p>
+        )}
+      </div>
 
-      <Footer />
-      <BottomNav />
-    </div>
+      {authLoading ? (
+        <div className="mt-6">
+          <GridSkeleton count={4} />
+        </div>
+      ) : !user ? (
+        <EmptySheet
+          className="mt-8"
+          title="Log in to keep a collection"
+          action={<CenButton size="sm" onClick={() => setLoginOpen(true)}>log in</CenButton>}
+        >
+          Saved profiles are tied to your account, so they follow you across devices.
+        </EmptySheet>
+      ) : isLoading ? (
+        <div className="mt-6">
+          <GridSkeleton count={4} />
+        </div>
+      ) : cards.length === 0 ? (
+        <EmptySheet
+          className="mt-8"
+          title="Nothing saved yet"
+          action={
+            <CenLink to="/explore" size="sm">
+              explore the index
+            </CenLink>
+          }
+        >
+          Tap the heart on any face — or double-tap the photo — to keep it here.
+        </EmptySheet>
+      ) : (
+        <>
+          <div className="mb-3.5 mt-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <p className="m-0 text-[15px] text-kt-body" role="status">
+              {cards.length} {cards.length === 1 ? "profile" : "profiles"}
+            </p>
+            <SortTabs options={SORTS} value={sort} onChange={(value) => setSort(value)} />
+          </div>
+          <section aria-label="Saved profiles" className={GRID_CLASS}>
+            {cards.map((profile, index) => (
+              <PhenotypeCard key={profile.id} profile={profile} variant="grid" priority={index < 4} />
+            ))}
+          </section>
+        </>
+      )}
+
+      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+    </AppLayout>
   );
 };
 

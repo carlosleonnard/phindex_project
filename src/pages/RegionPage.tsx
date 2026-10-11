@@ -1,146 +1,183 @@
-import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Globe, MessageSquare } from "lucide-react";
-import { Helmet } from "react-helmet-async";
-import { Header } from "@/components/Header";
-import { BottomNav } from "@/components/BottomNav";
-import { Footer } from "@/components/Footer";
-import { AppSidebar } from "@/components/AppSidebar";
-import { CommentsSection } from "@/components/CommentsSection";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
-import { useGeographicRegionProfiles } from "@/hooks/use-geographic-region-profiles";
-import { useCommentCounts } from "@/hooks/use-comment-counts";
-import { Link } from "react-router-dom";
-import { Calendar } from "lucide-react";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { EmptyState } from "@/components/EmptyState";
-
 /**
- * PROFILES BY REGION PAGE
- * 
- * Displays profiles filtered by geographic region based on real data
- * registered in the database.
+ * PÁGINA DE REGIÃO (RegionPage.tsx)
+ *
+ * Um dos seis continentes do índice:
+ *
+ *   cabeçalho  — nome, números, nota sobre o ano 1500 e o globo da região;
+ *   sub-regiões — um cromossomo em que a largura de cada faixa é a parcela
+ *                 dos perfis daquela sub-região; clicar filtra a grade;
+ *   "most read as" — o fenótipo vencedor de cada perfil da região, somado;
+ *   "needs your vote here" — rostos da região com menos de dez votos;
+ *   grade      — tipo de perfil + ordenação, com "mostrar mais";
+ *   outras regiões, com contagem.
+ *
+ * O continente de um perfil vem de profileContinent: o voto geográfico, e o
+ * país enquanto ninguém votou. A sub-região só existe com voto.
  */
 
-const PROFILES_PER_PAGE = 12;
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { AppLayout, Crumbs } from "@/components/AppLayout";
+import { PhenotypeCard } from "@/components/PhenotypeCard";
+import { SegmentedCapsule, SortTabs } from "@/components/kt/RegionFilter";
+import { VoteProgress } from "@/components/kt/Meters";
+import { FacePhoto, REGION_HEX, RegionDot, SC, SpecimenFrame, formatCount } from "@/components/kt/Misc";
+import { KT } from "@/components/kt/bands";
+import {
+  EmptySheet,
+  GRID_CLASS,
+  GridSkeleton,
+  LISTING_SORTS,
+  SORT_LABEL,
+  ShowMoreButton,
+  sortListing,
+  type ListingSort,
+} from "@/components/kt/Listing";
+import { useIndexProfiles, LOW_VOTE_THRESHOLD } from "@/hooks/use-index";
+import { CONTINENT_META, CONTINENT_ORDER, profileContinent, type Continent } from "@/constants/regions";
+import { GEOGRAPHIC_OPTIONS } from "@/constants/taxonomy";
+import { cn } from "@/lib/utils";
 
-type ProfileFilter = 'all' | 'famous' | 'user';
+const STEP = 12;
 
-const RegionPage = () => {
+const DEMONYM: Record<Continent, string> = {
+  Africa: "African",
+  Americas: "American",
+  Asia: "Asian",
+  Europe: "European",
+  "Middle East": "Middle Eastern",
+  Oceania: "Oceanian",
+};
+
+type ProfileType = "all" | "famous" | "community";
+
+const PROFILE_TYPES: Array<{ value: ProfileType; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "famous", label: "Famous people" },
+  { value: "community", label: "Community" },
+];
+
+/** Sombra de cada posição do ranking "most read as". */
+const READ_AS_SHADES = [KT.ink, KT.b75, KT.b75, KT.b50, KT.b50];
+
+const continentFromSlug = (slug: string): Continent | null =>
+  CONTINENT_ORDER.find((continent) => CONTINENT_META[continent].slug === slug) ?? null;
+
+export default function RegionPage() {
   const { region } = useParams<{ region: string }>();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [currentPage, setCurrentPage] = useState(1);
-  const [profileFilter, setProfileFilter] = useState<ProfileFilter>('all');
+  const regionKey = (region || "").toLowerCase();
+  const continent = continentFromSlug(regionKey);
 
-  // Search for real profiles from database filtered by region based on geographic voting
-  const { data: profiles, isLoading: profilesLoading, error: profilesError } = useGeographicRegionProfiles(region);
+  const { profiles, isLoading, isError } = useIndexProfiles();
+  const [subregion, setSubregion] = useState<string | null>(null);
+  const [profileType, setProfileType] = useState<ProfileType>("all");
+  const [sort, setSort] = useState<ListingSort>("popular");
+  const [visibleCount, setVisibleCount] = useState(STEP);
 
-  /**
-   * REGION NAMES MAPPING
-   * 
-   * Converts URL slugs to region display names.
-   */
-  const regionNames: Record<string, string> = {
-    "africa": "Africa",
-    "asia": "Asia", 
-    "europe": "Europe",
-    "americas": "Americas",
-    "middle-east": "Middle East",
-    "oceania": "Oceania"
-  };
+  useEffect(() => {
+    setSubregion(null);
+    setProfileType("all");
+    setVisibleCount(STEP);
+  }, [regionKey]);
 
-  const regionImages: Record<string, string> = {
-    "africa": "/region-africa.png",
-    "americas": "/region-americas.png",
-    "asia": "/region-asia.png",
-    "europe": "/region-europe.png",
-    "middle-east": "/region-middle-east.png",
-    "oceania": "/region-oceania.png",
-  };
+  useEffect(() => setVisibleCount(STEP), [subregion, profileType, sort]);
 
-  // Get display name for current region
-  const regionKey = region?.toLowerCase() || "";
-  const regionDisplayName = regionNames[regionKey] || region;
+  const regionProfiles = useMemo(
+    () => (continent ? profiles.filter((profile) => profileContinent(profile) === continent) : []),
+    [profiles, continent]
+  );
 
-  /**
-   * ERROR HANDLING FOR PROFILE SEARCH
-   * 
-   * Displays error message if unable to load profiles from database.
-   */
-  if (profilesError) {
+  /** Sub-regiões com perfis, da maior para a menor. */
+  const subregions = useMemo(() => {
+    if (!continent) return [];
+    const counts = new Map<string, number>();
+    regionProfiles.forEach((profile) => {
+      const value = profile.most_voted_geographic;
+      if (value && GEOGRAPHIC_OPTIONS[continent].includes(value)) counts.set(value, (counts.get(value) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [regionProfiles, continent]);
+  const placedCount = subregions.reduce((sum, item) => sum + item.count, 0);
+
+  /** O fenótipo vencedor de cada perfil, somado: top 5 + "other". */
+  const readAs = useMemo(() => {
+    const counts = new Map<string, number>();
+    regionProfiles.forEach((profile) => {
+      if (profile.most_voted_phenotype) {
+        counts.set(profile.most_voted_phenotype, (counts.get(profile.most_voted_phenotype) || 0) + 1);
+      }
+    });
+    const total = [...counts.values()].reduce((sum, count) => sum + count, 0);
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const top = ranked.slice(0, 5).map(([name, count]) => ({ name, pct: total ? (count / total) * 100 : 0 }));
+    const otherCount = ranked.slice(5).reduce((sum, [, count]) => sum + count, 0);
+    return { total, top, otherPct: total ? (otherCount / total) * 100 : 0 };
+  }, [regionProfiles]);
+
+  const needsVotes = useMemo(
+    () =>
+      regionProfiles
+        .filter((profile) => profile.vote_count < LOW_VOTE_THRESHOLD)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 3),
+    [regionProfiles]
+  );
+
+  const filtered = useMemo(() => {
+    const list = regionProfiles.filter((profile) => {
+      if (subregion && profile.most_voted_geographic !== subregion) return false;
+      if (profileType === "community" && profile.category !== "User Profiles") return false;
+      if (profileType === "famous" && profile.category === "User Profiles") return false;
+      return true;
+    });
+    return sortListing(list, sort);
+  }, [regionProfiles, subregion, profileType, sort]);
+
+  const regionCounts = useMemo(() => {
+    const counts = new Map<Continent, number>();
+    profiles.forEach((profile) => {
+      const value = profileContinent(profile);
+      if (value) counts.set(value, (counts.get(value) || 0) + 1);
+    });
+    return counts;
+  }, [profiles]);
+
+  if (!continent) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Error loading profiles</h1>
-            <p className="text-muted-foreground mb-4">
-              Could not load profiles from this region.
-            </p>
-            <Button onClick={() => navigate("/")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to home
-            </Button>
-          </div>
-        </div>
-        <Footer />
-      </div>
+      <AppLayout>
+        <h1 className="m-0 text-[40px] font-medium text-kt-ink">Region not found</h1>
+        <p className="mt-2 text-[18px] text-kt-body">
+          There’s no region at this address. <Link to="/explore">Explore the index</Link> instead.
+        </p>
+      </AppLayout>
     );
   }
 
-  /**
-   * REGION VALIDATION
-   * 
-   * Checks if the URL region is valid before displaying content.
-   */
-  if (!regionKey || !regionNames[regionKey]) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-4">Region not found</h1>
-            <Button onClick={() => navigate("/")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to home
-            </Button>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+  const demonym = DEMONYM[continent];
+  const totalVotes = regionProfiles.reduce((sum, profile) => sum + profile.vote_count, 0);
+  const visible = filtered.slice(0, visibleCount);
+  // Barras na mesma escala, inclusive "other" — que costuma ser a maior fatia.
+  const maxReadAs = Math.max(readAs.top[0]?.pct || 0, readAs.otherPct) || 1;
 
-  const regionProfileIds = useMemo(() => (profiles || []).map((p) => p.id), [profiles]);
-  const commentCounts = useCommentCounts(regionProfileIds);
-
-  const filteredRegionProfiles = (profiles || []).filter(p => {
-    if (profileFilter === 'all') return true;
-    if (profileFilter === 'user') return p.category === 'User Profiles';
-    return p.category !== 'User Profiles';
-  });
-
-  const regionTitle = `${regionDisplayName} Phenotypes | Phindex - Phenotype Index`;
-  const regionDescription = `Explore ${regionDisplayName} phenotypes and physical traits. Discover phenotype classifications from ${regionDisplayName}. Vote and compare physical characteristics.`;
+  const regionTitle = `${continent} Phenotypes | Phindex - Phenotype Index`;
+  const regionDescription = `Explore ${continent} phenotypes and physical traits. Discover phenotype classifications from ${continent}. Vote and compare physical characteristics.`;
   const regionUrl = `https://www.phenotypeindex.com/region/${regionKey}`;
   // Card 1200x630 gerado a partir do banner da região (public/og/).
   const regionImage = `https://www.phenotypeindex.com/og/region-${regionKey}.png`;
-
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
-      { "@type": "ListItem", "position": 2, "name": regionDisplayName, "item": regionUrl }
-    ]
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", position: 2, name: continent, item: regionUrl },
+    ],
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <Helmet>
         <title>{regionTitle}</title>
         <meta name="description" content={regionDescription} />
@@ -161,261 +198,281 @@ const RegionPage = () => {
         <meta name="twitter:image" content={regionImage} />
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
-      <Header />
-      
-      <div className="container px-4 py-8">
-        <div className="lg:ml-80 pt-20">
-          {/* Sidebar */}
-          <AppSidebar />
 
-          {/* Breadcrumbs and back button */}
-          <div className="mb-6">
-            <Breadcrumbs 
-              items={[
-                { label: 'Regions', href: '/' },
-                { label: regionDisplayName || 'Region' }
-              ]}
-              className="mb-4"
+      <Crumbs items={[{ label: "Discover", to: "/community" }, { label: "Regions", to: "/explore" }, { label: continent }]} />
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-x-14 gap-y-7 border-b-[1.5px] border-kt-ink pb-7">
+        <div className="min-w-0 flex-[1_1_420px]">
+          <SC as="p" className="m-0 flex items-center gap-2.5 text-[16px] text-kt-teal">
+            <RegionDot continent={continent} size={9} />
+            region
+          </SC>
+          <h1 className="mb-0 mt-1 text-[clamp(52px,6.2vw,88px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+            {continent}
+            <sup className="relative top-[0.3em] ml-[0.08em] align-top text-[0.24em] tracking-normal">
+              <a href="#region-note" aria-label="About regions" className="text-kt-teal no-underline">
+                1
+              </a>
+            </sup>
+          </h1>
+          <p className="mb-0 mt-3 text-[20px] italic text-kt-body">Explore and classify phenotypes from {continent}.</p>
+          <p className="mb-0 mt-3.5 flex flex-wrap gap-x-5 gap-y-1 text-[16px] text-kt-body">
+            <span>
+              <span className="text-kt-ink">{isLoading ? "…" : formatCount(regionProfiles.length)}</span> profiles
+            </span>
+            <span>
+              <span className="text-kt-ink">{GEOGRAPHIC_OPTIONS[continent].length}</span> sub-regions
+            </span>
+            <span>
+              <span className="text-kt-ink">{isLoading ? "…" : formatCount(totalVotes)}</span> votes cast
+            </span>
+          </p>
+          <p id="region-note" className="mb-0 mt-[18px] max-w-[62ch] border-t border-kt-rule pt-3 text-[15px] leading-normal text-kt-body">
+            <span className="mr-1 align-super text-[12px] text-kt-teal">1</span>
+            Regions describe where populations lived around 1500, before colonisation and globalisation. A face belongs
+            to the region most of its voters chose; until it has votes, its country places it.
+          </p>
+        </div>
+        <figure className="m-0 w-[250px] max-w-full flex-none">
+          <SpecimenFrame tick={14}>
+            <img
+              src={`/region-${regionKey}.png`}
+              alt={`Globe centred on ${continent}, with ${continent} highlighted`}
+              className="block aspect-square h-auto w-full opacity-[0.92]"
+              style={{ filter: "hue-rotate(54deg) saturate(1.3)" }}
             />
-            <Button 
-              onClick={() => navigate("/")} 
-              variant="secondary"
-              size="sm"
-              className="bg-card/95 backdrop-blur-sm border border-border/50 hover:bg-card shadow-lg"
+          </SpecimenFrame>
+          <figcaption className="mt-2 text-center font-sc text-[13px] tracking-[0.06em] text-kt-body">
+            fig. — {continent.toLowerCase()}, orthographic view
+          </figcaption>
+        </figure>
+      </div>
+
+      <section aria-labelledby="sub-title" className="mt-7">
+        <div className="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1.5">
+          <h2 id="sub-title" className="m-0 font-sc text-[17px] font-semibold tracking-[0.06em] text-kt-ink">
+            sub-regions
+          </h2>
+          <span className="text-[15px] italic text-kt-body">
+            {placedCount > 0
+              ? `band width = share of the ${placedCount} profiles placed by votes`
+              : "no sub-region votes yet"}
+          </span>
+        </div>
+        {isLoading ? (
+          <div aria-hidden="true" className="h-14 animate-pulse rounded-full bg-kt-wash" />
+        ) : subregions.length > 0 ? (
+          <div role="group" aria-label="Filter by sub-region" className="flex min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <button
+              type="button"
+              aria-pressed={subregion === null}
+              onClick={() => setSubregion(null)}
+              className={cn(
+                "min-h-14 shrink-0 rounded-full border-[1.5px] border-kt-ink px-5 font-[inherit] text-[16px] transition-colors",
+                subregion === null ? "bg-kt-ink text-kt-paper" : "bg-white text-kt-slate hover:bg-kt-seg"
+              )}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </div>
-
-          {/* Region Banner */}
-          <div className="relative overflow-hidden rounded-2xl mb-8" style={{ minHeight: 220 }}>
-            {/* Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-100 to-white" />
-
-            {/* Region image */}
-            {regionImages[regionKey] && (
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 h-[90%] aspect-square">
-                <img
-                  src={regionImages[regionKey]}
-                  alt={`${regionDisplayName} globe`}
-                  className="w-full h-full object-contain opacity-80 animate-[bannerZoom_25s_ease-in-out_infinite_alternate]"
-                  style={{ filter: 'hue-rotate(54deg) saturate(1.3)' }}
-                />
-              </div>
-            )}
-
-            {/* Gradient overlay for text */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-100/95 via-slate-100/70 to-transparent" />
-
-            {/* Content */}
-            <div className="relative z-10 p-8 flex flex-col justify-center" style={{ minHeight: 220 }}>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-800 leading-tight tracking-tight mb-1 animate-[fadeSlideIn_0.8s_ease-out]">
-                {regionDisplayName.toUpperCase()}
-              </h1>
-              <h2 className="text-2xl md:text-3xl font-black text-primary leading-tight tracking-tight mb-3 animate-[fadeSlideIn_0.8s_ease-out_0.15s_both]">
-                PHENOTYPES
-              </h2>
-              <p className="text-slate-500 text-sm max-w-md animate-[fadeSlideIn_0.8s_ease-out_0.3s_both]">
-                Explore and classify phenotypes from {regionDisplayName}
-              </p>
-              <div className="flex items-center gap-3 mt-4 animate-[fadeSlideIn_0.8s_ease-out_0.45s_both]">
-                <div className="bg-white/60 backdrop-blur-md border border-slate-200 rounded-xl px-4 py-2 flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" />
-                  <div>
-                    <div className="text-lg font-bold text-slate-800 leading-none">{profiles?.length || 0}</div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Profiles</div>
-                  </div>
-                </div>
-              </div>
+              All
+            </button>
+            <div className="flex flex-[1_0_auto] overflow-hidden rounded-full border-[1.5px] border-kt-ink">
+              {subregions.map((item, index) => {
+                const active = subregion === item.name;
+                return (
+                  <button
+                    key={item.name}
+                    type="button"
+                    aria-pressed={active}
+                    aria-label={`${item.name}, ${item.count} profiles`}
+                    onClick={() => setSubregion(active ? null : item.name)}
+                    className={cn(
+                      "flex min-h-[53px] min-w-[112px] flex-col justify-center border-0 px-3.5 text-left font-[inherit] leading-[1.15] transition-[filter] hover:brightness-[.94]",
+                      index === 0 && "pl-[22px]",
+                      index === subregions.length - 1 && "pr-5",
+                      index > 0 && "border-l-[1.5px] border-white",
+                      active ? "bg-kt-ink text-kt-paper" : cn(index % 2 ? "bg-kt-wash" : "bg-kt-b25", "text-kt-ink")
+                    )}
+                    style={{ flex: `${item.count} 1 0px` }}
+                  >
+                    <span className="truncate text-[16px]">{item.name}</span>
+                    <span className={cn("text-[13px]", active ? "text-kt-b50" : "text-kt-slate")}>
+                      {index === 0 ? `${item.count} profiles` : item.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="h-14 rounded-full border-[1.5px] border-dashed border-kt-b50"
+            style={{ background: `repeating-linear-gradient(45deg,${KT.sheet} 0 4px,${KT.wash2} 4px 5px)` }}
+          />
+        )}
+      </section>
 
-          {/* Main Content */}
-          <div>
-
-            {/* Display loading while loading profiles */}
-            {profilesLoading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {[...Array(8)].map((_, i) => (
-                  <Card key={i} className="bg-gradient-card border-border/50 animate-pulse">
-                    <CardContent className="p-4">
-                      <div className="w-full h-48 bg-muted rounded-lg mb-4"></div>
-                      <div className="h-4 bg-muted rounded mb-2"></div>
-                      <div className="h-3 bg-muted rounded w-2/3"></div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Display profiles if not loading */}
-            {!profilesLoading && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <h2 className="text-2xl font-bold text-foreground">
-                    {regionDisplayName} Profiles
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={profileFilter === 'all' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => { setProfileFilter('all'); setCurrentPage(1); }}
-                    >
-                      All
-                    </Button>
-                    <Button
-                      variant={profileFilter === 'famous' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => { setProfileFilter('famous'); setCurrentPage(1); }}
-                    >
-                      Famous People
-                    </Button>
-                    <Button
-                      variant={profileFilter === 'user' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => { setProfileFilter('user'); setCurrentPage(1); }}
-                    >
-                      User Profiles
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Check if there are profiles to display */}
-                {!filteredRegionProfiles || filteredRegionProfiles.length === 0 ? (
-                  <EmptyState
-                    icon={Globe}
-                    title="No profiles in this region yet"
-                    description={`Be the first to add a profile from ${regionDisplayName}. Help build our global phenotype community!`}
-                    action={{
-                      label: "Add Profile",
-                      onClick: () => navigate('/') // User can add from home
-                    }}
-                    secondaryAction={{
-                      label: "Explore Other Regions",
-                      onClick: () => navigate('/')
+      <div className="mt-9 grid grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))] items-start gap-x-11 gap-y-6">
+        <section aria-labelledby="readas-title">
+          <h2 id="readas-title" className="m-0 font-sc text-[17px] font-semibold tracking-[0.06em] text-kt-ink">
+            most read as
+          </h2>
+          <p className="mb-2.5 mt-1 text-[15px] italic text-kt-body">Top phenotype of each {demonym} profile.</p>
+          {readAs.top.length === 0 ? (
+            <p className="m-0 border-t border-kt-rule pt-3 text-[15px] text-kt-body">
+              No phenotype votes in this region yet.
+            </p>
+          ) : (
+            <ol className="m-0 list-none p-0">
+              {readAs.top.map((item, index) => (
+                <li
+                  key={item.name}
+                  className="grid grid-cols-[20px_minmax(0,128px)_minmax(0,1fr)_42px] items-center gap-3 border-t border-kt-rule py-2"
+                >
+                  <span className="text-[17px] italic text-kt-teal">{index + 1}</span>
+                  <Link to={`/explore?q=${encodeURIComponent(item.name)}`} className="truncate text-[16px] text-kt-ink">
+                    {item.name}
+                  </Link>
+                  <span
+                    aria-hidden="true"
+                    className="box-border h-2.5 rounded-full border border-kt-ink"
+                    style={{
+                      background: `linear-gradient(90deg,${READ_AS_SHADES[index]} 0 ${(item.pct / maxReadAs) * 100}%,${KT.sheet} 0)`,
                     }}
                   />
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredRegionProfiles.slice((currentPage - 1) * PROFILES_PER_PAGE, currentPage * PROFILES_PER_PAGE).map((profile) => (
-                      <Link
-                        key={profile.id}
-                        to={`/user-profile/${profile.slug}`}
-                        className="group block"
-                      >
-                        <Card className="bg-gradient-card border-border/50 hover:border-primary/50 transition-all duration-300 group-hover:shadow-lg h-full">
-                          <CardContent className="p-4 h-full flex flex-col">
-                            <div className="relative overflow-hidden rounded-lg mb-4">
-                               <img
-                                 src={profile.front_image_url}
-                                 alt={`${profile.name} phenotype profile photo`}
-                                 loading="lazy"
-                                 decoding="async"
-                                 className="profile-image-thumbnail rounded-lg transition-transform duration-300 group-hover:scale-105"
-                                 onError={(e) => {
-                                   e.currentTarget.src = '/placeholder.svg';
-                                 }}
-                               />
-                               <div className="absolute top-2 right-2">
-                                 <Badge 
-                                   variant={profile.is_anonymous ? "secondary" : "default"} 
-                                   className="text-xs"
-                                 >
-                                   {profile.is_anonymous ? "Anonymous" : "Famous"}
-                                 </Badge>
-                               </div>
-                               {profile.most_voted_specific_phenotype && (
-                                 <div className="absolute top-10 right-2">
-                                   <Badge variant="secondary" className="text-xs truncate max-w-[100px] bg-accent/50 text-accent-foreground">
-                                     {profile.most_voted_specific_phenotype}
-                                   </Badge>
-                                 </div>
-                               )}
-                               <div className="absolute bottom-2 left-2 bg-category-primary/90 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1 ring-1 ring-inset ring-white/20 backdrop-blur-sm">
-                                 <MessageSquare className="h-3 w-3" />
-                                 <span>{commentCounts[profile.id] || 0}</span>
-                               </div>
-                             </div>
+                  <span className="text-right text-[15px] text-kt-body">{Math.round(item.pct)}%</span>
+                </li>
+              ))}
+              {readAs.otherPct > 0 && (
+                <li className="grid grid-cols-[20px_minmax(0,128px)_minmax(0,1fr)_42px] items-center gap-3 border-y border-kt-rule py-2">
+                  <span />
+                  <span className="text-[16px] text-kt-body">other</span>
+                  <span
+                    aria-hidden="true"
+                    className="box-border h-2.5 rounded-full border border-kt-b50"
+                    style={{
+                      background: `linear-gradient(90deg,${KT.b25} 0 ${(readAs.otherPct / maxReadAs) * 100}%,${KT.sheet} 0)`,
+                    }}
+                  />
+                  <span className="text-right text-[15px] text-kt-body">{Math.round(readAs.otherPct)}%</span>
+                </li>
+              )}
+            </ol>
+          )}
+        </section>
 
-                             <div className="space-y-2 flex-1 flex flex-col">
-                               <div className="flex items-center gap-2 mb-2">
-                                 <span className="text-sm font-medium text-muted-foreground">
-                                   {profile.country}
-                                 </span>
-                               </div>
-                               
-                               <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                                 {profile.name}
-                               </h3>
-                               
-                               <div className="flex items-center justify-between text-xs text-muted-foreground min-h-[20px]">
-                                 <span className="flex items-center gap-1 flex-1 truncate">
-                                   <span className="w-3 h-3 rounded-full bg-primary/20 flex-shrink-0"></span>
-                                   <span className="truncate">{profile.ancestry}</span>
-                                 </span>
-                                 <span className="flex-shrink-0 ml-2">{profile.height}m</span>
-                               </div>
-
-                               <div className="flex items-center justify-between mt-auto">
-                                <Badge variant="outline" className="text-xs truncate max-w-[120px]">
-                                  {profile.category}
-                                </Badge>
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground flex-shrink-0">
-                                  <Calendar className="h-3 w-3" />
-                                  {new Date(profile.created_at).toLocaleDateString('en-US')}
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-
-                {/* Pagination */}
-                {filteredRegionProfiles.length > PROFILES_PER_PAGE && (
-                  <div className="flex items-center justify-center gap-2 mt-8">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === 1}
-                      onClick={() => { setCurrentPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    >
-                      Previous
-                    </Button>
-                    {Array.from({ length: Math.ceil(filteredRegionProfiles.length / PROFILES_PER_PAGE) }, (_, i) => i + 1).map(page => (
-                      <Button
-                        key={page}
-                        variant={page === currentPage ? "default" : "outline"}
-                        size="sm"
-                        className="min-w-[36px]"
-                        onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage === Math.ceil(filteredRegionProfiles.length / PROFILES_PER_PAGE)}
-                      onClick={() => { setCurrentPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <section aria-labelledby="needs-region" className="rounded-[3px] border border-kt-rule bg-white p-5">
+          <h2 id="needs-region" className="m-0 font-sc text-[17px] font-semibold tracking-[0.06em] text-kt-ink">
+            needs your vote here
+          </h2>
+          <p className="mb-2 mt-1 text-[15px] italic text-kt-body">{demonym} faces with fewer than ten votes.</p>
+          {needsVotes.length === 0 ? (
+            <p className="m-0 border-t border-kt-rule pt-3 text-[15px] text-kt-body">
+              {isLoading ? "Loading…" : "Every face here has ten votes or more."}
+            </p>
+          ) : (
+            <ul className="m-0 list-none p-0">
+              {needsVotes.map((profile) => (
+                <li
+                  key={profile.id}
+                  className="grid grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 border-t border-kt-rule py-[11px]"
+                >
+                  <span className="block h-12 w-12 overflow-hidden rounded-[3px] bg-kt-wash">
+                    <FacePhoto src={profile.front_image_url} alt="" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[16px] leading-tight text-kt-ink">
+                      {profile.name}
+                      {profile.country ? ` · ${profile.country}` : ""}
+                    </span>
+                    <span className="mt-[3px] block text-[13px] text-kt-body">
+                      {profile.vote_count} of {LOW_VOTE_THRESHOLD} votes
+                    </span>
+                    <VoteProgress count={profile.vote_count} className="mt-[5px]" />
+                  </span>
+                  <Link
+                    to={`/user-profile/${profile.slug}`}
+                    aria-label={`Vote on ${profile.name}`}
+                    className="inline-flex min-h-9 items-center rounded-full border-[1.5px] border-kt-teal px-[13px] font-sc text-[15px] tracking-[0.05em] text-kt-teal no-underline hover:bg-kt-teal/[0.06]"
+                  >
+                    vote
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
-      
-      <Footer />
-      <BottomNav />
-    </div>
-  );
-};
 
-export default RegionPage;
+      <div className="mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-3.5 border-y border-kt-rule py-3.5">
+        <SegmentedCapsule options={PROFILE_TYPES} value={profileType} onChange={(value) => setProfileType(value)} label="Profile type" />
+        <SortTabs options={LISTING_SORTS} value={sort} onChange={(value) => setSort(value)} />
+      </div>
+
+      <div className="mb-3.5 mt-[18px] flex flex-wrap items-baseline justify-between gap-3">
+        <p className="m-0 text-[15px] text-kt-body" role="status">
+          {isLoading
+            ? "Loading profiles…"
+            : filtered.length === 0
+            ? "No profiles match"
+            : `Showing 1–${visible.length} of ${filtered.length}${subregion ? ` in ${subregion}` : ""} · sorted by ${SORT_LABEL[sort]}`}
+        </p>
+        {(subregion || profileType !== "all") && (
+          <button
+            type="button"
+            onClick={() => {
+              setSubregion(null);
+              setProfileType("all");
+            }}
+            className="border-0 bg-transparent p-0 font-[inherit] text-[15px] text-kt-teal underline underline-offset-4"
+          >
+            clear filters
+          </button>
+        )}
+      </div>
+
+      {isError ? (
+        <EmptySheet title="Couldn’t load this region">Check your connection and reload the page.</EmptySheet>
+      ) : isLoading ? (
+        <GridSkeleton />
+      ) : visible.length === 0 ? (
+        <EmptySheet title={regionProfiles.length === 0 ? `No ${demonym} faces yet` : "Nothing matches these filters"}>
+          {regionProfiles.length === 0
+            ? "Faces land here once voters place them in this region."
+            : "Try another sub-region or profile type."}
+        </EmptySheet>
+      ) : (
+        <section aria-label={`${demonym} profiles`} className={GRID_CLASS}>
+          {visible.map((profile, index) => (
+            <PhenotypeCard key={profile.id} profile={profile} variant="grid" priority={index < 4} />
+          ))}
+        </section>
+      )}
+
+      {visible.length < filtered.length && (
+        <ShowMoreButton onClick={() => setVisibleCount((count) => count + STEP)}>
+          show more {demonym} faces
+        </ShowMoreButton>
+      )}
+
+      <section aria-labelledby="other-regions" className="mt-[52px] border-t-[1.5px] border-kt-ink pt-[22px]">
+        <h2 id="other-regions" className="mb-3.5 mt-0 font-sc text-[17px] font-semibold tracking-[0.06em] text-kt-ink">
+          other regions
+        </h2>
+        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(170px,100%),1fr))] gap-2.5 p-0">
+          {CONTINENT_ORDER.filter((item) => item !== continent).map((item) => (
+            <li key={item}>
+              <Link
+                to={`/region/${CONTINENT_META[item].slug}`}
+                className="flex min-h-[52px] items-center gap-2.5 rounded-full border border-kt-rule bg-white px-[18px] text-[17px] text-kt-ink no-underline transition-colors hover:border-kt-b50 hover:bg-kt-wash hover:text-kt-ink"
+              >
+                <span aria-hidden="true" className="h-[9px] w-[9px] rounded-full" style={{ background: REGION_HEX[item] }} />
+                {item}
+                <span className="ml-auto text-[14px] text-kt-body">{regionCounts.get(item) || 0}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </AppLayout>
+  );
+}

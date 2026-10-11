@@ -1,23 +1,45 @@
-import { useParams, Navigate, useNavigate, useLocation } from "react-router-dom";
+/**
+ * PÁGINA DO PERFIL (UserProfileDetail.tsx)
+ *
+ * À esquerda, as fotos (frente e lado) e a ficha do perfil. À direita:
+ *
+ *   1. Cabeçalho e ações — votar, salvar, compartilhar (e editar/apagar para
+ *      quem criou o perfil ou é admin).
+ *   2. A leitura da comunidade — o cromossomo de doze faixas.
+ *   3. Classificação — região e fenótipo em detalhe (braço curto).
+ *   4. Dez traços — uma faixa de escala por traço (braço longo).
+ *   5. Blind read — voto × palpite às cegas no jogo.
+ *   6. Comentários.
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Edit, Trash2, Vote, MessageCircle, Users, MessageSquare, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { AppSidebar } from "@/components/AppSidebar";
+import { Heart, Share2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { AppLayout, Crumbs } from "@/components/AppLayout";
 import { CommentsSection } from "@/components/CommentsSection";
 import { VoteModal } from "@/components/VoteModal";
-import { PhysicalCharacteristicVoting } from "@/components/PhysicalCharacteristicVoting";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { BottomNav } from "@/components/BottomNav";
+import { LoginModal } from "@/components/LoginModal";
+import { EditUserProfileModal } from "@/components/EditUserProfileModal";
+import { CommunityRead } from "@/components/profile/CommunityRead";
+import { BlindRead, Classification, TraitTable } from "@/components/profile/ReadSections";
+import { CenButton } from "@/components/kt/Centromere";
+import { FacePhoto, SC, timeAgo } from "@/components/kt/Misc";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 import { getCategorySlug } from "@/constants/categories";
+import { TRAITS } from "@/constants/traits";
 import { useAuth } from "@/hooks/use-auth";
 import { useVoting } from "@/hooks/use-voting";
 import { useComments } from "@/hooks/use-comments";
@@ -25,96 +47,116 @@ import { usePhysicalVoting } from "@/hooks/use-physical-voting";
 import { useGeographicVoting } from "@/hooks/use-geographic-voting";
 import { useGeographicVoteCounts } from "@/hooks/use-geographic-vote-counts";
 import { useProfileCreator } from "@/hooks/use-profile-creator";
-import { useState, useEffect, useRef } from "react";
-import { EditUserProfileModal } from "@/components/EditUserProfileModal";
+import { useSavedProfileIds, useToggleSaved } from "@/hooks/use-saved-profiles";
+import { useIndexProfiles } from "@/hooks/use-index";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/use-admin";
+import { cn } from "@/lib/utils";
+
+const PHYSICAL_KEYS = TRAITS.map((trait) => trait.key);
+const CLASSIFICATION_KEYS = [
+  "Primary Geographic",
+  "Secondary Geographic",
+  "Tertiary Geographic",
+  "Primary Phenotype",
+  "Secondary Phenotype",
+  "Tertiary Phenotype",
+];
 
 export default function UserProfileDetail() {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const { getProfileBySlug, deleteProfile } = useUserProfiles();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [photo, setPhoto] = useState<"front" | "side">("front");
 
   const { data: profile, isLoading, error } = useQuery({
-    queryKey: ['user-profile', slug],
+    queryKey: ["user-profile", slug],
     queryFn: () => getProfileBySlug(slug!),
     enabled: !!slug,
   });
 
-  // Get total vote count for this profile (unique voters only)
+  // Votantes distintos do perfil.
   const { data: totalVoteCount = 0 } = useQuery({
-    queryKey: ['total-votes', profile?.id],
+    queryKey: ["total-votes", profile?.id],
     queryFn: async () => {
       if (!profile?.id) return 0;
-      
-      // Os votos são gravados com profile_id = id (ver use-voting), não o slug.
-      const { data, error } = await supabase
-        .from('votes')
-        .select('user_id')
-        .eq('profile_id', profile.id);
-      
+      const { data, error } = await supabase.from("votes").select("user_id").eq("profile_id", profile.id);
       if (error) {
-        console.error('Error counting voters:', error);
+        console.error("Error counting voters:", error);
         return 0;
       }
-      
-      // Count unique voters
-      const uniqueVoters = new Set(data?.map(vote => vote.user_id) || []);
-      return uniqueVoters.size;
+      return new Set(data?.map((vote) => vote.user_id) || []).size;
     },
     enabled: !!profile?.id,
   });
 
-  // Initialize voting and comments hooks
-  const { votes: realVotes, castVote, changeVote, hasUserVoted, userVote } = useVoting(profile?.id || '');
-  const { comments: realComments, addComment, likeComment, deleteComment } = useComments(profile?.id || '');
-  const { characteristics: physicalCharacteristics, userVotes: physicalUserVotes, castVote: castPhysicalVote } = usePhysicalVoting(profile?.id || '');
-  const { userGeographicVotes, castGeographicVote, refetchVotes: refetchGeographicVotes } = useGeographicVoting(profile?.id || '');
-  const { geographicVotes, phenotypeVotes, refetchVoteCounts } = useGeographicVoteCounts(profile?.id || '');
-  const { data: profileCreator } = useProfileCreator(profile?.id || '');
-  
-  // Calculate total votes for Primary Geographic
-  const primaryGeographicTotalVotes = geographicVotes['Primary Geographic']?.reduce((sum, vote) => sum + vote.count, 0) || 0;
+  const { hasUserVoted, userVote } = useVoting(profile?.id || "");
+  const { comments: realComments, addComment, likeComment, deleteComment } = useComments(profile?.id || "");
+  const {
+    characteristics: physicalCharacteristics,
+    userVotes: physicalUserVotes,
+    castVote: castPhysicalVote,
+  } = usePhysicalVoting(profile?.id || "");
+  const { userGeographicVotes, castGeographicVote, refetchVotes: refetchGeographicVotes } = useGeographicVoting(
+    profile?.id || ""
+  );
+  const { geographicVotes, phenotypeVotes, refetchVoteCounts } = useGeographicVoteCounts(profile?.id || "");
+  const { data: profileCreator } = useProfileCreator(profile?.id || "");
+  const { savedIds } = useSavedProfileIds();
+  const toggleSaved = useToggleSaved();
+  const { profiles: indexProfiles } = useIndexProfiles();
 
-  /**
-   * Chegando com #comments (o contador de comentários no card da home leva
-   * para cá), rola até a seção de comentários.
-   *
-   * Espera o perfil carregar: enquanto a query está em voo a página mostra o
-   * estado de carregamento e a seção nem existe no DOM. O rAF duplo dá à
-   * lista recém-montada uma chance de ocupar a altura real antes de medirmos,
-   * senão a rolagem para no lugar errado. A ref garante que isso aconteça uma
-   * vez só, e não a cada re-render enquanto o hash continua na URL.
-   */
+  /** Chegando com #comments, rola até os comentários depois que eles existem. */
   const didScrollToComments = useRef(false);
-
   useEffect(() => {
-    if (location.hash !== '#comments' || isLoading || !profile) return;
+    if (location.hash !== "#comments" || isLoading || !profile) return;
     if (didScrollToComments.current) return;
-
     didScrollToComments.current = true;
-
     const frame = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        document
-          .querySelector('[data-comments-section]')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelector("[data-comments-section]")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     });
-
     return () => cancelAnimationFrame(frame);
   }, [location.hash, isLoading, profile]);
 
+  /** Consenso por característica: a fatia da opção mais votada. */
+  const read = useMemo(() => {
+    const top = (list?: { percentage: number }[]) =>
+      list && list.length > 0 ? Math.round(Math.max(...list.map((item) => item.percentage))) : null;
+    const traits = TRAITS.map((trait) => {
+      const votes = physicalCharacteristics.find((item) => item.name === trait.key)?.votes ?? [];
+      const total = votes.reduce((sum, vote) => sum + vote.count, 0);
+      if (total === 0) return null;
+      return Math.round((Math.max(...votes.map((vote) => vote.count)) / total) * 100);
+    });
+    return {
+      region: top(geographicVotes["Primary Geographic"]),
+      phenotype: top(phenotypeVotes["Primary Phenotype"]),
+      traits,
+    };
+  }, [geographicVotes, phenotypeVotes, physicalCharacteristics]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-bg flex items-center justify-center">
-        <div className="text-foreground">Loading profile...</div>
-      </div>
+      <AppLayout sidebar={false}>
+        <div className="flex flex-wrap gap-x-[72px] gap-y-12 pt-12" aria-busy="true">
+          <div className="aspect-[4/5] w-full max-w-[470px] animate-pulse rounded-[3px] bg-kt-wash" />
+          <div className="min-w-0 flex-1 space-y-4">
+            <div className="h-4 w-48 animate-pulse rounded-[3px] bg-kt-wash" />
+            <div className="h-14 w-2/3 animate-pulse rounded-[3px] bg-kt-wash" />
+            <div className="h-40 animate-pulse rounded-[3px] bg-kt-wash" />
+          </div>
+        </div>
+      </AppLayout>
     );
   }
 
@@ -124,71 +166,93 @@ export default function UserProfileDetail() {
 
   const isOwner = user?.id === profile.user_id;
   const canEdit = isOwner || isAdmin;
-
-  // Check if user has voted on any characteristic (geographic, phenotype, or physical)
-  const hasUserVotedAny = hasUserVoted || 
-    Object.keys(userGeographicVotes).length > 0 || 
-    Object.keys(physicalUserVotes).length > 0;
+  const isCommunity = profile.category === "User Profiles";
+  const categoryPath = `/category/${isCommunity ? "community" : getCategorySlug(profile.category)}`;
+  const categoryLabel = isCommunity ? "Community" : profile.category;
+  const isSaved = savedIds.has(profile.id);
+  const saveCount = indexProfiles.find((item) => item.id === profile.id)?.save_count ?? 0;
+  const hasUserVotedAny =
+    hasUserVoted || Object.keys(userGeographicVotes).length > 0 || Object.keys(physicalUserVotes).length > 0;
+  const creatorName = profileCreator?.creatorName || "a member";
+  const addedOn = new Date(profileCreator?.createdAt || profile.created_at);
 
   const handleDelete = async () => {
     try {
       await deleteProfile.mutateAsync({ profileId: profile.id, isAdmin });
-      navigate('/');
-    } catch (error) {
-      console.error('Error deleting profile:', error);
+      navigate("/");
+    } catch (deleteError) {
+      console.error("Error deleting profile:", deleteError);
     }
   };
 
-  // Preparar imagens para o carrossel
-  const images = [
-    { src: profile.front_image_url, alt: `${profile.name} - front`, label: "Front" }
+  const handleShare = async () => {
+    const url = `https://www.phenotypeindex.com/user-profile/${profile.slug}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${profile.name} | Phindex`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "The profile link is on your clipboard." });
+    } catch {
+      // Cancelar o diálogo de compartilhamento não é um erro.
+    }
+  };
+
+  const handleVote = () => (user ? setShowVoteModal(true) : setLoginOpen(true));
+
+  const photos = [
+    { key: "front" as const, src: profile.front_image_url, label: "fig. a · front" },
+    ...(profile.profile_image_url
+      ? [{ key: "side" as const, src: profile.profile_image_url, label: "fig. b · side" }]
+      : []),
   ];
-  
-  if (profile.profile_image_url) {
-    images.push({ 
-      src: profile.profile_image_url, 
-      alt: `${profile.name} - profile`, 
-      label: "Profile"
-    });
-  }
+  const current = photos.find((item) => item.key === photo) ?? photos[0];
 
   const profileUrl = `https://www.phenotypeindex.com/user-profile/${profile.slug}`;
-  const ogImage = profile.front_image_url;
-  const ogTitle = `${profile.name} Phenotype Profile | Phindex - Phenotype Index`;
   const ogDescription = `View ${profile.name}'s phenotype classification on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}. Vote on physical characteristics and compare phenotypes.`;
-  const ogKeywords = `${profile.name} phenotype, ${profile.name} ancestry, ${profile.name} physical traits, ${profile.country} phenotype`;
-
   const personSchema = {
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": profile.name,
-    "nationality": profile.country,
-    "image": ogImage,
-    "url": profileUrl,
-    "description": ogDescription
+    name: profile.name,
+    nationality: profile.country,
+    image: profile.front_image_url,
+    url: profileUrl,
+    description: ogDescription,
   };
-
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.phenotypeindex.com" },
-      { "@type": "ListItem", "position": 2, "name": profile.category, "item": `https://www.phenotypeindex.com/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}` },
-      { "@type": "ListItem", "position": 3, "name": profile.name, "item": profileUrl }
-    ]
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://www.phenotypeindex.com" },
+      { "@type": "ListItem", position: 2, name: profile.category, item: `https://www.phenotypeindex.com${categoryPath}` },
+      { "@type": "ListItem", position: 3, name: profile.name, item: profileUrl },
+    ],
   };
 
+  const facts: Array<[string, string]> = [
+    ["category", isCommunity ? "Community · anonymous" : [profile.category, profile.subcategory].filter(Boolean).join(" · ")],
+    ["country", profile.country],
+    ["known ancestry", profile.ancestry],
+    ["gender", profile.gender],
+    ["height", profile.height ? `${profile.height} m` : ""],
+    ["added", `${addedOn.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} by ${creatorName}`],
+  ].filter(([, value]) => Boolean(value)) as Array<[string, string]>;
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <AppLayout sidebar={false}>
       <Helmet>
-        <title>{ogTitle}</title>
+        <title>{`${profile.name} Phenotype Profile | Phindex - Phenotype Index`}</title>
         <meta name="description" content={ogDescription} />
-        <meta name="keywords" content={ogKeywords} />
+        <meta
+          name="keywords"
+          content={`${profile.name} phenotype, ${profile.name} ancestry, ${profile.name} physical traits, ${profile.country} phenotype`}
+        />
         <link rel="canonical" href={profileUrl} />
         <meta property="og:type" content="profile" />
         <meta property="og:title" content={`${profile.name} | Phindex - Phenotype Index`} />
         <meta property="og:description" content={ogDescription} />
-        <meta property="og:image" content={ogImage} />
+        <meta property="og:image" content={profile.front_image_url} />
         <meta property="og:image:width" content="800" />
         <meta property="og:image:height" content="800" />
         <meta property="og:image:type" content="image/jpeg" />
@@ -198,533 +262,194 @@ export default function UserProfileDetail() {
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content={`${profile.name} | Phindex`} />
         <meta name="twitter:description" content={`View ${profile.name}'s phenotype profile on Phindex.`} />
-        <meta name="twitter:image" content={ogImage} />
+        <meta name="twitter:image" content={profile.front_image_url} />
         <script type="application/ld+json">{JSON.stringify(personSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
-      <Header />
-      
-      <AppSidebar />
 
-      <main className="flex-1 px-4 pt-20 lg:pl-[21rem] lg:pr-6 lg:pb-12">
-        <div className="mx-auto max-w-4xl">
-          {/* Breadcrumbs */}
-          <div className="pt-6 mb-6">
-            <Breadcrumbs 
-              items={[
-                { 
-                  label: profile.category,
-                  href: `/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}`
-                },
-                { label: profile.name }
-              ]}
-              className="mb-4"
+      <Crumbs items={[{ label: "Discover", to: "/community" }, { label: categoryLabel, to: categoryPath }, { label: profile.name }]} />
+
+      <div className="mt-7 flex flex-wrap items-start gap-x-[clamp(40px,5vw,72px)] gap-y-12">
+        {/* ── FOTOS E FICHA ───────────────────────────────────────────── */}
+        <div className="min-w-0 max-w-[470px] flex-[1_1_340px]">
+          <figure className="m-0">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[3px] bg-kt-wash">
+              <FacePhoto src={current.src} alt={`${profile.name}, ${current.key} photo`} priority />
+              <span className="absolute bottom-3 right-3 rounded-full border border-kt-rule bg-white px-2.5 pb-1 pt-[3px] font-sc text-[13px] leading-[1.3] tracking-[0.06em] text-kt-slate">
+                {current.label}
+              </span>
+            </div>
+          </figure>
+          {photos.length > 1 && (
+            <div role="group" aria-label="Photos" className="mt-3 flex gap-3">
+              {photos.map((item) => {
+                const active = item.key === current.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    aria-label={`Show ${item.key} photo`}
+                    aria-pressed={active}
+                    onClick={() => setPhoto(item.key)}
+                    className={cn(
+                      "relative h-[92px] w-[76px] overflow-hidden rounded-[3px] bg-kt-wash p-0",
+                      active ? "border-2 border-kt-ink" : "border border-kt-rule"
+                    )}
+                  >
+                    <FacePhoto src={item.src} alt="" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <dl className="mb-0 mt-7 grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-2.5 border-t-[1.5px] border-kt-ink pt-[18px] text-[16px]">
+            {facts.map(([term, value]) => (
+              <div key={term} className="contents">
+                <dt className="pt-px font-sc text-[14px] tracking-[0.06em] text-kt-body">{term}</dt>
+                <dd className="m-0 break-words text-kt-ink">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        {/* ── LEITURA ─────────────────────────────────────────────────── */}
+        <div className="min-w-0 flex-[999_1_560px]">
+          <SC as="p" className="m-0 text-[15px] text-kt-teal">
+            {isCommunity ? "community profile" : `${profile.category.toLowerCase()} profile`}
+          </SC>
+          <h1 className="mb-0 mt-1.5 break-words text-[clamp(44px,5vw,68px)] font-medium leading-none tracking-[-0.022em] text-kt-ink">
+            {profile.name}
+          </h1>
+          <p className="mb-0 mt-2.5 text-[18px] italic text-kt-body">
+            Posted by {creatorName} · {profile.country} · {timeAgo(profile.created_at)}
+          </p>
+
+          <div className="mt-[26px] flex flex-wrap items-center gap-3">
+            <CenButton size="md" onClick={handleVote}>
+              {user ? (hasUserVotedAny ? "change your vote" : "vote on this face") : "log in to vote"}
+            </CenButton>
+            <button
+              type="button"
+              aria-pressed={isSaved}
+              onClick={() => (user ? toggleSaved.mutate({ profileId: profile.id, isSaved }) : setLoginOpen(true))}
+              className={cn(
+                "inline-flex h-[52px] items-center gap-2 rounded-full border-[1.5px] px-5 font-[inherit] text-[18px] transition-colors",
+                isSaved ? "border-kt-ink bg-kt-ink text-kt-paper" : "border-kt-teal bg-transparent text-kt-teal hover:bg-kt-teal/[0.06]"
+              )}
+            >
+              <Heart className={cn("h-[18px] w-[18px]", isSaved && "fill-current")} strokeWidth={1.6} aria-hidden="true" />
+              {isSaved ? "saved" : "save"}
+              <span className={isSaved ? "text-kt-b50" : "text-kt-body"}>{saveCount}</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Share this profile"
+              onClick={handleShare}
+              className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-full border border-kt-rule bg-white text-kt-slate hover:text-kt-ink"
+            >
+              <Share2 className="h-5 w-5" strokeWidth={1.6} aria-hidden="true" />
+            </button>
+            {canEdit && (
+              <div className="flex items-center gap-4 pl-1 text-[16px]">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(true)}
+                  className="min-h-[44px] border-0 bg-transparent p-0 font-[inherit] text-kt-teal underline underline-offset-4"
+                >
+                  edit
+                </button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="min-h-[44px] border-0 bg-transparent p-0 font-[inherit] text-destructive underline underline-offset-4"
+                    >
+                      delete
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete this profile?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Its votes and comments go with it. This can’t be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                        Yes, delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
+
+          <div data-voting-section>
+            <CommunityRead region={read.region} phenotype={read.phenotype} traits={read.traits} voters={totalVoteCount} />
+            <Classification geographic={geographicVotes} phenotype={phenotypeVotes} />
+            <TraitTable characteristics={physicalCharacteristics} />
+            <BlindRead
+              profileId={profile.id}
+              geographic={geographicVotes["Primary Geographic"] ?? []}
+              phenotype={phenotypeVotes["Primary Phenotype"] ?? []}
             />
           </div>
 
-          {/* Main Content */}
-          <div>
-            {/* Profile Images and Basic Info - Full width */}
-            <Card className="bg-gradient-card border-phindex-teal/20 mb-6">
-              <CardContent className="p-6">
-                <div className="text-center">
-                  {/* Photo carousel */}
-                  <div className="max-w-md mx-auto mb-4">
-                    <Carousel className="w-full">
-                      <CarouselContent>
-                        {images.map((image, index) => (
-                          <CarouselItem key={index}>
-                            <div className="text-center">
-                               <img 
-                                 src={image.src} 
-                                 alt={`${profile.name} phenotype profile photo`}
-                                 loading="lazy"
-                                 decoding="async"
-                                 className="profile-image-responsive rounded-lg mx-auto"
-                               />
-                              <p className="text-xs text-muted-foreground mt-2">{image.label}</p>
-                            </div>
-                          </CarouselItem>
-                        ))}
-                      </CarouselContent>
-                      {images.length > 1 && (
-                        <>
-                          <CarouselPrevious className="left-2" />
-                          <CarouselNext className="right-2" />
-                        </>
-                      )}
-                    </Carousel>
-                  </div>
-                  <h1 className="text-2xl font-bold text-phindex-teal mb-2">
-                    {profile.name}
-                  </h1>
-                  
-                  {/* Category Badge */}
-                  <div className="flex justify-center gap-2 mb-3 flex-wrap">
-                    <Badge
-                      variant="secondary"
-                      className="bg-phindex-teal/10 text-phindex-teal hover:bg-phindex-teal/20 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}`)}
-                    >
-                      {profile.category}
-                    </Badge>
-                    {profile.subcategory && (
-                      <Badge
-                        variant="outline"
-                        className="border-phindex-teal/30 text-phindex-teal hover:bg-phindex-teal/10 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/category/${profile.category === 'User Profiles' ? 'community' : getCategorySlug(profile.category)}`)}
-                      >
-                        {profile.subcategory}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  {/* General Phenotypes - Real Data */}
-                  <div className="flex justify-center gap-2 mb-3 flex-wrap">
-                    {[
-                      { label: '1º', votes: geographicVotes['Primary Geographic'] },
-                      { label: '2º', votes: geographicVotes['Secondary Geographic'] },
-                      { label: '3º', votes: geographicVotes['Tertiary Geographic'] }
-                    ].map((category, index) => {
-                      const topVote = category.votes?.[0];
-                      if (!topVote) {
-                        return (
-                          <Badge 
-                            key={category.label}
-                            variant="outline"
-                            className="bg-muted/10 text-muted-foreground"
-                          >
-                            {category.label} Undefined
-                          </Badge>
-                        );
-                      }
-                      
-                      return (
-                        <Badge 
-                          key={`${category.label}-${topVote.classification}`}
-                          variant={index === 0 ? "default" : index === 1 ? "secondary" : "outline"}
-                          className={
-                            index === 0 ? "bg-phindex-teal text-white font-medium shadow-md" :
-                            index === 1 ? "bg-phindex-teal/60 text-white font-medium" :
-                            "bg-phindex-teal/30 text-phindex-teal border-phindex-teal/40 font-medium"
-                          }
-                        >
-                          {category.label} {topVote.classification}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Phenotype Badges - Real Data */}
-                  <div className="flex justify-center gap-2 mb-4 flex-wrap">
-                    {[
-                      { label: '1º', votes: phenotypeVotes['Primary Phenotype'] },
-                      { label: '2º', votes: phenotypeVotes['Secondary Phenotype'] },
-                      { label: '3º', votes: phenotypeVotes['Tertiary Phenotype'] }
-                    ].map((category, index) => {
-                      const topVote = category.votes?.[0];
-                      if (!topVote) {
-                        return (
-                          <Badge 
-                            key={category.label}
-                            variant="outline"
-                            className="bg-muted/10 text-muted-foreground"
-                          >
-                            {category.label} Undefined
-                          </Badge>
-                        );
-                      }
-                      
-                      return (
-                        <Badge 
-                          key={`${category.label}-${topVote.classification}`}
-                          variant={index === 0 ? "default" : index === 1 ? "secondary" : "outline"}
-                          className={
-                            index === 0 ? "bg-phindex-teal text-white font-medium shadow-md" :
-                            index === 1 ? "bg-phindex-teal/60 text-white font-medium" :
-                            "bg-phindex-teal/30 text-phindex-teal border-phindex-teal/40 font-medium"
-                          }
-                        >
-                          {category.label} {topVote.classification}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  
-                  <p className="text-muted-foreground mb-2">
-                    {profile.gender} • {profile.height}m • {profile.country}
-                  </p>
-                  
-                  {/* Ancestry Description - Show to everyone */}
-                  {profile.ancestry && (
-                    <div className="mb-6 p-3 bg-gradient-to-br from-border/20 to-border/10 border border-border/40 rounded-xl shadow-sm">
-                      <div className="p-4 bg-muted/30 rounded-lg text-left">
-                        <h3 className="text-sm font-semibold text-phindex-teal mb-2">Known Ancestry</h3>
-                        <p className="text-sm text-foreground leading-relaxed">
-                          {profile.ancestry}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Created By Information */}
-                  <p className="text-xs text-muted-foreground text-center mb-6 -mt-2">
-                    Created by <span className="font-medium text-phindex-teal">{profileCreator?.creatorName || 'User'}</span> on {profileCreator?.createdAt ? new Date(profileCreator.createdAt).toLocaleDateString('en-US') : new Date(profile.created_at).toLocaleDateString('en-US')}
-                  </p>
-                  
-                   <div className="flex justify-center gap-4 mb-6">
-                     <div 
-                       className="flex items-center gap-2 cursor-pointer hover:text-phindex-teal"
-                       onClick={() => {
-                         const votingSection = document.querySelector('[data-voting-section]');
-                         if (votingSection) {
-                           votingSection.scrollIntoView({ behavior: 'smooth' });
-                         }
-                       }}
-                     >
-                       <Vote className="h-4 w-4 text-phindex-teal" />
-                       <span>{primaryGeographicTotalVotes} votes</span>
-                     </div>
-                     <div 
-                       className="flex items-center gap-2 cursor-pointer hover:text-phindex-teal"
-                       onClick={() => {
-                         const commentsSection = document.querySelector('[data-comments-section]');
-                         if (commentsSection) {
-                           commentsSection.scrollIntoView({ behavior: 'smooth' });
-                         }
-                       }}
-                     >
-                       <MessageSquare className="h-4 w-4 text-blue-500" />
-                       <span>{realComments.length} comments</span>
-                     </div>
-                     {canEdit && (
-                       <>
-                         <div 
-                           className="flex items-center gap-2 cursor-pointer hover:text-phindex-teal transition-colors"
-                           onClick={() => setShowEditModal(true)}
-                         >
-                           <Edit className="h-4 w-4 text-phindex-teal" />
-                           <span>Edit</span>
-                         </div>
-                         <AlertDialog>
-                           <AlertDialogTrigger asChild>
-                             <div className="flex items-center gap-2 cursor-pointer hover:text-red-500 transition-colors">
-                               <Trash2 className="h-4 w-4 text-red-500" />
-                               <span className="text-red-500">Delete</span>
-                             </div>
-                           </AlertDialogTrigger>
-                           <AlertDialogContent>
-                             <AlertDialogHeader>
-                                <AlertDialogTitle>Confirm deletion</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this profile? This action cannot be undone.
-                                </AlertDialogDescription>
-                             </AlertDialogHeader>
-                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={handleDelete}
-                                  className="bg-red-500 hover:bg-red-600"
-                                >
-                                  Yes, delete
-                                </AlertDialogAction>
-                             </AlertDialogFooter>
-                           </AlertDialogContent>
-                         </AlertDialog>
-                       </>
-                     )}
-                   </div>
-
-                   <div className="space-y-2">
-                     {user ? (
-                       hasUserVotedAny ? (
-                          <div className="space-y-2">
-                           <Button 
-                             onClick={() => setShowVoteModal(true)}
-                             className="w-full"
-                             variant="outline"
-                           >
-                             <Users className="mr-2 h-4 w-4" />
-                             Change vote
-                           </Button>
-                         </div>
-                       ) : (
-                         <Button 
-                           onClick={() => setShowVoteModal(true)}
-                           className="w-full"
-                           variant="default"
-                         >
-                           <Users className="mr-2 h-4 w-4" />
-                           Vote
-                         </Button>
-                       )
-                     ) : (
-                      <Button 
-                        onClick={() => setShowVoteModal(true)}
-                        className="w-full"
-                        variant="outline"
-                        disabled
-                      >
-                        <Users className="mr-2 h-4 w-4" />
-                        Login to vote
-                      </Button>
-                     )}
-                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Two-column layout for classifications - Each 50% width */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6" data-voting-section>
-              {/* General Phenotype Classification */}
-              <Card className="bg-gradient-card border-phindex-teal/20">
-                <CardHeader>
-                  <CardTitle className="text-phindex-teal">General Phenotype Classification</CardTitle>
-                </CardHeader>
-                 <CardContent className="min-h-52">
-                   <div className="space-y-4">
-                     {/* Primary Geographic Classification */}
-                     <div className="bg-muted/30 p-3 rounded-lg">
-                       <h4 className="text-sm font-semibold text-phindex-teal mb-3">Primary</h4>
-                       {geographicVotes['Primary Geographic']?.length > 0 ? (
-                         <div className="space-y-2">
-                           {geographicVotes['Primary Geographic'].slice(0, 3).map((vote, index) => (
-                             <div key={vote.classification} className="space-y-1">
-                               <div className="flex items-center justify-between">
-                                 <Badge variant={index === 0 ? "default" : "outline"} className="text-xs">
-                                   {vote.classification}
-                                 </Badge>
-                                 <span className="text-xs">{vote.percentage.toFixed(1)}% ({vote.count})</span>
-                               </div>
-                               <Progress value={vote.percentage} className="h-1" />
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                          <p className="text-xs text-muted-foreground">No votes yet</p>
-                       )}
-                     </div>
-
-                     {/* Secondary Geographic Classification */}
-                     <div className="bg-muted/30 p-3 rounded-lg">
-                       <h4 className="text-sm font-semibold text-phindex-teal mb-3">Secondary</h4>
-                       {geographicVotes['Secondary Geographic']?.length > 0 ? (
-                         <div className="space-y-2">
-                           {geographicVotes['Secondary Geographic'].slice(0, 3).map((vote, index) => (
-                             <div key={vote.classification} className="space-y-1">
-                               <div className="flex items-center justify-between">
-                                 <Badge variant={index === 0 ? "default" : "outline"} className="text-xs">
-                                   {vote.classification}
-                                 </Badge>
-                                 <span className="text-xs">{vote.percentage.toFixed(1)}% ({vote.count})</span>
-                               </div>
-                               <Progress value={vote.percentage} className="h-1" />
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                          <p className="text-xs text-muted-foreground">No votes yet</p>
-                       )}
-                     </div>
-
-                     {/* Tertiary Geographic Classification */}
-                     <div className="bg-muted/30 p-3 rounded-lg">
-                       <h4 className="text-sm font-semibold text-phindex-teal mb-3">Tertiary</h4>
-                       {geographicVotes['Tertiary Geographic']?.length > 0 ? (
-                         <div className="space-y-2">
-                           {geographicVotes['Tertiary Geographic'].slice(0, 3).map((vote, index) => (
-                             <div key={vote.classification} className="space-y-1">
-                               <div className="flex items-center justify-between">
-                                 <Badge variant={index === 0 ? "default" : "outline"} className="text-xs">
-                                   {vote.classification}
-                                 </Badge>
-                                 <span className="text-xs">{vote.percentage.toFixed(1)}% ({vote.count})</span>
-                               </div>
-                               <Progress value={vote.percentage} className="h-1" />
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                          <p className="text-xs text-muted-foreground">No votes yet</p>
-                       )}
-                     </div>
-                   </div>
-                 </CardContent>
-              </Card>
-
-              {/* Specific Phenotype Classification */}
-              <Card className="bg-gradient-card border-phindex-teal/20">
-                <CardHeader>
-                  <CardTitle className="text-phindex-teal">Specific Phenotype Classification</CardTitle>
-                </CardHeader>
-                 <CardContent className="min-h-52">
-                   <div className="space-y-4">
-                     {/* Primary Phenotype Classification */}
-                     <div className="bg-muted/30 p-3 rounded-lg">
-                       <h4 className="text-sm font-semibold text-phindex-teal mb-3">Primary</h4>
-                       {phenotypeVotes['Primary Phenotype']?.length > 0 ? (
-                         <div className="space-y-2">
-                           {phenotypeVotes['Primary Phenotype'].slice(0, 3).map((vote, index) => (
-                             <div key={vote.classification} className="space-y-1">
-                               <div className="flex items-center justify-between">
-                                 <Badge variant={index === 0 ? "default" : "outline"} className="text-xs">
-                                   {vote.classification}
-                                 </Badge>
-                                 <span className="text-xs">{vote.percentage.toFixed(1)}% ({vote.count})</span>
-                               </div>
-                               <Progress value={vote.percentage} className="h-1" />
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                          <p className="text-xs text-muted-foreground">No votes yet</p>
-                       )}
-                     </div>
-
-                     {/* Secondary Phenotype Classification */}
-                     <div className="bg-muted/30 p-3 rounded-lg">
-                       <h4 className="text-sm font-semibold text-phindex-teal mb-3">Secondary</h4>
-                       {phenotypeVotes['Secondary Phenotype']?.length > 0 ? (
-                         <div className="space-y-2">
-                           {phenotypeVotes['Secondary Phenotype'].slice(0, 3).map((vote, index) => (
-                             <div key={vote.classification} className="space-y-1">
-                               <div className="flex items-center justify-between">
-                                 <Badge variant={index === 0 ? "default" : "outline"} className="text-xs">
-                                   {vote.classification}
-                                 </Badge>
-                                 <span className="text-xs">{vote.percentage.toFixed(1)}% ({vote.count})</span>
-                               </div>
-                               <Progress value={vote.percentage} className="h-1" />
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                          <p className="text-xs text-muted-foreground">No votes yet</p>
-                       )}
-                     </div>
-
-                     {/* Tertiary Phenotype Classification */}
-                     <div className="bg-muted/30 p-3 rounded-lg">
-                       <h4 className="text-sm font-semibold text-phindex-teal mb-3">Tertiary</h4>
-                       {phenotypeVotes['Tertiary Phenotype']?.length > 0 ? (
-                         <div className="space-y-2">
-                           {phenotypeVotes['Tertiary Phenotype'].slice(0, 3).map((vote, index) => (
-                             <div key={vote.classification} className="space-y-1">
-                               <div className="flex items-center justify-between">
-                                 <Badge variant={index === 0 ? "default" : "outline"} className="text-xs">
-                                   {vote.classification}
-                                 </Badge>
-                                 <span className="text-xs">{vote.percentage.toFixed(1)}% ({vote.count})</span>
-                               </div>
-                               <Progress value={vote.percentage} className="h-1" />
-                             </div>
-                           ))}
-                         </div>
-                       ) : (
-                         <p className="text-xs text-muted-foreground">No votes yet</p>
-                       )}
-                     </div>
-                   </div>
-                 </CardContent>
-              </Card>
-            </div>
-
-            {/* Physical Characteristics - Full width */}
-            <Card className="bg-gradient-card border-phindex-teal/20 mb-6">
-              <CardHeader>
-                <CardTitle className="text-phindex-teal">Physical Characteristics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6">
-                  {physicalCharacteristics.map((characteristic, index) => (
-                    <PhysicalCharacteristicVoting
-                      key={index}
-                      characteristic={characteristic}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Comments Section */}
-            <div data-comments-section>
-              <CommentsSection 
-                profileId={profile.id}
-                onAddComment={addComment}
-                onLikeComment={likeComment}
-                onDeleteComment={deleteComment}
-                currentUserId={user?.id}
-                comments={realComments}
-              />
-            </div>
-
-            {/* Vote Modal */}
-            {showVoteModal && user && (
-              <VoteModal
-                isOpen={showVoteModal}
-                onClose={() => setShowVoteModal(false)}
-                profileId={profile.id}
-                existingVotes={{
-                  "Primary Phenotype": userVote || "",
-                  ...physicalUserVotes,
-                  ...userGeographicVotes
-                }}
-                profileImages={{
-                  frontImage: profile.front_image_url,
-                  profileImage: profile.profile_image_url,
-                  profileName: profile.name,
-                  ancestry: profile.ancestry
-                }}
-                 onSubmit={async (votes) => {
-                   // Cast geographic and phenotype classification votes
-                   const geographicCharacteristics = [
-                     'Primary Geographic', 'Secondary Geographic', 'Tertiary Geographic',
-                     'Primary Phenotype', 'Secondary Phenotype', 'Tertiary Phenotype'
-                   ];
-                   
-                   let mainVoteSuccess = true;
-                   for (const characteristic of geographicCharacteristics) {
-                     if (votes[characteristic]) {
-                       const success = await castGeographicVote(characteristic, votes[characteristic]);
-                       if (characteristic === 'Primary Phenotype') {
-                         mainVoteSuccess = success;
-                       }
-                     }
-                   }
-                  
-                    // Cast physical characteristics votes
-                    const physicalCharacteristics = [
-                      'Skin Color', 'Hair Color', 'Hair Texture', 'Head Breadth', 'Head Type',
-                      'Body Type', 'Nasal Breadth', 'Facial Breadth', 'Jaw Type',
-                      'Eye Color'
-                    ];
-                  
-                  for (const characteristic of physicalCharacteristics) {
-                    if (votes[characteristic]) {
-                      await castPhysicalVote(characteristic, votes[characteristic]);
-                    }
-                  }
-                  
-                   // Refresh geographic votes to update any charts
-                   await refetchGeographicVotes();
-                   await refetchVoteCounts();
-                   
-                   if (mainVoteSuccess) {
-                     setShowVoteModal(false);
-                     // Refresh the page to show updated results
-                     window.location.reload();
-                   }
-                }}
-              />
-            )}
+          <div data-comments-section id="comments">
+            <CommentsSection
+              profileId={profile.id}
+              onAddComment={addComment}
+              onLikeComment={likeComment}
+              onDeleteComment={deleteComment}
+              currentUserId={user?.id}
+              comments={realComments}
+            />
           </div>
         </div>
-      </main>
+      </div>
 
-      <Footer />
-      <BottomNav />
+      {showVoteModal && user && (
+        <VoteModal
+          isOpen={showVoteModal}
+          onClose={() => setShowVoteModal(false)}
+          profileId={profile.id}
+          existingVotes={{
+            "Primary Phenotype": userVote || "",
+            ...physicalUserVotes,
+            ...userGeographicVotes,
+          }}
+          community={{
+            geographic: geographicVotes,
+            phenotype: phenotypeVotes,
+            physical: physicalCharacteristics,
+          }}
+          profileImages={{
+            frontImage: profile.front_image_url,
+            profileImage: profile.profile_image_url,
+            profileName: profile.name,
+            ancestry: profile.ancestry,
+          }}
+          onSubmit={async (votes) => {
+            let mainVoteSuccess = true;
+            for (const characteristic of CLASSIFICATION_KEYS) {
+              if (votes[characteristic]) {
+                const success = await castGeographicVote(characteristic, votes[characteristic]);
+                if (characteristic === "Primary Phenotype") mainVoteSuccess = success;
+              }
+            }
+            for (const characteristic of PHYSICAL_KEYS) {
+              if (votes[characteristic]) await castPhysicalVote(characteristic, votes[characteristic]);
+            }
+            await refetchGeographicVotes();
+            await refetchVoteCounts();
+            return mainVoteSuccess;
+          }}
+          onFinished={() => window.location.reload()}
+        />
+      )}
 
-      {/* Edit Modal */}
       {showEditModal && (
         <EditUserProfileModal
           profile={profile}
@@ -733,6 +458,7 @@ export default function UserProfileDetail() {
           isAdmin={isAdmin}
         />
       )}
-    </div>
+      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+    </AppLayout>
   );
 }

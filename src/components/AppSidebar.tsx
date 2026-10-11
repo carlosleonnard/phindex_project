@@ -1,275 +1,185 @@
 /**
- * SIDEBAR (AppSidebar.tsx)
+ * MENU LATERAL (AppSidebar.tsx)
  *
- * Navegação persistente em telas largas. Três grupos, do mais usado ao menos:
- * destinos principais, recortes do acervo (regiões e categorias) e suporte.
+ * Navegação persistente em telas largas, no fluxo da página (não fixa): três
+ * grupos, do mais usado ao menos — destinos principais, recortes do acervo
+ * (regiões e categorias) e suporte.
  *
- * As regiões trazem um ponto colorido — os únicos pontos não-teal da
- * navegação, que servem para achar a linha sem ler o rótulo.
+ * O item ativo vira uma cápsula tinta. As regiões levam o ponto da sua cor, os
+ * únicos pontos não-teal da navegação. Das doze categorias, cinco aparecem; as
+ * demais abrem sob demanda — a menos que a ativa esteja escondida, caso em que a
+ * lista já nasce aberta.
  *
- * As categorias são doze; mostrar todas empurrava suporte para fora da
- * primeira tela. Quatro ficam visíveis e o resto abre sob demanda — a menos
- * que a categoria ativa esteja entre as escondidas, caso em que a lista já
- * nasce aberta para a página atual aparecer marcada.
+ * `SidebarNav` é reaproveitado pela gaveta do mobile, no cabeçalho.
  */
 
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Separator } from "@/components/ui/separator";
+import { Link, useLocation } from "react-router-dom";
+import { Bookmark, Compass, Gamepad2, LogOut, Trophy, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { CONTINENT_ORDER, CONTINENT_META } from "@/constants/regions";
-import { CATEGORY_SLUG_MAP } from "@/constants/categories";
+import { CATEGORY_OPTIONS, CATEGORY_SLUG_MAP } from "@/constants/categories";
+import { RegionDot } from "@/components/kt/Misc";
 import { cn } from "@/lib/utils";
-import {
-  Users,
-  Film,
-  Music,
-  Palette,
-  Brain,
-  Microscope,
-  Trophy,
-  Briefcase,
-  Building,
-  Skull,
-  Church,
-  Shield,
-  GitBranch,
-  HelpCircle,
-  LogOut,
-  Mail,
-  Award,
-  Gamepad2,
-  Home,
-  Compass,
-  Bookmark,
-  ChevronDown,
-} from "lucide-react";
 
-/** Destinos de descoberta, espelhando a bottom nav do mobile. */
+/**
+ * O feed aponta para /community, não para "/": na raiz o visitante sem sessão
+ * recebe a landing, e a navegação precisa mantê-lo dentro do produto.
+ */
 const PRIMARY_NAV = [
-  { Icon: Home, name: "Home", path: "/" },
+  { Icon: Users, name: "Community", path: "/community" },
   { Icon: Compass, name: "Explore", path: "/explore" },
-  { Icon: Gamepad2, name: "Guess the phenotype", path: "/game", badge: "DAILY" },
-  { Icon: Award, name: "Leaderboard", path: "/leaderboard" },
+  { Icon: Gamepad2, name: "Guess the phenotype", path: "/game", badge: "daily" },
+  { Icon: Trophy, name: "Leaderboard", path: "/leaderboard" },
   { Icon: Bookmark, name: "Saved", path: "/saved" },
 ];
 
-/** As quatro primeiras aparecem sempre; as demais ficam atrás de "Show all". */
-const CATEGORIES = [
-  { Icon: Users, name: "Community" },
-  { Icon: Film, name: "Pop Culture" },
-  { Icon: Building, name: "Politics" },
-  { Icon: Shield, name: "Military" },
-  { Icon: Music, name: "Music and Entertainment" },
-  { Icon: Palette, name: "Arts" },
-  { Icon: Brain, name: "Philosophy" },
-  { Icon: Microscope, name: "Sciences" },
-  { Icon: Trophy, name: "Sports" },
-  { Icon: Briefcase, name: "Business" },
-  { Icon: Skull, name: "Criminals" },
-  { Icon: Church, name: "Religion" },
-];
+const CATEGORIES = ["Community", ...CATEGORY_OPTIONS];
 
-const VISIBLE_CATEGORIES = 4;
+/** As que ficam sempre visíveis, na ordem do layout. */
+const PINNED_CATEGORIES = ["Community", "Pop Culture", "Music and Entertainment", "Sciences", "Sports"];
 
 const SUPPORT_NAV = [
-  { Icon: GitBranch, name: "Phenotype flow", path: "/phenotype-flow" },
-  { Icon: HelpCircle, name: "Help & FAQ", path: "/faq" },
-  { Icon: Mail, name: "Contact", path: "/contact" },
+  { name: "Phenotype flow", path: "/phenotype-flow" },
+  { name: "Help & FAQ", path: "/faq" },
+  { name: "Contact", path: "/contact" },
 ];
 
-/** Rótulo de grupo. Discreto por definição: organiza sem competir com os itens. */
-const GroupLabel = ({ children }: { children: React.ReactNode }) => (
-  <h3 className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-    {children}
-  </h3>
-);
+const categorySlug = (name: string) =>
+  CATEGORY_SLUG_MAP[name] || name.toLowerCase().replace(/\s+/g, "-");
 
-/**
- * Uma linha de navegação. O estado ativo é marcado por fundo + cor + peso, não
- * só por cor: quem não distingue teal de cinza ainda vê onde está.
- */
-const NavRow = ({
-  icon: Icon,
-  label,
-  isActive,
-  onClick,
-  badge,
-  dot,
-}: {
-  icon?: typeof Home;
-  label: string;
-  isActive?: boolean;
-  onClick: () => void;
-  badge?: string;
-  dot?: string;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-current={isActive ? "page" : undefined}
-    className={cn(
-      "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left",
-      "transition-colors duration-150",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-      isActive
-        ? "bg-primary/10 font-semibold text-primary"
-        : "text-foreground hover:bg-muted/70"
-    )}
-  >
-    {Icon && (
-      <Icon
-        className={cn(
-          "h-[18px] w-[18px] shrink-0 transition-colors",
-          isActive ? "text-primary" : "text-primary/70 group-hover:text-primary"
-        )}
-      />
-    )}
-
-    {dot && (
-      <span
-        aria-hidden="true"
-        className="h-2 w-2 shrink-0 rounded-full"
-        style={{ backgroundColor: `hsl(${dot})` }}
-      />
-    )}
-
-    <span className="min-w-0 flex-1 truncate text-[15px]">{label}</span>
-
-    {badge && (
-      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-        {badge}
-      </span>
-    )}
-  </button>
-);
-
-export const AppSidebar = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { signOut } = useAuth();
-  const [showAllCategories, setShowAllCategories] = useState(false);
-
-  const categorySlug = (name: string) =>
-    CATEGORY_SLUG_MAP[name] || name.toLowerCase().replace(/\s+/g, "-");
-
-  const isCategoryActive = (name: string) =>
-    location.pathname === `/category/${categorySlug(name)}`;
-
-  // Uma categoria escondida e ativa força a lista aberta: a página atual
-  // precisa aparecer marcada mesmo sem o usuário ter clicado em "Show all".
-  const hiddenActive = CATEGORIES.slice(VISIBLE_CATEGORIES).some((category) =>
-    isCategoryActive(category.name)
+const rowClass = (active: boolean) =>
+  cn(
+    "flex min-h-[44px] items-center gap-3 rounded-full px-4 no-underline transition-colors duration-200",
+    active ? "bg-kt-ink text-kt-paper" : "text-kt-slate hover:bg-kt-wash2"
   );
-  const categoriesExpanded = showAllCategories || hiddenActive;
-  const visibleCategories = categoriesExpanded
-    ? CATEGORIES
-    : CATEGORIES.slice(0, VISIBLE_CATEGORIES);
+
+const GroupLabel = ({ children }: { children: React.ReactNode }) => (
+  <h2 className="mb-1.5 mt-8 pl-4 font-sc text-[14px] font-semibold tracking-[0.07em] text-kt-body first:mt-0">
+    {children}
+  </h2>
+);
+
+export const SidebarNav = ({ onNavigate }: { onNavigate?: () => void }) => {
+  const location = useLocation();
+  const { user, signOut } = useAuth();
+  const [showAll, setShowAll] = useState(false);
+
+  const isCategoryActive = (name: string) => location.pathname === `/category/${categorySlug(name)}`;
+  const hiddenActive = CATEGORIES.filter((name) => !PINNED_CATEGORIES.includes(name)).some(isCategoryActive);
+  const expanded = showAll || hiddenActive;
+  const visibleCategories = expanded ? CATEGORIES : PINNED_CATEGORIES;
 
   return (
-    <div className="fixed left-0 top-16 z-40 hidden h-[calc(100vh-4rem)] w-80 lg:block">
-      <nav
-        aria-label="Main"
-        className="h-full overflow-y-auto overscroll-contain border-r border-border/60 bg-card px-4 py-5 scrollbar-hide"
-      >
-        <ul className="space-y-0.5">
-          {PRIMARY_NAV.map((item) => (
-            <li key={item.path}>
-              <NavRow
-                icon={item.Icon}
-                label={item.name}
-                badge={item.badge}
-                isActive={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-              />
-            </li>
-          ))}
-        </ul>
-
-        <Separator className="my-5" />
-
-        <section>
-          <GroupLabel>Regions</GroupLabel>
-          <ul className="space-y-0.5">
-            {CONTINENT_ORDER.map((continent) => {
-              const meta = CONTINENT_META[continent];
-              return (
-                <li key={continent}>
-                  <NavRow
-                    label={continent}
-                    dot={meta.dot}
-                    isActive={location.pathname === `/region/${meta.slug}`}
-                    onClick={() => navigate(`/region/${meta.slug}`)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <Separator className="my-5" />
-
-        <section>
-          <GroupLabel>Categories</GroupLabel>
-          <ul className="space-y-0.5">
-            {visibleCategories.map((category) => (
-              <li key={category.name}>
-                <NavRow
-                  icon={category.Icon}
-                  label={category.name}
-                  isActive={isCategoryActive(category.name)}
-                  onClick={() => navigate(`/category/${categorySlug(category.name)}`)}
-                />
+    <div className="text-[16px]">
+      <nav aria-label="Primary">
+        <ul className="flex flex-col gap-0.5">
+          {PRIMARY_NAV.map(({ Icon, name, path, badge }) => {
+            // Com sessão, "/" também mostra o feed.
+            const active = location.pathname === path || (path === "/community" && location.pathname === "/");
+            return (
+              <li key={path}>
+                <Link
+                  to={path}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={rowClass(active)}
+                >
+                  <Icon className="h-[19px] w-[19px] shrink-0" strokeWidth={1.6} aria-hidden="true" />
+                  <span className="min-w-0 flex-1 py-1.5 leading-[1.2]">{name}</span>
+                  {badge && !active && (
+                    <span className="shrink-0 rounded-full border border-kt-b50 px-[7px] font-sc text-[12px] tracking-[0.06em] text-kt-teal">
+                      {badge}
+                    </span>
+                  )}
+                </Link>
               </li>
-            ))}
-          </ul>
+            );
+          })}
+        </ul>
+      </nav>
 
-          {!hiddenActive && (
+      <GroupLabel>regions</GroupLabel>
+      <ul className="flex flex-col">
+        {CONTINENT_ORDER.map((continent) => {
+          const path = `/region/${CONTINENT_META[continent].slug}`;
+          const active = location.pathname === path;
+          return (
+            <li key={continent}>
+              <Link to={path} onClick={onNavigate} aria-current={active ? "page" : undefined} className={rowClass(active)}>
+                <RegionDot continent={continent} ring={active} />
+                {continent}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      <GroupLabel>categories</GroupLabel>
+      <ul className="flex flex-col">
+        {visibleCategories.map((name) => {
+          const active = isCategoryActive(name);
+          return (
+            <li key={name}>
+              <Link
+                to={`/category/${categorySlug(name)}`}
+                onClick={onNavigate}
+                aria-current={active ? "page" : undefined}
+                className={rowClass(active)}
+              >
+                {name}
+              </Link>
+            </li>
+          );
+        })}
+        {!hiddenActive && (
+          <li>
             <button
               type="button"
-              onClick={() => setShowAllCategories((open) => !open)}
-              aria-expanded={categoriesExpanded}
-              className="mt-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[15px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setShowAll((open) => !open)}
+              aria-expanded={expanded}
+              className="flex min-h-[44px] w-full items-center rounded-full border-0 bg-transparent px-4 text-left font-[inherit] text-[16px] italic text-kt-teal hover:bg-kt-wash2"
             >
-              <ChevronDown
-                className={cn(
-                  "h-[18px] w-[18px] shrink-0 transition-transform duration-200",
-                  categoriesExpanded && "rotate-180"
-                )}
-              />
-              {categoriesExpanded ? "Show less" : `Show all ${CATEGORIES.length}`}
+              {expanded ? "fewer categories" : `all ${CATEGORIES.length} categories`}
             </button>
-          )}
-        </section>
+          </li>
+        )}
+      </ul>
 
-        <Separator className="my-5" />
-
-        <section className="pb-4">
-          <GroupLabel>Support</GroupLabel>
-          <ul className="space-y-0.5">
-            {SUPPORT_NAV.map((item) => (
-              <li key={item.path}>
-                <NavRow
-                  icon={item.Icon}
-                  label={item.name}
-                  isActive={location.pathname === item.path}
-                  onClick={() => navigate(item.path)}
-                />
-              </li>
-            ))}
-            <li>
-              <button
-                type="button"
-                onClick={() => signOut()}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[15px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <LogOut className="h-[18px] w-[18px] shrink-0" />
-                Log out
-              </button>
+      <GroupLabel>support</GroupLabel>
+      <ul className="flex flex-col">
+        {SUPPORT_NAV.map(({ name, path }) => {
+          const active = location.pathname === path;
+          return (
+            <li key={path}>
+              <Link to={path} onClick={onNavigate} aria-current={active ? "page" : undefined} className={rowClass(active)}>
+                {name}
+              </Link>
             </li>
-          </ul>
-        </section>
-      </nav>
+          );
+        })}
+        {user && (
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                onNavigate?.();
+                signOut();
+              }}
+              className="flex min-h-[44px] w-full items-center gap-3 rounded-full border-0 bg-transparent px-4 text-left font-[inherit] text-[16px] text-kt-body hover:bg-kt-wash2"
+            >
+              <LogOut className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" />
+              Log out
+            </button>
+          </li>
+        )}
+      </ul>
     </div>
   );
 };
+
+export const AppSidebar = () => (
+  <aside aria-label="Sections" className="hidden w-[212px] shrink-0 lg:block">
+    <SidebarNav />
+  </aside>
+);

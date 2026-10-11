@@ -1,5 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetch-all';
+
+/**
+ * DADOS DA PÁGINA DE MEMBRO (use-member-data.tsx)
+ *
+ * Perfil público, estatísticas, insígnias (com os limiares de cada nível para
+ * desenhar o progresso), comentários recentes com o rosto comentado, curtidas
+ * recebidas (total + as últimas, com quem curtiu) e as partidas do jogo.
+ */
 
 export interface MemberProfile {
   id: string;
@@ -28,12 +37,33 @@ export interface MemberBadge {
   };
 }
 
+export interface BadgeThreshold {
+  category: string;
+  level: number;
+  threshold: number;
+}
+
 export interface MemberComment {
   id: string;
   content: string;
   created_at: string;
   profile_id: string;
   likes_count: number | null;
+  profileName: string | null;
+  profileSlug: string | null;
+}
+
+export interface MemberLike {
+  id: string;
+  created_at: string;
+  likerNickname: string | null;
+}
+
+export interface MemberGame {
+  score: number;
+  total_questions: number;
+  difficulty: string | null;
+  created_at: string;
 }
 
 export const useMemberData = (userId: string) => {
@@ -44,9 +74,9 @@ export const useMemberData = (userId: string) => {
         .from('profiles')
         .select('id, nickname, avatar_url, created_at')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data as MemberProfile;
+      return (data as MemberProfile | null) ?? null;
     },
     enabled: !!userId,
   });
@@ -83,6 +113,17 @@ export const useMemberData = (userId: string) => {
     enabled: !!userId,
   });
 
+  // Limiares de todos os níveis: são os mesmos para todo mundo.
+  const thresholds = useQuery({
+    queryKey: ['badge-thresholds'],
+    staleTime: 60 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('badge_definitions').select('category, level, threshold');
+      if (error) throw error;
+      return (data || []) as BadgeThreshold[];
+    },
+  });
+
   const recentComments = useQuery({
     queryKey: ['member-comments', userId],
     queryFn: async () => {
@@ -94,33 +135,70 @@ export const useMemberData = (userId: string) => {
         .order('created_at', { ascending: false })
         .limit(5);
       if (error) throw error;
-      return data as MemberComment[];
+      const rows = data || [];
+      const profileIds = [...new Set(rows.map((row) => row.profile_id))];
+      const { data: profiles } = profileIds.length
+        ? await supabase.from('user_profiles').select('id, name, slug').in('id', profileIds)
+        : { data: [] as { id: string; name: string; slug: string }[] };
+      const byId = new Map((profiles || []).map((row) => [row.id, row]));
+      return rows.map((row) => ({
+        ...row,
+        profileName: byId.get(row.profile_id)?.name ?? null,
+        profileSlug: byId.get(row.profile_id)?.slug ?? null,
+      })) as MemberComment[];
     },
     enabled: !!userId,
   });
 
-  const likesReceived = useQuery({
+  const likes = useQuery({
     queryKey: ['member-likes-received', userId],
+    queryFn: async (): Promise<{ total: number; recent: MemberLike[] }> => {
+      const { data: userComments } = await supabase.from('comments').select('id').eq('user_id', userId);
+      if (!userComments || userComments.length === 0) return { total: 0, recent: [] };
+      const commentIds = userComments.map((comment) => comment.id);
+
+      const [countResult, recentResult] = await Promise.all([
+        supabase.from('comment_likes').select('id', { count: 'exact', head: true }).in('comment_id', commentIds),
+        supabase
+          .from('comment_likes')
+          .select('id, created_at, user_id')
+          .in('comment_id', commentIds)
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ]);
+      if (recentResult.error) throw recentResult.error;
+
+      const likerIds = [...new Set((recentResult.data || []).map((row) => row.user_id))];
+      const { data: likers } = likerIds.length
+        ? await supabase.from('profiles').select('id, nickname').in('id', likerIds)
+        : { data: [] as { id: string; nickname: string }[] };
+      const nicknameById = new Map((likers || []).map((row) => [row.id, row.nickname]));
+
+      return {
+        total: countResult.count ?? (recentResult.data || []).length,
+        recent: (recentResult.data || []).map((row) => ({
+          id: row.id,
+          created_at: row.created_at,
+          likerNickname: nicknameById.get(row.user_id) ?? null,
+        })),
+      };
+    },
+    enabled: !!userId,
+  });
+
+  const games = useQuery({
+    queryKey: ['member-games', userId],
     queryFn: async () => {
-      // Get the user's comment IDs first
-      const { data: userComments } = await supabase
-        .from('comments')
-        .select('id')
-        .eq('user_id', userId);
-
-      if (!userComments || userComments.length === 0) return [];
-
-      const commentIds = userComments.map(c => c.id);
-
-      const { data, error } = await supabase
-        .from('comment_likes')
-        .select('id, created_at, comment_id')
-        .in('comment_id', commentIds)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
+      const { data, error } = await fetchAllRows<MemberGame>((from, to) =>
+        supabase
+          .from('game_results')
+          .select('score, total_questions, difficulty, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true })
+          .range(from, to)
+      );
       if (error) throw error;
-      return data || [];
+      return data;
     },
     enabled: !!userId,
   });
@@ -129,8 +207,11 @@ export const useMemberData = (userId: string) => {
     profile: profile.data,
     stats: stats.data,
     badges: badges.data ?? [],
+    thresholds: thresholds.data ?? [],
     recentComments: recentComments.data ?? [],
-    likesReceived: likesReceived.data ?? [],
+    likesTotal: likes.data?.total ?? 0,
+    recentLikes: likes.data?.recent ?? [],
+    games: games.data ?? [],
     isLoading: profile.isLoading,
   };
 };

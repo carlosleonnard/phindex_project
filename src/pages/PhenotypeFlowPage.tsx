@@ -1,8 +1,6 @@
 import { Helmet } from "react-helmet-async";
-import { Header } from "@/components/Header";
-import { BottomNav } from "@/components/BottomNav";
-import { AppSidebar } from "@/components/AppSidebar";
-import { Footer } from "@/components/Footer";
+import { AppLayout } from "@/components/AppLayout";
+import { SC } from "@/components/kt/Misc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -202,7 +200,7 @@ export default function PhenotypeFlowPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <Helmet>
         <title>Phenotype Flow - Classification Reference | Phindex</title>
         <meta name="description" content="Browse the full phenotype classification reference by region, from Northern America to Oceania, with visual examples for each phenotype." />
@@ -219,17 +217,16 @@ export default function PhenotypeFlowPage() {
         <meta name="twitter:description" content="Browse the full phenotype classification reference by region, from Northern America to Oceania, with visual examples for each phenotype." />
         <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
       </Helmet>
-      <Header />
-      <AppSidebar />
-      
-      <main className="lg:ml-80 pt-16">
-        <div className="container mx-auto px-4 py-8">
+        <div>
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-4">
-              Phenotype Flow
+            <SC as="p" className="m-0 text-[16px] text-kt-teal">
+              reference
+            </SC>
+            <h1 className="mb-0 mt-1 text-[clamp(48px,5.8vw,84px)] font-medium leading-[0.95] tracking-[-0.028em] text-kt-ink">
+              Phenotype flow
             </h1>
-            <p className="text-xl text-muted-foreground">
-              Explore phenotypic diversity across different geographic regions
+            <p className="mb-0 mt-3 text-[19px] italic text-kt-body">
+              Explore phenotypic diversity across different geographic regions.
             </p>
           </div>
 
@@ -237,7 +234,7 @@ export default function PhenotypeFlowPage() {
             {phenotypeRegions.map((region, regionIndex) => (
               <Card key={regionIndex} className="w-full">
                 <CardHeader>
-                  <CardTitle className="text-2xl text-phindex-teal">
+                  <CardTitle className="text-[28px] font-medium text-kt-ink">
                     {region.name}
                   </CardTitle>
                 </CardHeader>
@@ -245,20 +242,20 @@ export default function PhenotypeFlowPage() {
                   <Accordion type="single" collapsible className="w-full">
                     {region.subregions.map((subregion, subregionIndex) => (
                       <AccordionItem key={subregionIndex} value={`${regionIndex}-${subregionIndex}`}>
-                        <AccordionTrigger className="text-lg font-medium">
+                        <AccordionTrigger className="text-[19px] font-normal text-kt-ink">
                           {subregion}
                         </AccordionTrigger>
                         <AccordionContent>
                           <div className="space-y-6">
                             {phenotypeData[subregion as keyof typeof phenotypeData]?.map((phenotype, phenotypeIndex) => (
-                              <div key={phenotypeIndex} className="border rounded-lg p-4 bg-card">
-                                <h4 className="text-lg font-semibold text-foreground mb-4">{phenotype}</h4>
+                              <div key={phenotypeIndex} className="rounded-[3px] border border-kt-rule bg-white p-4">
+                                <h4 className="mb-4 mt-0 text-[20px] font-medium text-kt-ink">{phenotype}</h4>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                   {/* Male section */}
                                   <div className="space-y-3">
-                                    <h5 className="text-md font-medium text-muted-foreground">Male</h5>
-                                     <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-phindex-teal transition-colors">
+                                    <h5 className="m-0 font-sc text-[15px] tracking-[0.06em] text-kt-slate">male</h5>
+                                     <div className="rounded-[3px] border-[1.5px] border-dashed border-kt-b50 bg-kt-wash p-6 text-center transition-colors hover:border-kt-teal">
                                        {getImageUrl(phenotype, subregion, region.name, 'male') ? (
                                          <div className="relative">
                                            <img 
@@ -296,8 +293,8 @@ export default function PhenotypeFlowPage() {
                                   
                                   {/* Female section */}
                                   <div className="space-y-3">
-                                    <h5 className="text-md font-medium text-muted-foreground">Female</h5>
-                                     <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-phindex-teal transition-colors">
+                                    <h5 className="m-0 font-sc text-[15px] tracking-[0.06em] text-kt-slate">female</h5>
+                                     <div className="rounded-[3px] border-[1.5px] border-dashed border-kt-b50 bg-kt-wash p-6 text-center transition-colors hover:border-kt-teal">
                                        {getImageUrl(phenotype, subregion, region.name, 'female') ? (
                                          <div className="relative">
                                            <img 
@@ -349,10 +346,6 @@ export default function PhenotypeFlowPage() {
             ))}
           </div>
         </div>
-      </main>
-      
-      <Footer />
-      <BottomNav />
-    </div>
+    </AppLayout>
   );
 }
