@@ -7,7 +7,12 @@
  *
  * Cada perfil aparece uma única vez, na URL do slug. Emitir também /profile/{id}
  * criava conteúdo duplicado: duas URLs idênticas por pessoa, dividindo o sinal
- * de ranking entre elas.
+ * de ranking entre elas. A foto de frente entra como <image:image>, para o
+ * Google Imagens.
+ *
+ * A consulta pedia uma coluna que não existe (profile_type); o PostgREST
+ * devolvia erro e o sitemap saía sem nenhum perfil. O erro agora vai para o
+ * log em vez de passar em silêncio.
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -23,6 +28,7 @@ type SitemapEntry = {
   priority: string;
   changefreq: string;
   lastmod: string;
+  image?: string;
 };
 
 function escapeXml(str: string): string {
@@ -38,11 +44,12 @@ export default async function handler(req: any, res: any) {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const { data: profiles } = await supabase
+    const { data: profiles, error } = await supabase
       .from('user_profiles')
-      .select('id, slug, updated_at, profile_type')
+      .select('id, slug, updated_at, front_image_url')
       .order('updated_at', { ascending: false })
       .limit(50000);
+    if (error) console.error('Sitemap profile query failed:', error.message);
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -50,6 +57,7 @@ export default async function handler(req: any, res: any) {
     // fora: são noindex.
     const staticPages: SitemapEntry[] = [
       { url: `${BASE_URL}/`, priority: '1.0', changefreq: 'daily', lastmod: today },
+      { url: `${BASE_URL}/community`, priority: '0.9', changefreq: 'daily', lastmod: today },
       { url: `${BASE_URL}/explore`, priority: '0.8', changefreq: 'daily', lastmod: today },
       { url: `${BASE_URL}/game`, priority: '0.7', changefreq: 'weekly', lastmod: today },
       { url: `${BASE_URL}/leaderboard`, priority: '0.5', changefreq: 'daily', lastmod: today },
@@ -81,6 +89,7 @@ export default async function handler(req: any, res: any) {
       priority: '0.8',
       changefreq: 'weekly',
       lastmod: p.updated_at ? p.updated_at.split('T')[0] : today,
+      image: p.front_image_url && /^https?:\/\//.test(p.front_image_url) ? p.front_image_url : undefined,
     }));
 
     const allPages = [...staticPages, ...regionPages, ...categoryPages, ...profilePages];
@@ -90,12 +99,19 @@ export default async function handler(req: any, res: any) {
     <loc>${escapeXml(page.url)}</loc>
     <lastmod>${page.lastmod}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
-    <priority>${page.priority}</priority>
+    <priority>${page.priority}</priority>${
+      page.image
+        ? `
+    <image:image>
+      <image:loc>${escapeXml(page.image)}</image:loc>
+    </image:image>`
+        : ''
+    }
   </url>`)
       .join('\n');
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${xmlUrls}
 </urlset>`;
 

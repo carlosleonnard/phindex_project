@@ -1,20 +1,32 @@
-import { useState, useEffect } from "react";
-import { Plus, Upload, X } from "lucide-react";
+/**
+ * ADICIONAR UM ROSTO (AddProfileModal.tsx)
+ *
+ * Dois passos: as regras da casa, aceitas a cada abertura, e o formulário.
+ *
+ * Os campos vêm de ProfileFormFields (os mesmos do modal de edição), no lugar
+ * dos <select> nativos de antes. A categoria é escolhida num lugar só — o
+ * seletor antigo trazia a própria lista de subcategorias e o modal desenhava
+ * outra embaixo, e as duas apareciam ao mesmo tempo.
+ */
+
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { CountrySelector } from "@/components/CountrySelector";
-import { CountrySearchSelector } from "@/components/CountrySearchSelector";
-import { GenderSelector } from "@/components/GenderSelector";
-import { CategorySelector } from "@/components/CategorySelector";
-import { SUBCATEGORIES_BY_CATEGORY } from "@/constants/subcategories";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CenButton, outlineCapsule } from "@/components/kt/Centromere";
+import { SC } from "@/components/kt/Misc";
+import { ERROR_TEXT } from "@/components/kt/Form";
+import {
+  COMMUNITY_CATEGORY,
+  PROFILE_FIELD_NAMES,
+  ProfileFormFields,
+  missingProfileFields,
+  type ProfileForm,
+} from "@/components/profile/ProfileFormFields";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
 import { useAuth } from "@/hooks/use-auth";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface AddProfileModalProps {
   triggerExternal?: boolean;
@@ -23,50 +35,47 @@ interface AddProfileModalProps {
   lockIsAnonymous?: boolean;
 }
 
-export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChange, initialIsAnonymous = null, lockIsAnonymous = false }: AddProfileModalProps) => {
+const HOUSE_RULES = [
+  "Respect the privacy and rights of the people in the photos.",
+  "Only use images you have permission to share.",
+  "Describe ancestry accurately and respectfully.",
+  "No images of minors without appropriate consent.",
+  "Keep the index respectful and inclusive.",
+  "Classify what is visible, not stereotypes.",
+];
+
+const emptyForm = (isAnonymous: boolean | null): ProfileForm => ({
+  name: "",
+  country: "",
+  gender: "",
+  category: isAnonymous === true ? COMMUNITY_CATEGORY : "",
+  subcategory: "",
+  height: "",
+  ancestry: [],
+  frontImageUrl: "",
+  profileImageUrl: "",
+  isAnonymous,
+});
+
+export const AddProfileModal = ({
+  triggerExternal = false,
+  onTriggerExternalChange,
+  initialIsAnonymous = null,
+  lockIsAnonymous = false,
+}: AddProfileModalProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { createProfile } = useUserProfiles();
   const { uploadImage, isUploading } = useImageUpload();
+
   const [open, setOpen] = useState(false);
   const [showGuidelines, setShowGuidelines] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    country: "",
-    gender: "",
-    category: initialIsAnonymous === true ? "User Profiles" : "",
-    subcategory: "",
-    height: "",
-    ancestry: [] as string[], // Changed to array of countries
-    frontImageUrl: "",
-    profileImageUrl: "",
-    isAnonymous: initialIsAnonymous
-  });
+  const [form, setForm] = useState(() => emptyForm(initialIsAnonymous));
+  const [uploadingSlot, setUploadingSlot] = useState<"front" | "profile" | null>(null);
+  // Os campos só aparecem como pendentes depois da primeira tentativa de envio.
+  const [attempted, setAttempted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [dragActive, setDragActive] = useState(false);
-  
-  // Check for tablet/mobile breakpoint (hide button on screens smaller than 1024px)
-  const [isTabletOrMobile, setIsTabletOrMobile] = useState(window.innerWidth < 1024);
-  
-  useEffect(() => {
-    const handleResize = () => {
-      setIsTabletOrMobile(window.innerWidth < 1024);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const handleGuidelinesAccept = () => {
-    setShowGuidelines(false);
-    setOpen(true);
-  };
-
-  const handleTriggerClick = () => {
-    setShowGuidelines(true);
-  };
-
-  // Effect para controlar abertura externa do modal
   useEffect(() => {
     if (triggerExternal) {
       setShowGuidelines(true);
@@ -74,473 +83,191 @@ export const AddProfileModal = ({ triggerExternal = false, onTriggerExternalChan
     }
   }, [triggerExternal, onTriggerExternalChange]);
 
-  const handleAnonymousChange = (value: string) => {
-    const isAnonymous = value === "yes";
-    setFormData(prev => ({
-      ...prev,
-      isAnonymous: isAnonymous,
-      category: isAnonymous ? "User Profiles" : "",
-      subcategory: ""
-    }));
+  const update = (patch: Partial<ProfileForm>) => setForm((previous) => ({ ...previous, ...patch }));
+  const missing = attempted ? missingProfileFields(form) : [];
+
+  const upload = async (file: File, slot: "front" | "profile") => {
+    setUploadingSlot(slot);
+    try {
+      const url = await uploadImage(file, slot);
+      if (url) update(slot === "front" ? { frontImageUrl: url } : { profileImageUrl: url });
+    } finally {
+      setUploadingSlot(null);
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleGuidelinesAccept = () => {
+    setShowGuidelines(false);
+    setOpen(true);
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmitError(null);
+    setAttempted(true);
+    if (missingProfileFields(form).length > 0) return;
+
     if (!user) {
-      alert('You need to be logged in to create a profile.');
+      setSubmitError("Log in to add a face.");
       return;
     }
-    
-    // Custom validation with specific error messages
-    const missingFields = [];
-    if (!formData.name) missingFields.push('Name');
-    if (!formData.country) missingFields.push('Country');
-    if (!formData.gender) missingFields.push('Gender');
-    if (!formData.category) missingFields.push('Category');
-    if (!formData.height) missingFields.push('Height');
-    if (formData.ancestry.length === 0) missingFields.push('Ancestry');
-    if (!formData.frontImageUrl) missingFields.push('Front Image');
-    if (formData.isAnonymous === null) missingFields.push('Anonymous status');
-    
-    if (missingFields.length > 0) {
-      alert(`Please fill in the following required fields: ${missingFields.join(', ')}`);
-      return;
-    }
-    
-    if (formData.name && formData.country && formData.gender && formData.category && formData.height && formData.ancestry.length > 0 && formData.frontImageUrl && formData.isAnonymous !== null) {
-      try {
-        const newProfile = await createProfile.mutateAsync({
-          name: formData.name,
-          country: formData.country,
-          gender: formData.gender,
-          category: formData.category,
-          height: parseFloat(formData.height),
-          ancestry: formData.ancestry.join(', '), // Convert array to string
-          frontImageUrl: formData.frontImageUrl,
-          profileImageUrl: formData.profileImageUrl,
-          isAnonymous: formData.isAnonymous,
-          subcategory: formData.subcategory || null
-        });
 
-        // Create complete profile record with all form data
-        const { data: completeProfileData, error: completeProfileError } = await supabase
-          .from('complete_profiles')
-          .insert({
-            user_id: user.id,
-            profile_id: newProfile.id,
-            name: formData.name,
-            country: formData.country,
-            gender: formData.gender,
-            category: formData.category,
-            height: parseFloat(formData.height),
-            ancestry: formData.ancestry.join(', '), // Convert array to string
-            is_anonymous: formData.isAnonymous,
-            subcategory: formData.subcategory || null,
-            front_image_url: formData.frontImageUrl,
-            profile_image_url: formData.profileImageUrl || null,
-            description: formData.ancestry.join(', ') // Convert array to string
-          });
+    try {
+      const newProfile = await createProfile.mutateAsync({
+        name: form.name.trim(),
+        country: form.country,
+        gender: form.gender,
+        category: form.category,
+        height: parseFloat(form.height),
+        ancestry: form.ancestry.join(", "),
+        frontImageUrl: form.frontImageUrl,
+        profileImageUrl: form.profileImageUrl,
+        isAnonymous: form.isAnonymous,
+        subcategory: form.subcategory || null,
+      });
 
-        if (completeProfileError) {
-          console.error('Error creating complete profile record:', completeProfileError);
-        }
+      // Registro completo com todos os dados do formulário.
+      const { error: completeProfileError } = await supabase.from("complete_profiles").insert({
+        user_id: user.id,
+        profile_id: newProfile.id,
+        name: form.name.trim(),
+        country: form.country,
+        gender: form.gender,
+        category: form.category,
+        height: parseFloat(form.height),
+        ancestry: form.ancestry.join(", "),
+        is_anonymous: form.isAnonymous,
+        subcategory: form.subcategory || null,
+        front_image_url: form.frontImageUrl,
+        profile_image_url: form.profileImageUrl || null,
+        description: form.ancestry.join(", "),
+      });
 
-        // Reset form and close modal.
-        // isAnonymous volta ao valor inicial: quando o modal foi aberto por um
-        // botão que já define o tipo, essa escolha precisa sobreviver ao reset.
-        setFormData({
-          name: "",
-          country: "",
-          gender: "",
-          category: initialIsAnonymous === true ? "User Profiles" : "",
-          subcategory: "",
-          height: "",
-          ancestry: [],
-          frontImageUrl: "",
-          profileImageUrl: "",
-          isAnonymous: initialIsAnonymous,
-        });
-        setOpen(false);
-        
-        // Navigate to the new profile page
-        navigate(`/user-profile/${newProfile.slug}`);
-        } catch (error) {
-        console.error('Error creating profile:', error);
+      if (completeProfileError) {
+        console.error("Error creating complete profile record:", completeProfileError);
       }
+
+      // O tipo volta ao valor inicial: quando o modal foi aberto por um botão
+      // que já define o tipo, essa escolha precisa sobreviver ao reset.
+      setForm(emptyForm(initialIsAnonymous));
+      setAttempted(false);
+      setOpen(false);
+      navigate(`/user-profile/${newProfile.slug}`);
+    } catch (error) {
+      console.error("Error creating profile:", error);
+      setSubmitError("Couldn’t add the face. Check your connection and try again.");
     }
   };
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent, imageType: 'front' | 'profile') => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      const uploadedUrl = await uploadImage(file, imageType);
-      
-      if (uploadedUrl) {
-        setFormData(prev => ({ 
-          ...prev, 
-          [imageType === 'front' ? 'frontImageUrl' : 'profileImageUrl']: uploadedUrl 
-        }));
-      }
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, imageType: 'front' | 'profile') => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const uploadedUrl = await uploadImage(file, imageType);
-      
-      if (uploadedUrl) {
-        setFormData(prev => ({ 
-          ...prev, 
-          [imageType === 'front' ? 'frontImageUrl' : 'profileImageUrl']: uploadedUrl 
-        }));
-      }
-    }
-    // Reset input value to allow selecting the same file again
-    e.target.value = '';
-  };
+  const pendingNames = missing.map((key) => PROFILE_FIELD_NAMES[key]);
+  const busy = createProfile.isPending || isUploading || uploadingSlot !== null;
 
   return (
     <>
-      {/* Guidelines Modal */}
+      {/* Regras da casa */}
       <Dialog open={showGuidelines} onOpenChange={setShowGuidelines}>
-        {/* Only show trigger button on desktop (screens 1024px and larger) */}
-        {!isTabletOrMobile && !triggerExternal && !onTriggerExternalChange && (
+        {!triggerExternal && !onTriggerExternalChange && (
           <DialogTrigger asChild>
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-phindex-teal hover:bg-phindex-teal/90 px-4 py-2 h-9"
-              onClick={handleTriggerClick}
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              Classify Now!
-            </Button>
+            <CenButton size="sm" icon="plus">
+              add a face
+            </CenButton>
           </DialogTrigger>
         )}
-        
-        <DialogContent className="bg-gradient-card border-border/50 max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Adding Guidelines
+
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-24px)] max-w-[540px] gap-0 overflow-y-auto p-0 text-kt-ink">
+          <div className="px-6 pb-6 pt-7 sm:px-8">
+            <SC as="p" className="m-0 text-[14px] text-kt-teal">
+              before you add a face
+            </SC>
+            <DialogTitle className="mt-1 text-[32px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
+              House rules
             </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Before adding a profile, please read and agree to the following terms:</p>
-              
-              <ul className="space-y-2 list-disc list-inside">
-                <li>Respect the privacy and rights of people represented in images</li>
-                <li>Only use images you have permission to share</li>
-                <li>Provide accurate and respectful information about ancestry</li>
-                <li>Do not use images of minors without appropriate consent</li>
-                <li>Maintain a respectful and inclusive environment</li>
-                <li>Classifications should be based on visible characteristics, not stereotypes</li>
-              </ul>
-              
-              <div className="space-y-2 pt-3 border-t border-border">
-                <p className="text-xs font-medium text-foreground">
-                  Please do your best to check for duplicates, periodically, we will clean out inactive or duplicated profiles
-                </p>
-                <p className="text-xs">
-                  If you would like to remove a profile, please report to contact@phenotypeindex.com
-                </p>
-              </div>
-              
-              <p className="text-xs pt-2 border-t border-border">
-                By continuing, you agree to follow these guidelines and use the platform responsibly.
-              </p>
-            </div>
+            <DialogDescription className="mb-0 mt-2 text-[17px] leading-[1.5] text-kt-body">
+              Every face here is read by real people. By continuing, you agree to keep to these rules.
+            </DialogDescription>
+            <ol className="m-0 mt-5 list-none p-0">
+              {HOUSE_RULES.map((rule, index) => (
+                <li
+                  key={rule}
+                  className="flex gap-3.5 border-t border-kt-rule py-3 text-[17px] leading-[1.45] text-kt-ink last:border-b"
+                >
+                  <span className="w-5 shrink-0 text-[16px] italic text-kt-teal">{index + 1}</span>
+                  {rule}
+                </li>
+              ))}
+            </ol>
+            <p className="mb-0 mt-4 text-[15px] leading-[1.55] text-kt-body">
+              Check for duplicates before adding: inactive or duplicated profiles are cleaned out from time to time. To
+              remove a profile, write to <a href="mailto:contact@phenotypeindex.com">contact@phenotypeindex.com</a>.
+            </p>
           </div>
-
-          <div className="flex gap-2 pt-4">
-            <Button
+          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-kt-rule px-6 py-4 sm:px-8">
+            <button
               type="button"
-              variant="outline"
-              className="flex-1"
               onClick={() => setShowGuidelines(false)}
+              className={outlineCapsule("h-11 font-[inherit] text-[17px]")}
             >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1 bg-gradient-primary hover:shadow-button transition-all duration-300"
-              onClick={handleGuidelinesAccept}
-            >
-              I Agree and Continue
-            </Button>
+              cancel
+            </button>
+            <CenButton size="sm" onClick={handleGuidelinesAccept}>
+              agree and continue
+            </CenButton>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Profile Creation Modal */}
+      {/* Formulário */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-gradient-card border-border/50 max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              New Profile
+        <DialogContent className="flex max-h-[min(94vh,940px)] w-[calc(100vw-24px)] max-w-[640px] flex-col gap-0 overflow-hidden p-0 text-kt-ink">
+          <div className="border-b border-kt-rule px-6 pb-5 pt-7 sm:px-8">
+            <SC as="p" className="m-0 text-[14px] text-kt-teal">
+              add to the index
+            </SC>
+            <DialogTitle className="mt-1 text-[32px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
+              Add a face
             </DialogTitle>
-          </DialogHeader>
+            <DialogDescription className="mb-0 mt-1.5 text-[17px] italic text-kt-body">
+              A clear photo and a few facts. The community reads the rest.
+            </DialogDescription>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Upload de imagens */}
-            <div className="space-y-3">
-              <Label>Profile Photos</Label>
-              <p className="text-xs text-muted-foreground">Front photo is required, profile photo is optional</p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {/* Foto de Frente */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Front Photo *</Label>
-                <Card
-                  className={`border-2 border-dashed transition-colors p-4 text-center cursor-pointer ${
-                    dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                  } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={(e) => handleDrop(e, 'front')}
-                  onClick={() => document.getElementById('front-image-input')?.click()}
-                >
-                  <input
-                    id="front-image-input"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e, 'front')}
-                  />
-                  {formData.frontImageUrl ? (
-                    <div className="relative inline-block">
-                        <img 
-                          src={formData.frontImageUrl} 
-                          alt="Front Preview" 
-                          className="w-20 h-19 rounded-lg mx-auto object-cover"
-                          style={{ aspectRatio: '640/607' }}
-                        />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive hover:bg-destructive/80"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormData(prev => ({ ...prev, frontImageUrl: "" }));
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <Upload className="h-6 w-6 mx-auto text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">
-                        {isUploading ? 'Uploading...' : 'Click or drag front photo *'}
-                      </p>
-                    </div>
-                  )}
-                </Card>
-                </div>
-
-                {/* Foto de Perfil */}
-                <div className="space-y-2">
-                  <Label className="text-sm text-muted-foreground">Profile Photo</Label>
-                <Card
-                  className={`border-2 border-dashed transition-colors p-4 text-center cursor-pointer ${
-                    dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                  } ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={(e) => handleDrop(e, 'profile')}
-                  onClick={() => document.getElementById('profile-image-input')?.click()}
-                >
-                  <input
-                    id="profile-image-input"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e, 'profile')}
-                  />
-                  {formData.profileImageUrl ? (
-                    <div className="relative inline-block">
-                        <img 
-                          src={formData.profileImageUrl} 
-                          alt="Profile Preview" 
-                          className="w-20 h-19 rounded-lg mx-auto object-cover"
-                          style={{ aspectRatio: '640/607' }}
-                        />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive hover:bg-destructive/80"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormData(prev => ({ ...prev, profileImageUrl: "" }));
-                        }}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <Upload className="h-6 w-6 mx-auto text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">
-                        {isUploading ? 'Uploading...' : 'Click or drag profile photo'}
-                      </p>
-                    </div>
-                  )}
-                </Card>
-                </div>
-              </div>
-            </div>
-
-            {/* Campo sim/não para perfil anônimo.
-                Quando o modal é aberto por um botão que já define o tipo
-                (ex.: "Add famous person"), a pergunta é omitida — a resposta
-                já foi dada pela escolha do botão. */}
-            {!lockIsAnonymous && (
-              <div className="space-y-2">
-                <Label htmlFor="anonymousSelect">Is this classification for you or for someone you know personally? (Non-famous person) *</Label>
-                <select
-                  id="anonymousSelect"
-                  value={formData.isAnonymous === true ? "yes" : formData.isAnonymous === false ? "no" : ""}
-                  onChange={(e) => handleAnonymousChange(e.target.value)}
-                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  required
-                >
-                  <option value="" disabled>Select</option>
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </select>
-              </div>
-            )}
-
-            {/* Informações básicas */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
+          <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 py-6 sm:px-8">
+              <ProfileFormFields
+                form={form}
+                update={update}
+                missing={missing}
+                lockIsAnonymous={lockIsAnonymous}
+                uploadingSlot={uploadingSlot}
+                onUpload={upload}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="height">Height (meters) *</Label>
-                <Input
-                  id="height"
-                  type="number"
-                  step="0.01"
-                  min="0.5"
-                  max="3"
-                  placeholder="e.g: 1.75"
-                  value={formData.height}
-                  onChange={(e) => setFormData(prev => ({ ...prev, height: e.target.value }))}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="country">Country *</Label>
-                <CountrySearchSelector
-                  selectedCountry={formData.country}
-                  onCountryChange={(country) => setFormData(prev => ({ ...prev, country }))}
-                  placeholder="Search and select country"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender *</Label>
-                <GenderSelector
-                  selectedGender={formData.gender}
-                  onGenderChange={(gender) => setFormData(prev => ({ ...prev, gender }))}
-                  placeholder="Search and select gender"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category *</Label>
-                <CategorySelector
-                  selectedCategory={formData.category}
-                  onCategoryChange={(category) => setFormData(prev => ({ ...prev, category, subcategory: "" }))}
-                  selectedSubcategory={formData.subcategory}
-                  onSubcategoryChange={(subcategory) => setFormData(prev => ({ ...prev, subcategory }))}
-                  placeholder="Search and select category"
-                  disabled={formData.isAnonymous === true}
-                  isAnonymous={formData.isAnonymous === true}
-                  showSubcategory={formData.isAnonymous === false}
-                  required
-                />
-              </div>
-            </div>
-
-            {SUBCATEGORIES_BY_CATEGORY[formData.category] && (
-              <div className="space-y-2">
-                <Label htmlFor="subcategory">Subcategory</Label>
-                <select
-                  id="subcategory"
-                  value={formData.subcategory}
-                  onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
-                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">All subcategories</option>
-                  {SUBCATEGORIES_BY_CATEGORY[formData.category].map((sub) => (
-                    <option key={sub} value={sub}>{sub}</option>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-kt-rule px-6 py-4 sm:px-8">
+              <p
+                role="alert"
+                className={cn(
+                  "m-0 min-w-0 flex-[1_1_220px] text-[15px] leading-[1.4]",
+                  submitError || pendingNames.length ? ERROR_TEXT : "text-kt-body"
+                )}
+              >
+                {submitError ??
+                  (pendingNames.length > 0 ? (
+                    <>Still needed: {pendingNames.join(", ")}.</>
+                  ) : (
+                    <span className="italic">
+                      <span className="not-italic text-kt-teal">*</span> required
+                    </span>
                   ))}
-                </select>
+              </p>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setOpen(false)} className={outlineCapsule("h-11 font-[inherit] text-[17px]")}>
+                  cancel
+                </button>
+                <CenButton type="submit" size="sm" disabled={busy}>
+                  {createProfile.isPending ? "adding…" : uploadingSlot ? "uploading…" : "add the face"}
+                </CenButton>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="ancestry">Known Ancestry *</Label>
-              <CountrySelector
-                selectedCountries={formData.ancestry}
-                onCountriesChange={(countries) => setFormData(prev => ({ ...prev, ancestry: countries }))}
-                placeholder="Type to search ancestry countries..."
-                maxCountries={5}
-              />
-              <p className="text-xs text-muted-foreground">Select up to 5 groups that represent known ancestry</p>
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => setOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 bg-gradient-primary hover:shadow-button transition-all duration-300"
-                disabled={createProfile.isPending || isUploading}
-              >
-                {createProfile.isPending || isUploading ? 'Creating...' : 'Add Profile'}
-              </Button>
             </div>
           </form>
         </DialogContent>

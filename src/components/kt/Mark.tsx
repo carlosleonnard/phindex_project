@@ -48,6 +48,18 @@ interface WordmarkProps {
   className?: string;
 }
 
+/** Só a imagem do logo, para onde ele não é um link (o modal de login). */
+export const LogoImage = ({ className }: { className?: string }) => (
+  <img
+    src={phindexLogo}
+    alt="Phindex"
+    width={546}
+    height={104}
+    draggable={false}
+    className={cn("block w-auto max-w-none", className)}
+  />
+);
+
 export const Wordmark = ({ to = "/", logoClassName = "h-[30px]", compact = false, className }: WordmarkProps) => (
   <Link to={to} aria-label="Phindex, home" className={cn("flex shrink-0 items-center no-underline", className)}>
     {compact && (

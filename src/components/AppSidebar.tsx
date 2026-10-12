@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { CONTINENT_ORDER, CONTINENT_META } from "@/constants/regions";
 import { CATEGORY_OPTIONS, CATEGORY_SLUG_MAP } from "@/constants/categories";
 import { RegionDot } from "@/components/kt/Misc";
+import { LogoutDialog } from "@/components/LogoutDialog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,8 +63,9 @@ const GroupLabel = ({ children }: { children: React.ReactNode }) => (
 
 export const SidebarNav = ({ onNavigate }: { onNavigate?: () => void }) => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [showAll, setShowAll] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const isCategoryActive = (name: string) => location.pathname === `/category/${categorySlug(name)}`;
   const hiddenActive = CATEGORIES.filter((name) => !PINNED_CATEGORIES.includes(name)).some(isCategoryActive);
@@ -162,10 +164,8 @@ export const SidebarNav = ({ onNavigate }: { onNavigate?: () => void }) => {
           <li>
             <button
               type="button"
-              onClick={() => {
-                onNavigate?.();
-                signOut();
-              }}
+              // Na gaveta do celular, ela só fecha depois que a saída termina.
+              onClick={() => setConfirmLogout(true)}
               className="flex min-h-[44px] w-full items-center gap-3 rounded-full border-0 bg-transparent px-4 text-left font-[inherit] text-[16px] text-kt-body hover:bg-kt-wash2"
             >
               <LogOut className="h-[18px] w-[18px]" strokeWidth={1.6} aria-hidden="true" />
@@ -174,6 +174,8 @@ export const SidebarNav = ({ onNavigate }: { onNavigate?: () => void }) => {
           </li>
         )}
       </ul>
+
+      <LogoutDialog open={confirmLogout} onOpenChange={setConfirmLogout} onLoggedOut={onNavigate} />
     </div>
   );
 };

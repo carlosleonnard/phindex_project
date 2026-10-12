@@ -19,6 +19,7 @@ import { AddProfileModal } from "./AddProfileModal";
 import { LoginModal } from "./LoginModal";
 import { NotificationBell } from "./NotificationBell";
 import { UserMenuPopover } from "./UserMenuPopover";
+import { LoginButton } from "./LoginButton";
 import { SidebarNav } from "./AppSidebar";
 import { Wordmark } from "@/components/kt/Mark";
 import { CenButton } from "@/components/kt/Centromere";
@@ -235,14 +236,7 @@ export const Header = ({ showSearch = true }: { showSearch?: boolean }) => {
             {user ? (
               <UserMenuPopover user={user} />
             ) : (
-              <button
-                type="button"
-                onClick={() => setLoginOpen(true)}
-                disabled={loading}
-                className="inline-flex h-11 items-center rounded-full border-[1.5px] border-kt-teal bg-transparent px-5 font-sc text-[18px] tracking-[0.04em] text-kt-teal transition-colors hover:bg-kt-teal/[0.06] disabled:opacity-50"
-              >
-                log in
-              </button>
+              <LoginButton onClick={() => setLoginOpen(true)} disabled={loading} />
             )}
           </div>
         </div>

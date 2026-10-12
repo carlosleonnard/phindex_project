@@ -18,6 +18,9 @@ export const SITE_URL = 'https://www.phenotypeindex.com';
 export const SITE_NAME = 'Phindex - Phenotype Index';
 export const TWITTER_HANDLE = '@phenotypeindex';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+/** Igual ao og:image:alt do index.html. */
+export const DEFAULT_OG_IMAGE_ALT =
+  'Phindex: discover your phenotype, classify your world. Six faces in the Phindex teal.';
 
 export function escapeHtml(str: string): string {
   return String(str)
@@ -50,6 +53,8 @@ type MetaValues = {
   description: string;
   canonical: string;
   image: string;
+  /** Texto alternativo da imagem (og:image:alt e twitter:image:alt). */
+  imageAlt: string;
   imageWidth: string;
   imageHeight: string;
   ogType: string;
@@ -140,6 +145,18 @@ export function injectMeta(html: string, v: MetaValues): string {
     'twitter:description'
   );
   out = replaceOrThrow(out, /<meta name="twitter:image"[^>]*>/, `<meta name="twitter:image" content="${image}" />`, 'twitter:image');
+  out = replaceOrThrow(
+    out,
+    /<meta property="og:image:alt"[^>]*>/,
+    `<meta property="og:image:alt" content="${escapeHtml(v.imageAlt)}" />`,
+    'og:image:alt'
+  );
+  out = replaceOrThrow(
+    out,
+    /<meta name="twitter:image:alt"[^>]*>/,
+    `<meta name="twitter:image:alt" content="${escapeHtml(v.imageAlt)}" />`,
+    'twitter:image:alt'
+  );
 
   if (v.jsonLd?.length) {
     // Um nome de perfil contendo "</script>" fecharia o bloco JSON-LD e

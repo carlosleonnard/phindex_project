@@ -25,6 +25,22 @@ export const CATEGORY_SLUGS = [
   'military',
 ] as const;
 
+/** Nome de exibição de cada categoria, para títulos das páginas pré-renderizadas. */
+export const CATEGORY_NAMES: Record<string, string> = {
+  'community': 'Community',
+  'pop-culture': 'Pop Culture',
+  'music-and-entertainment': 'Music and Entertainment',
+  'arts': 'Arts',
+  'philosophy': 'Philosophy',
+  'sciences': 'Sciences',
+  'sports': 'Sports',
+  'business': 'Business',
+  'politics': 'Politics',
+  'criminals': 'Criminals',
+  'religion': 'Religion',
+  'military': 'Military',
+};
+
 export const REGION_SLUGS = [
   'africa',
   'asia',
@@ -33,3 +49,13 @@ export const REGION_SLUGS = [
   'middle-east',
   'oceania',
 ] as const;
+
+/** Nome de exibição de cada região (o continente). */
+export const REGION_NAMES: Record<string, string> = {
+  'africa': 'Africa',
+  'asia': 'Asia',
+  'europe': 'Europe',
+  'americas': 'Americas',
+  'middle-east': 'Middle East',
+  'oceania': 'Oceania',
+};
