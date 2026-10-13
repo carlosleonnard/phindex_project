@@ -4,8 +4,15 @@
  * Cada categoria de insígnia é um cromossomo de dez faixas: níveis
  * conquistados em tinta, e uma fatia teal com o progresso até o próximo
  * limiar. Usada na página de membro e nas configurações.
+ *
+ * Embaixo de cada faixa fica o ícone do nível — medalha, prêmio, estrela…
+ * até o troféu do Godlike. Os conquistados acendem em tinta, o mais recente
+ * ganha um anel teal, e os que faltam ficam em contorno apagado. O nome e o
+ * limiar de cada um aparecem ao passar o mouse e são lidos pelo leitor de tela.
  */
 
+import { Award, Crown, Flame, Gem, Medal, Mountain, Shield, Star, Trophy, Zap, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { SC } from "./Misc";
 import { KT, bandSeparators } from "./bands";
 import { LEVEL_NAMES, type BadgeCategory } from "@/hooks/use-badges";
@@ -20,6 +27,9 @@ export const BADGE_TRACKS: Array<{ category: BadgeCategory; statKey: BadgeStatKe
   { category: "Creator", statKey: "total_profiles_created", unit: "faces added" },
 ];
 
+/** Ícone de cada nível, do Bronze (1) ao Godlike (10). */
+const LEVEL_ICONS: LucideIcon[] = [Medal, Award, Star, Shield, Gem, Flame, Zap, Mountain, Crown, Trophy];
+
 export const BadgeTrack = ({
   label,
   level,
@@ -33,10 +43,13 @@ export const BadgeTrack = ({
   /** Valor atual da estatística da trilha; null se desconhecido. */
   stat: number | null;
   unit: string;
-  /** Limiar de cada nível desta trilha. */
-  thresholds: Array<{ level: number; threshold: number }>;
+  /** Limiar (e nome da insígnia, quando conhecido) de cada nível desta trilha. */
+  thresholds: Array<{ level: number; threshold: number; name?: string }>;
 }) => {
   const thresholdOf = (value: number) => thresholds.find((item) => item.level === value)?.threshold;
+  const badgeNameOf = (value: number) => thresholds.find((item) => item.level === value)?.name;
+  // "1 comment", não "1 comments": a primeira palavra da unidade vai para o singular.
+  const unitFor = (count: number) => (count === 1 ? unit.replace(/^(\w+)s\b/, "$1") : unit);
   const next = level < 10 ? thresholdOf(level + 1) : undefined;
   const previous = level > 0 ? thresholdOf(level) ?? 0 : 0;
   const fraction =
@@ -62,17 +75,48 @@ export const BadgeTrack = ({
           background: `${bandSeparators(10)},linear-gradient(90deg,${KT.ink} 0 ${earnedEnd}%,${KT.teal} 0 ${progressEnd}%,${KT.sheet} 0 100%)`,
         }}
       />
+      <ol aria-label={`${label} badges`} className="m-0 mt-2 grid list-none grid-cols-10 p-0">
+        {LEVEL_ICONS.map((Icon, index) => {
+          const value = index + 1;
+          const earned = value <= level;
+          const threshold = thresholdOf(value);
+          const badgeName = badgeNameOf(value);
+          const description = [
+            `${LEVEL_NAMES[value]}${badgeName ? `: ${badgeName}` : ""}`,
+            threshold !== undefined ? `${threshold.toLocaleString("en-US")} ${unitFor(threshold)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <li key={value} className="flex justify-center px-[2px]">
+              <span
+                title={description}
+                className={cn(
+                  "flex aspect-square w-full max-w-[34px] items-center justify-center rounded-full transition-colors",
+                  earned ? "bg-kt-ink text-kt-paper" : "border border-dashed border-kt-b50/70 text-kt-b50",
+                  value === level && "bg-kt-teal ring-2 ring-kt-teal/35 ring-offset-2 ring-offset-transparent"
+                )}
+              >
+                <Icon className="h-[52%] w-[52%]" strokeWidth={1.8} aria-hidden="true" />
+                <span className="sr-only">
+                  {description}, {earned ? "earned" : "not earned yet"}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
       <div className="mt-1.5 flex justify-between gap-3 text-[14px] text-kt-body">
         <em className="max-sm:hidden">bronze</em>
         <span className="text-center">
           {level >= 10
             ? "all ten levels earned"
             : next !== undefined
-              ? `next: ${LEVEL_NAMES[level + 1]} at ${next.toLocaleString("en-US")} ${unit}${
+              ? `next: ${LEVEL_NAMES[level + 1]} at ${next.toLocaleString("en-US")} ${unitFor(next)}${
                   stat !== null ? ` · ${stat.toLocaleString("en-US")} so far` : ""
                 }`
               : stat !== null
-                ? `${stat.toLocaleString("en-US")} ${unit} so far`
+                ? `${stat.toLocaleString("en-US")} ${unitFor(stat)} so far`
                 : ""}
         </span>
         <em className="max-sm:hidden">godlike</em>

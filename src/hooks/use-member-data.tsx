@@ -41,6 +41,7 @@ export interface BadgeThreshold {
   category: string;
   level: number;
   threshold: number;
+  name: string;
 }
 
 export interface MemberComment {
@@ -118,7 +119,7 @@ export const useMemberData = (userId: string) => {
     queryKey: ['badge-thresholds'],
     staleTime: 60 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from('badge_definitions').select('category, level, threshold');
+      const { data, error } = await supabase.from('badge_definitions').select('category, level, threshold, name');
       if (error) throw error;
       return (data || []) as BadgeThreshold[];
     },
