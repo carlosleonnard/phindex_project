@@ -7,6 +7,7 @@
 
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { photoSrcSet, photoUrl } from "@/lib/og-image";
 import type { Continent } from "@/constants/regions";
 
 /** As cores de região de regions.ts, em hex para gradientes. */
@@ -89,6 +90,8 @@ export const FacePhoto = ({
   priority = false,
   position = "center 28%",
   mirror = false,
+  width = 440,
+  height = 550,
 }: {
   src?: string | null;
   alt: string;
@@ -98,6 +101,9 @@ export const FacePhoto = ({
   /** object-position — retratos têm o rosto no terço de cima. */
   position?: string;
   mirror?: boolean;
+  /** Caixa aproximada em CSS px, usada para pedir a foto já redimensionada. */
+  width?: number;
+  height?: number;
 }) => {
   const [failed, setFailed] = useState(false);
 
@@ -121,11 +127,16 @@ export const FacePhoto = ({
     );
   }
 
+  // Os originais no Storage chegam a vários MB; o Supabase redimensiona na hora.
   return (
     <img
-      src={src}
+      src={photoUrl(src, width, height)}
+      srcSet={photoSrcSet(src, width, height)}
+      sizes={`${width}px`}
       alt={alt}
       loading={priority ? "eager" : "lazy"}
+      // React 18 não conhece esta prop; em minúsculas ela chega ao DOM como atributo.
+      {...(priority ? ({ fetchpriority: "high" } as { fetchpriority: string }) : {})}
       decoding="async"
       onError={() => setFailed(true)}
       className={cn("h-full w-full object-cover", className, imgClassName)}

@@ -172,7 +172,7 @@ export const GameResult = ({ level, pool, faces, picks, score, baseRecord, onPla
               >
                 <span className="text-[16px] italic text-kt-teal">{band + 1}</span>
                 <span className="relative block h-12 w-12 overflow-hidden rounded-[3px] bg-kt-wash">
-                  <FacePhoto src={face.profile.front_image_url} alt="" />
+                  <FacePhoto src={face.profile.front_image_url} alt="" width={160} height={200} />
                 </span>
                 <span className="min-w-0">
                   <Link

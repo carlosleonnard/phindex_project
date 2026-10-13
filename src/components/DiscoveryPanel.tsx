@@ -73,7 +73,7 @@ export const DiscoveryPanel = ({ profiles, isLoading = false }: DiscoveryPanelPr
                 className="grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 border-t border-kt-rule py-3"
               >
                 <span className="block h-[52px] w-[52px] overflow-hidden rounded-[3px] bg-kt-wash">
-                  <FacePhoto src={profile.front_image_url} alt="" />
+                  <FacePhoto src={profile.front_image_url} alt="" width={140} height={175} />
                 </span>
                 <span className="min-w-0">
                   <span className="block truncate text-[16px] leading-tight text-kt-ink">{profile.name}</span>

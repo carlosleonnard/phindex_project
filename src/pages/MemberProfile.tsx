@@ -326,7 +326,7 @@ const MemberProfile = () => {
                       aria-label={face.name}
                       className="block aspect-square overflow-hidden rounded-[3px] bg-kt-wash"
                     >
-                      <FacePhoto src={face.front_image_url} alt="" />
+                      <FacePhoto src={face.front_image_url} alt="" width={180} height={225} />
                     </Link>
                   ))}
                 </div>
