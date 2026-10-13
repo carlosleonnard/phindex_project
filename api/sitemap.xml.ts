@@ -15,11 +15,8 @@
  * log em vez de passar em silêncio.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { CATEGORY_SLUGS, REGION_SLUGS } from './_lib/routes';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+import { CATEGORY_SLUGS, REGION_SLUGS } from './_lib/routes.js';
+import { createServerClient } from './_lib/supabase.js';
 
 const BASE_URL = "https://www.phenotypeindex.com";
 
@@ -42,7 +39,7 @@ function escapeXml(str: string): string {
 
 export default async function handler(req: any, res: any) {
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = createServerClient();
 
     const { data: profiles, error } = await supabase
       .from('user_profiles')

@@ -10,12 +10,9 @@
  * a original pode ter 2 MB, e o WhatsApp não mostra prévias pesadas.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { SITE_URL, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT, injectMeta, readIndexHtml } from './prerender';
-import { SHARE_PHOTO_SIZE, sharePhotoUrl } from './og-image';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+import { SITE_URL, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT, injectMeta, readIndexHtml } from './prerender.js';
+import { SHARE_PHOTO_SIZE, sharePhotoUrl } from './og-image.js';
+import { createServerClient } from './supabase.js';
 
 export type ProfileRow = {
   id: string;
@@ -42,7 +39,7 @@ export async function fetchProfile(
   by: 'slug' | 'id',
   value: string
 ): Promise<ProfileRow | null> {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase = createServerClient();
   const { data } = await supabase
     .from('user_profiles')
     .select(COLUMNS)

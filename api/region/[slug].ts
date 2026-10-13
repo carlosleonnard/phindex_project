@@ -1,5 +1,5 @@
 /** Pré-renderização de /region/:slug para crawlers (ver _lib/listing-meta.ts). */
-import { handleListingRequest, renderRegionHtml } from '../_lib/listing-meta';
+import { handleListingRequest, renderRegionHtml } from '../_lib/listing-meta.js';
 
 export default function handler(req: any, res: any) {
   const { slug } = req.query;

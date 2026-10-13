@@ -10,8 +10,8 @@
  * página 404 — o mesmo comportamento de antes desta rota existir.
  */
 
-import { SITE_URL, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT, injectMeta, readIndexHtml } from './prerender';
-import { CATEGORY_NAMES, REGION_NAMES } from './routes';
+import { SITE_URL, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT, injectMeta, readIndexHtml } from './prerender.js';
+import { CATEGORY_NAMES, REGION_NAMES } from './routes.js';
 
 const breadcrumb = (items: Array<{ name: string; item: string }>) => ({
   '@context': 'https://schema.org',
