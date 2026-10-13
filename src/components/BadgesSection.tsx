@@ -52,14 +52,14 @@ export const BadgesSection = () => {
                 level={level}
                 stat={userStats ? userStats[track.statKey] ?? 0 : null}
                 unit={track.unit}
-                thresholds={definitions.map((badge) => ({ level: badge.level, threshold: badge.threshold }))}
+                thresholds={definitions.map((badge) => ({ level: badge.level, threshold: badge.threshold, name: badge.name }))}
               />
             );
           })}
         </div>
       )}
       <p className="mb-0 mt-3 text-[15px] text-kt-body">
-        Ink bands are earned levels; the teal sliver is progress toward the next one.
+        Ink bands and icons are earned levels, the ringed icon is the latest, and the teal sliver is progress toward the next one.
       </p>
     </section>
   );

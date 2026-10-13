@@ -248,7 +248,7 @@ const MemberProfile = () => {
               ))}
             </div>
             <p className="mb-0 mt-3 text-[15px] text-kt-body">
-              Ink bands are earned levels; the teal sliver is progress toward the next one.
+              Ink bands and icons are earned levels, the ringed icon is the latest, and the teal sliver is progress toward the next one.
             </p>
           </section>
 
