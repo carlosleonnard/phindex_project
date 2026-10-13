@@ -1,4 +1,4 @@
-import { handleProfileRequest } from '../_lib/profile-meta';
+import { handleProfileRequest } from '../_lib/profile-meta.js';
 
 export default async function handler(req: any, res: any) {
   const { slug } = req.query;

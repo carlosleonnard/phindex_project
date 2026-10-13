@@ -53,6 +53,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdmin } from "@/hooks/use-admin";
 import { cn } from "@/lib/utils";
+import { SHARE_PHOTO_SIZE, sharePhotoUrl } from "@/lib/og-image";
+import { normalizeGender } from "@/constants/genders";
 
 const PHYSICAL_KEYS = TRAITS.map((trait) => trait.key);
 const CLASSIFICATION_KEYS = [
@@ -209,24 +211,50 @@ export default function UserProfileDetail() {
   ];
   const current = photos.find((item) => item.key === photo) ?? photos[0];
 
+  // Título, descrição e imagem iguais aos do servidor (api/_lib/profile-meta.ts),
+  // para o Google não ver duas versões da mesma página.
   const profileUrl = `https://www.phenotypeindex.com/user-profile/${profile.slug}`;
-  const ogDescription = `View ${profile.name}'s phenotype classification on Phindex. Ancestry: ${profile.ancestry}. Country: ${profile.country}. Vote on physical characteristics and compare phenotypes.`;
-  const personSchema = {
+  // Há nomes gravados com espaço no fim ("Darius "), que vazariam para o título.
+  const metaName = (profile.name || "").trim();
+  const pageTitle = `${metaName} Phenotype & Ancestry | Phindex`;
+  const kind = isCommunity ? null : profile.subcategory || profile.category;
+  const ogDescription = [
+    `${kind ? `${metaName} (${kind})` : metaName} on Phindex: how the community reads their phenotype, region and ten physical traits.`,
+    profile.ancestry && `Ancestry: ${profile.ancestry}.`,
+    profile.country && `Country: ${profile.country}.`,
+    "Add your vote.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const frontPhoto = profile.front_image_url
+    ? /^https?:\/\//.test(profile.front_image_url)
+      ? profile.front_image_url
+      : `https://www.phenotypeindex.com${profile.front_image_url.startsWith("/") ? "" : "/"}${profile.front_image_url}`
+    : null;
+  const shareImage = frontPhoto ? sharePhotoUrl(frontPhoto) : "https://www.phenotypeindex.com/og-default.png";
+  const shareImageAlt = frontPhoto ? `Photo of ${metaName}` : "Phindex: discover your phenotype, classify your world.";
+  const profilePageSchema = {
     "@context": "https://schema.org",
-    "@type": "Person",
-    name: profile.name,
-    nationality: profile.country,
-    image: profile.front_image_url,
+    "@type": "ProfilePage",
     url: profileUrl,
-    description: ogDescription,
+    name: pageTitle,
+    mainEntity: {
+      "@type": "Person",
+      name: metaName,
+      ...(profile.country ? { nationality: profile.country } : {}),
+      ...(profile.gender ? { gender: normalizeGender(profile.gender) } : {}),
+      ...(frontPhoto ? { image: frontPhoto } : {}),
+      url: profileUrl,
+      description: ogDescription,
+    },
   };
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: "https://www.phenotypeindex.com" },
-      { "@type": "ListItem", position: 2, name: profile.category, item: `https://www.phenotypeindex.com${categoryPath}` },
-      { "@type": "ListItem", position: 3, name: profile.name, item: profileUrl },
+      { "@type": "ListItem", position: 2, name: categoryLabel, item: `https://www.phenotypeindex.com${categoryPath}` },
+      { "@type": "ListItem", position: 3, name: metaName, item: profileUrl },
     ],
   };
 
@@ -234,7 +262,7 @@ export default function UserProfileDetail() {
     ["category", isCommunity ? "Community · anonymous" : [profile.category, profile.subcategory].filter(Boolean).join(" · ")],
     ["country", profile.country],
     ["known ancestry", profile.ancestry],
-    ["gender", profile.gender],
+    ["gender", normalizeGender(profile.gender)],
     ["height", profile.height ? `${profile.height} m` : ""],
     ["added", `${addedOn.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} by ${creatorName}`],
   ].filter(([, value]) => Boolean(value)) as Array<[string, string]>;
@@ -242,28 +270,29 @@ export default function UserProfileDetail() {
   return (
     <AppLayout sidebar={false}>
       <Helmet>
-        <title>{`${profile.name} Phenotype Profile | Phindex - Phenotype Index`}</title>
+        <title>{pageTitle}</title>
         <meta name="description" content={ogDescription} />
         <meta
           name="keywords"
-          content={`${profile.name} phenotype, ${profile.name} ancestry, ${profile.name} physical traits, ${profile.country} phenotype`}
+          content={`${metaName} phenotype, ${metaName} ancestry, ${metaName} physical traits, ${profile.country} phenotype`}
         />
         <link rel="canonical" href={profileUrl} />
         <meta property="og:type" content="profile" />
-        <meta property="og:title" content={`${profile.name} | Phindex - Phenotype Index`} />
+        <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={ogDescription} />
-        <meta property="og:image" content={profile.front_image_url} />
-        <meta property="og:image:width" content="800" />
-        <meta property="og:image:height" content="800" />
-        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image" content={shareImage} />
+        <meta property="og:image:width" content={frontPhoto ? String(SHARE_PHOTO_SIZE) : "1200"} />
+        <meta property="og:image:height" content={frontPhoto ? String(SHARE_PHOTO_SIZE) : "630"} />
+        <meta property="og:image:alt" content={shareImageAlt} />
         <meta property="og:url" content={profileUrl} />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:card" content={frontPhoto ? "summary" : "summary_large_image"} />
         <meta name="twitter:site" content="@phenotypeindex" />
-        <meta name="twitter:title" content={`${profile.name} | Phindex`} />
-        <meta name="twitter:description" content={`View ${profile.name}'s phenotype profile on Phindex.`} />
-        <meta name="twitter:image" content={profile.front_image_url} />
-        <script type="application/ld+json">{JSON.stringify(personSchema)}</script>
+        <meta name="twitter:title" content={`${metaName} | Phindex`} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={shareImage} />
+        <meta name="twitter:image:alt" content={shareImageAlt} />
+        <script type="application/ld+json">{JSON.stringify(profilePageSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
 

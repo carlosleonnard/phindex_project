@@ -1,14 +1,28 @@
 {
   "name": "Phindex - Phenotype Index",
   "short_name": "Phindex",
-  "description": "The only phenotype database. Discover, classify, and index famous people and your friends by their unique traits.",
+  "description": "Compare and vote on human phenotypes from around the world. Post your photo, see how the community reads your phenotype, and play the guessing game.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0f172a",
+  "background_color": "#F9FAFB",
+  "theme_color": "#F9FAFB",
   "icons": [
-    { "src": "/favicon.ico", "sizes": "48x48", "type": "image/x-icon" },
-    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+    {
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32 48x48",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-square.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
   ]
 }

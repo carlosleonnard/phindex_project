@@ -15,7 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 
 import { AppLayout } from "@/components/AppLayout";
 import { AddProfileModal } from "@/components/AddProfileModal";
@@ -76,6 +76,9 @@ const AddFaceCard = ({ onFamous, onOwn }: { onFamous: () => void; onOwn: () => v
 
 const Index = () => {
   const [searchParams] = useSearchParams();
+  // Em /community o canônico é /community; em "/" (com sessão) é a raiz.
+  const { pathname } = useLocation();
+  const pageUrl = `https://www.phenotypeindex.com${pathname === "/community" ? "/community" : "/"}`;
   const initialSort = searchParams.get("sort");
   const [sort, setSort] = useState<FeedSort>(isFeedSort(initialSort) ? initialSort : "recent");
   const [region, setRegion] = useState<Continent | null>(null);
@@ -164,14 +167,14 @@ const Index = () => {
           name="keywords"
           content="phenotype, phenotypes, what is my phenotype, european phenotype, african phenotype, asian phenotype, american phenotype, ancestry, genotype, dna, human physical traits, phenotype classification, phenotype index, skin color, hair texture, eye color, body type, facial features, nasal breadth, jaw type, head type"
         />
-        <link rel="canonical" href="https://www.phenotypeindex.com/" />
+        <link rel="canonical" href={pageUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Phindex - Phenotype Index" />
         <meta property="og:description" content="Explore and classify human phenotypes from around the world." />
         <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:url" content="https://www.phenotypeindex.com" />
+        <meta property="og:url" content={pageUrl} />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />

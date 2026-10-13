@@ -53,6 +53,33 @@ const compare = (label, expected, actual) => {
 compare('categories', expectedCategories, actualCategories);
 compare('regions', expectedRegions, actualRegions);
 
+// Os nomes de exibição (títulos das páginas pré-renderizadas) também precisam bater.
+const pairsToMap = (pairs, keyFirst) => {
+  const map = {};
+  for (let i = 0; i < pairs.length; i += 2) {
+    const [a, b] = [pairs[i], pairs[i + 1]];
+    if (keyFirst) map[a] = b;
+    else map[b] = a;
+  }
+  return map;
+};
+const expectedCategoryNames = pairsToMap(catPairs, false);
+const actualCategoryNames = pairsToMap(extractStrings(routesSrc, 'CATEGORY_NAMES'), true);
+const expectedRegionNames = Object.fromEntries(
+  extractStrings(regionsSrc, 'CONTINENTS').map((c) => [c.toLowerCase().replace(/\s+/g, '-'), c])
+);
+const actualRegionNames = pairsToMap(extractStrings(routesSrc, 'REGION_NAMES'), true);
+const compareNames = (label, expected, actual) => {
+  for (const [slug, name] of Object.entries(expected)) {
+    if (actual[slug] !== name) problems.push(`${label}: "${slug}" should be named "${name}" in api/_lib/routes.ts (found "${actual[slug] ?? 'nothing'}")`);
+  }
+  for (const slug of Object.keys(actual)) {
+    if (!(slug in expected)) problems.push(`${label}: "${slug}" is in api/_lib/routes.ts but not in src/constants`);
+  }
+};
+compareNames('category names', expectedCategoryNames, actualCategoryNames);
+compareNames('region names', expectedRegionNames, actualRegionNames);
+
 if (problems.length) {
   console.error('Route constants are out of sync:\n' + problems.map((p) => `  - ${p}`).join('\n'));
   process.exit(1);

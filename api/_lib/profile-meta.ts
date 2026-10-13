@@ -5,13 +5,14 @@
  * acessível pelas duas rotas, então ambas produzem exatamente as mesmas tags e
  * apontam o canonical para a URL do slug — consolidando o sinal de ranking em
  * uma única URL em vez de dividi-lo entre duas páginas idênticas.
+ *
+ * A foto da prévia passa pelo redimensionamento do Supabase (og-image.ts):
+ * a original pode ter 2 MB, e o WhatsApp não mostra prévias pesadas.
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { SITE_URL, DEFAULT_OG_IMAGE, injectMeta, readIndexHtml } from './prerender';
-
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+import { SITE_URL, DEFAULT_OG_IMAGE, DEFAULT_OG_IMAGE_ALT, injectMeta, readIndexHtml } from './prerender.js';
+import { SHARE_PHOTO_SIZE, sharePhotoUrl } from './og-image.js';
+import { createServerClient } from './supabase.js';
 
 export type ProfileRow = {
   id: string;
@@ -21,22 +22,33 @@ export type ProfileRow = {
   ancestry: string | null;
   country: string | null;
   gender: string | null;
+  category: string | null;
+  subcategory: string | null;
 };
 
-const COLUMNS = 'id, slug, name, front_image_url, ancestry, country, gender';
+const COLUMNS = 'id, slug, name, front_image_url, ancestry, country, gender, category, subcategory';
+
+/** "User Profiles" é como o banco chama a categoria Community. */
+const COMMUNITY_DB_NAME = 'User Profiles';
+
+/** Perfis antigos guardam o gênero em português (espelho de src/constants/genders.ts). */
+const LEGACY_GENDERS: Record<string, string> = { Masculino: 'Male', Feminino: 'Female', Outro: 'Other' };
 
 /** Busca um perfil por slug ou por id. */
 export async function fetchProfile(
   by: 'slug' | 'id',
   value: string
 ): Promise<ProfileRow | null> {
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase = createServerClient();
   const { data } = await supabase
     .from('user_profiles')
     .select(COLUMNS)
     .eq(by, value)
     .single();
-  return (data as ProfileRow) || null;
+  if (!data) return null;
+  // Há nomes gravados com espaço no fim ("Darius "), que vazariam para o título.
+  const row = data as ProfileRow;
+  return { ...row, name: (row.name || '').trim() };
 }
 
 /** URL canônica: o slug quando existe, senão o id. */
@@ -46,58 +58,91 @@ export function canonicalProfileUrl(profile: ProfileRow): string {
     : `${SITE_URL}/profile/${profile.id}`;
 }
 
-/** Descrição legível, omitindo campos ausentes em vez de escrever "null". */
-function buildDescription(profile: ProfileRow): string {
+/** Foto relativa (/phindex-uploads/…) vira absoluta; crawlers não resolvem caminhos. */
+function absoluteUrl(url: string): string {
+  return /^https?:\/\//.test(url) ? url : `${SITE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+/** Categoria para exibição e para o link: Community ou o nome da categoria. */
+function categoryOf(profile: ProfileRow): { name: string; slug: string } | null {
+  if (!profile.category) return null;
+  if (profile.category === COMMUNITY_DB_NAME) return { name: 'Community', slug: 'community' };
+  return { name: profile.category, slug: profile.category.toLowerCase().replace(/\s+/g, '-') };
+}
+
+/** Título com os termos que as pessoas buscam: o nome, "phenotype" e "ancestry". */
+export function profileTitle(name: string): string {
+  return `${name} Phenotype & Ancestry | Phindex`;
+}
+
+/**
+ * Descrição legível, omitindo campos ausentes em vez de escrever "null".
+ * O que importa vem primeiro: o Google corta por volta de 155 caracteres.
+ */
+export function profileDescription(profile: ProfileRow): string {
+  const category = categoryOf(profile);
+  const kind = category && category.slug !== 'community' ? profile.subcategory || category.name : null;
+  const lead = kind ? `${profile.name} (${kind})` : profile.name;
   const facts: string[] = [];
   if (profile.ancestry) facts.push(`Ancestry: ${profile.ancestry}.`);
   if (profile.country) facts.push(`Country: ${profile.country}.`);
   return [
-    `View ${profile.name}'s phenotype classification on Phindex.`,
+    `${lead} on Phindex: how the community reads their phenotype, region and ten physical traits.`,
     ...facts,
-    'Vote on physical characteristics and compare phenotypes.',
+    'Add your vote.',
   ].join(' ');
 }
 
 /** Monta o HTML pré-renderizado para um perfil. */
 export function renderProfileHtml(profile: ProfileRow): string {
   const url = canonicalProfileUrl(profile);
-  const image = profile.front_image_url || DEFAULT_OG_IMAGE;
-  const hasOwnImage = Boolean(profile.front_image_url);
-  const description = buildDescription(profile);
+  const photo = profile.front_image_url ? absoluteUrl(profile.front_image_url) : null;
+  const image = photo ? sharePhotoUrl(photo) : DEFAULT_OG_IMAGE;
+  const description = profileDescription(profile);
+  const category = categoryOf(profile);
 
-  const personSchema: Record<string, unknown> = {
-    '@context': 'https://schema.org',
+  const person: Record<string, unknown> = {
     '@type': 'Person',
     name: profile.name,
     url,
     description,
   };
-  if (profile.country) personSchema.nationality = profile.country;
-  if (profile.front_image_url) personSchema.image = profile.front_image_url;
-  if (profile.gender) personSchema.gender = profile.gender;
+  if (profile.country) person.nationality = profile.country;
+  if (photo) person.image = photo;
+  if (profile.gender) person.gender = LEGACY_GENDERS[profile.gender] ?? profile.gender;
 
+  const profilePageSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    url,
+    name: profileTitle(profile.name),
+    mainEntity: person,
+  };
+
+  const crumbs = [{ name: 'Home', item: SITE_URL }];
+  if (category) crumbs.push({ name: category.name, item: `${SITE_URL}/category/${category.slug}` });
+  crumbs.push({ name: profile.name, item: url });
   const breadcrumbSchema = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
-      { '@type': 'ListItem', position: 2, name: profile.name, item: url },
-    ],
+    itemListElement: crumbs.map((crumb, index) => ({ '@type': 'ListItem', position: index + 1, ...crumb })),
   };
 
   return injectMeta(readIndexHtml(), {
-    title: `${profile.name} Phenotype Profile | Phindex - Phenotype Index`,
+    title: profileTitle(profile.name),
     description,
     canonical: url,
     image,
-    // Fotos de perfil são quadradas; o card padrão é 1200x630.
-    imageWidth: hasOwnImage ? '800' : '1200',
-    imageHeight: hasOwnImage ? '800' : '630',
+    imageAlt: photo ? `Photo of ${profile.name}` : DEFAULT_OG_IMAGE_ALT,
+    // A foto sai quadrada do redimensionamento; o card padrão é 1200x630.
+    imageWidth: photo ? String(SHARE_PHOTO_SIZE) : '1200',
+    imageHeight: photo ? String(SHARE_PHOTO_SIZE) : '630',
     ogType: 'profile',
-    twitterCard: hasOwnImage ? 'summary' : 'summary_large_image',
+    // Uma foto quadrada no card grande do X seria cortada em 2:1, na altura dos olhos.
+    twitterCard: photo ? 'summary' : 'summary_large_image',
     twitterTitle: `${profile.name} | Phindex`,
-    twitterDescription: `View ${profile.name}'s phenotype profile on Phindex.`,
-    jsonLd: [personSchema, breadcrumbSchema],
+    twitterDescription: description,
+    jsonLd: [profilePageSchema, breadcrumbSchema],
   });
 }
 

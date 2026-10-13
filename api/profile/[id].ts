@@ -6,7 +6,7 @@
  * tags do react-helmet nunca chegavam até eles. As meta tags aqui apontam o
  * canonical para a URL do slug, consolidando as duas rotas em uma só.
  */
-import { handleProfileRequest } from '../_lib/profile-meta';
+import { handleProfileRequest } from '../_lib/profile-meta.js';
 
 const UUID_RE = /^[0-9a-fA-F-]{36}$/;
 

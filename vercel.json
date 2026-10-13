@@ -15,6 +15,8 @@
     { "source": "/user-profile/:slug", "destination": "/api/user-profile/:slug" },
     { "source": "/profile/:id", "destination": "/api/profile/:id" },
     { "source": "/sitemap.xml", "destination": "/api/sitemap.xml" },
+    { "source": "/category/:slug", "destination": "/api/category/:slug" },
+    { "source": "/region/:slug", "destination": "/api/region/:slug" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }

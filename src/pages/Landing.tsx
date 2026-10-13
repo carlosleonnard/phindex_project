@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 import { LoginModal } from "@/components/LoginModal";
+import { LoginButton } from "@/components/LoginButton";
 import { AddProfileModal } from "@/components/AddProfileModal";
 import { HeroFigure } from "@/components/landing/HeroFigure";
 import { ThreeWays } from "@/components/landing/ThreeWays";
@@ -105,7 +106,7 @@ const Landing = () => {
             ))}
           </div>
 
-          {/* No celular o botão encolhe para caber ao lado do logo e do menu, até 320px. */}
+          {/* No celular o botão encolhe (LoginButton) para caber ao lado do logo e do menu, até 320px. */}
           <div className="flex items-center gap-1 sm:gap-2">
             {user ? (
               <Link
@@ -115,13 +116,7 @@ const Landing = () => {
                 your feed
               </Link>
             ) : (
-              <button
-                type="button"
-                onClick={() => setLoginOpen(true)}
-                className="inline-flex h-10 items-center whitespace-nowrap rounded-full border-[1.5px] border-kt-teal bg-transparent px-4 font-sc text-[16px] tracking-[0.04em] text-kt-teal transition-colors hover:bg-kt-teal/[0.06] sm:h-11 sm:px-5 sm:text-[18px]"
-              >
-                log in
-              </button>
+              <LoginButton onClick={() => setLoginOpen(true)} />
             )}
             <button
               type="button"
