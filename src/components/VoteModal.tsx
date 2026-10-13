@@ -363,7 +363,7 @@ export const VoteModal = ({
         <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 border-b border-kt-rule pl-4 pr-1.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <span className="block h-[38px] w-[38px] shrink-0 overflow-hidden rounded-[3px] bg-kt-wash">
-              <FacePhoto src={profileImages?.frontImage} alt="" />
+              <FacePhoto src={profileImages?.frontImage} alt="" width={560} height={700} />
             </span>
             <div className="min-w-0">
               <p className="m-0 truncate text-[17px] leading-[1.15] text-kt-ink">{profileImages?.profileName}</p>

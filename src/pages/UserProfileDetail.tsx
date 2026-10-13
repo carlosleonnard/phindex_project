@@ -303,7 +303,7 @@ export default function UserProfileDetail() {
         <div className="min-w-0 max-w-[470px] flex-[1_1_340px]">
           <figure className="m-0">
             <div className="relative aspect-[4/5] overflow-hidden rounded-[3px] bg-kt-wash">
-              <FacePhoto src={current.src} alt={`${profile.name}, ${current.key} photo`} priority />
+              <FacePhoto src={current.src} alt={`${profile.name}, ${current.key} photo`} priority width={720} height={900} />
               <span className="absolute bottom-3 right-3 rounded-full border border-kt-rule bg-white px-2.5 pb-1 pt-[3px] font-sc text-[13px] leading-[1.3] tracking-[0.06em] text-kt-slate">
                 {current.label}
               </span>
@@ -325,7 +325,7 @@ export default function UserProfileDetail() {
                       active ? "border-2 border-kt-ink" : "border border-kt-rule"
                     )}
                   >
-                    <FacePhoto src={item.src} alt="" />
+                    <FacePhoto src={item.src} alt="" width={120} height={150} />
                   </button>
                 );
               })}

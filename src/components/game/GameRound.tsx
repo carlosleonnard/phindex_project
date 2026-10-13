@@ -198,6 +198,8 @@ export const GameRound = ({
                 src={profile.front_image_url}
                 alt={revealed ? profile.name : `Face ${index + 1} of ${total}`}
                 priority
+                width={620}
+                height={620}
               />
               <span className="absolute left-2.5 top-2.5 rounded-full border border-kt-rule bg-white px-[9px] pb-[3px] pt-0.5 font-sc text-[12px] leading-[1.3] tracking-[0.06em] text-kt-slate md:hidden">
                 specimen {index + 1} of {total}

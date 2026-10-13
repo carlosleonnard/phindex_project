@@ -152,7 +152,7 @@ const SearchBox = () => {
                       className="flex items-center gap-3 px-3 py-2.5 text-kt-ink no-underline hover:bg-kt-wash"
                     >
                       <span className="block h-10 w-10 shrink-0 overflow-hidden rounded-[3px] bg-kt-wash">
-                        <FacePhoto src={profile.front_image_url} alt="" />
+                        <FacePhoto src={profile.front_image_url} alt="" width={96} height={120} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[16px] leading-tight">{profile.name}</span>
