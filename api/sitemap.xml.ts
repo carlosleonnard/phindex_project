@@ -58,7 +58,10 @@ export default async function handler(req: any, res: any) {
       { url: `${BASE_URL}/explore`, priority: '0.8', changefreq: 'daily', lastmod: today },
       { url: `${BASE_URL}/game`, priority: '0.7', changefreq: 'weekly', lastmod: today },
       { url: `${BASE_URL}/leaderboard`, priority: '0.5', changefreq: 'daily', lastmod: today },
+      { url: `${BASE_URL}/about`, priority: '0.6', changefreq: 'monthly', lastmod: today },
       { url: `${BASE_URL}/faq`, priority: '0.5', changefreq: 'monthly', lastmod: today },
+      { url: `${BASE_URL}/privacy`, priority: '0.3', changefreq: 'yearly', lastmod: today },
+      { url: `${BASE_URL}/terms`, priority: '0.3', changefreq: 'yearly', lastmod: today },
       { url: `${BASE_URL}/contact`, priority: '0.5', changefreq: 'monthly', lastmod: today },
       { url: `${BASE_URL}/phenotype-flow`, priority: '0.5', changefreq: 'monthly', lastmod: today },
     ];

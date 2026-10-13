@@ -78,12 +78,12 @@ export default function Leaderboard() {
         <meta property="og:url" content="https://www.phenotypeindex.com/leaderboard" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Leaderboard | Phindex" />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
       </Helmet>
 
       <div className="flex flex-wrap items-end justify-between gap-x-12 gap-y-6">

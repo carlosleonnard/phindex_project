@@ -77,7 +77,7 @@ const Landing = () => {
         <meta property="og:type" content="website" />
         <meta property="og:title" content="Phindex - Discover Your Phenotype. Classify Your World." />
         <meta property="og:description" content="Discover, compare and vote on human phenotypes from around the world." />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:url" content="https://www.phenotypeindex.com" />
@@ -86,7 +86,7 @@ const Landing = () => {
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Phindex - Discover Your Phenotype. Classify Your World." />
         <meta name="twitter:description" content="Discover, compare and vote on human phenotypes from around the world." />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
       </Helmet>
 
@@ -226,15 +226,17 @@ const Landing = () => {
             <span>vote</span>
           </p>
           <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2">
-            <Link to="/faq" className="text-kt-b50">
-              FAQ
-            </Link>
-            <Link to="/contact" className="text-kt-b50">
-              Contact
-            </Link>
-            <Link to="/leaderboard" className="text-kt-b50">
-              Leaderboard
-            </Link>
+            {[
+              { to: "/about", label: "About" },
+              { to: "/faq", label: "FAQ" },
+              { to: "/privacy", label: "Privacy" },
+              { to: "/terms", label: "Terms" },
+              { to: "/contact", label: "Contact" },
+            ].map((link) => (
+              <Link key={link.to} to={link.to} className="text-kt-b50">
+                {link.label}
+              </Link>
+            ))}
           </nav>
           <p className="m-0">© {new Date().getFullYear()} Phindex. All rights reserved.</p>
         </div>

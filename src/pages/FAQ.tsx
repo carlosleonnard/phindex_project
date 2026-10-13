@@ -201,12 +201,12 @@ const FAQ = () => {
         <meta property="og:url" content="https://www.phenotypeindex.com/faq" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="FAQ | Phindex" />
         <meta name="twitter:description" content="Answers to common questions about Phindex and phenotype classification." />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
       </Helmet>
 
