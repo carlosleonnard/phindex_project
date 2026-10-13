@@ -149,7 +149,7 @@ export default function CategoryPage() {
         <meta property="og:url" content={catUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/png" />
@@ -157,7 +157,7 @@ export default function CategoryPage() {
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content={catTitle} />
         <meta name="twitter:description" content={catDescription} />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
 

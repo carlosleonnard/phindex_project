@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CenButton, outlineCapsule } from "@/components/kt/Centromere";
 import { SC } from "@/components/kt/Misc";
@@ -199,6 +199,10 @@ export const AddProfileModal = ({
             <p className="mb-0 mt-4 text-[15px] leading-[1.55] text-kt-body">
               Check for duplicates before adding: inactive or duplicated profiles are cleaned out from time to time. To
               remove a profile, write to <a href="mailto:contact@phenotypeindex.com">contact@phenotypeindex.com</a>.
+            </p>
+            <p className="mb-0 mt-2 text-[15px] leading-[1.55] text-kt-body">
+              The full rules are in the <Link to="/terms">Terms</Link>, and{" "}
+              <Link to="/privacy">Privacy</Link> explains what is stored.
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-kt-rule px-6 py-4 sm:px-8">

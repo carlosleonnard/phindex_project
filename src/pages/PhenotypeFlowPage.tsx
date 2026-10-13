@@ -210,12 +210,12 @@ export default function PhenotypeFlowPage() {
         <meta property="og:url" content="https://www.phenotypeindex.com/phenotype-flow" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Phenotype Flow | Phindex" />
         <meta name="twitter:description" content="Browse the full phenotype classification reference by region, from Northern America to Oceania, with visual examples for each phenotype." />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
       </Helmet>
         <div>
           <div className="mb-8">

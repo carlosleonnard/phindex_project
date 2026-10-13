@@ -231,7 +231,7 @@ export default function UserProfileDetail() {
       ? profile.front_image_url
       : `https://www.phenotypeindex.com${profile.front_image_url.startsWith("/") ? "" : "/"}${profile.front_image_url}`
     : null;
-  const shareImage = frontPhoto ? sharePhotoUrl(frontPhoto) : "https://www.phenotypeindex.com/og-default.png";
+  const shareImage = frontPhoto ? sharePhotoUrl(frontPhoto) : "https://www.phenotypeindex.com/og-phindex-faces.png";
   const shareImageAlt = frontPhoto ? `Photo of ${metaName}` : "Phindex: discover your phenotype, classify your world.";
   const profilePageSchema = {
     "@context": "https://schema.org",

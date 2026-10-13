@@ -51,7 +51,7 @@ const Contact = () => {
         <meta property="og:url" content="https://www.phenotypeindex.com/contact" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Phindex - Phenotype Index" />
-        <meta property="og:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta property="og:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@phenotypeindex" />
         <meta name="twitter:title" content="Contact | Phindex" />
@@ -59,7 +59,7 @@ const Contact = () => {
           name="twitter:description"
           content="Contact the Phindex team to report content, request a profile removal, or ask about phenotype classification."
         />
-        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-default.png" />
+        <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
       </Helmet>
 
       <SC as="p" className="m-0 text-[16px] text-kt-teal">

@@ -17,7 +17,7 @@ import { join } from 'path';
 export const SITE_URL = 'https://www.phenotypeindex.com';
 export const SITE_NAME = 'Phindex - Phenotype Index';
 export const TWITTER_HANDLE = '@phenotypeindex';
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-phindex-faces.png`;
 /** Igual ao og:image:alt do index.html. */
 export const DEFAULT_OG_IMAGE_ALT =
   'Phindex: discover your phenotype, classify your world. Six faces in the Phindex teal.';

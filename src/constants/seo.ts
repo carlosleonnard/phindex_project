@@ -12,7 +12,7 @@ export const SITE_NAME = "Phindex - Phenotype Index";
 export const TWITTER_HANDLE = "@phenotypeindex";
 
 /** Card de compartilhamento padrão (1200x630). */
-export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
+export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-phindex-faces.png`;
 export const DEFAULT_OG_IMAGE_WIDTH = "1200";
 export const DEFAULT_OG_IMAGE_HEIGHT = "630";
 

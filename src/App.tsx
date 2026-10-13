@@ -32,6 +32,9 @@ import PhenotypeFlowPage from "./pages/PhenotypeFlowPage"; // Página do fluxo d
 import Settings from "./pages/Settings"; // Página de configurações do usuário
 import Contact from "./pages/Contact"; // Página de contato
 import FAQ from "./pages/FAQ"; // Página de perguntas frequentes
+import About from "./pages/About"; // Quem mantém o site e o que os resultados significam
+import Privacy from "./pages/Privacy"; // O que é guardado e como pedir remoção
+import Terms from "./pages/Terms"; // As regras para publicar e comentar
 import Leaderboard from "./pages/Leaderboard"; // Página de leaderboard
 import GamePage from "./pages/GamePage"; // Página do jogo Origin Game
 import MemberProfile from "./pages/MemberProfile"; // Página de perfil público de membro
@@ -112,6 +115,11 @@ const App = () => (
           
           {/* ROTA ESTÁTICA: Página de perguntas frequentes */}
           <Route path="/faq" element={<FAQ />} />
+
+          {/* ROTAS ESTÁTICAS: identidade e políticas */}
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
           
           {/* ROTA ESTÁTICA: Leaderboard global */}
           <Route path="/leaderboard" element={<Leaderboard />} />
