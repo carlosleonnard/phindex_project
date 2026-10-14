@@ -129,6 +129,23 @@ export default function CategoryPage() {
   const catTitle = `${displayName} Phenotypes | Phindex`;
   const catDescription = `Browse ${displayName} phenotype profiles on Phindex. See physical trait classifications and vote on characteristics.`;
   const catUrl = `https://www.phenotypeindex.com/category/${slug}`;
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: catTitle,
+    url: catUrl,
+    description: catDescription,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: filtered.length,
+      itemListElement: visible.map((profile, index) => ({
+        "@type": "ListItem",
+        position: (page - 1) * PER_PAGE + index + 1,
+        url: `https://www.phenotypeindex.com/user-profile/${profile.slug}`,
+        name: profile.name,
+      })),
+    },
+  };
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -158,6 +175,7 @@ export default function CategoryPage() {
         <meta name="twitter:title" content={catTitle} />
         <meta name="twitter:description" content={catDescription} />
         <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
+        <script type="application/ld+json">{JSON.stringify(collectionSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
 
