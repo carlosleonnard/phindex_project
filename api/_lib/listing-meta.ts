@@ -52,7 +52,7 @@ export function renderRegionHtml(slug: string): string | null {
   const name = REGION_NAMES[slug];
   if (!name) return null;
   const url = `${SITE_URL}/region/${slug}`;
-  const title = `${name} Phenotypes | Phindex - Phenotype Index`;
+  const title = `${name} Phenotypes | Phindex`;
   const description = `Explore ${name} phenotypes and physical traits. Discover phenotype classifications from ${name}. Vote and compare physical characteristics.`;
 
   return injectMeta(readIndexHtml(), {
