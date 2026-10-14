@@ -107,6 +107,8 @@ interface GlossaryItem {
   term: string;
   aka?: string;
   body: ReactNode;
+  /** A mesma definição em texto puro, para o JSON-LD (o body é JSX). */
+  plain: string;
   /** Rótulos das pontas e do meio de uma escala ordinal de cinco faixas. */
   scale?: [string, string, string];
 }
@@ -114,6 +116,7 @@ interface GlossaryItem {
 const GLOSSARY: GlossaryItem[] = [
   {
     term: "Head type",
+    plain: "Head breadth divided by head length, seen from above. Dolichocephalic heads are long and narrow, mesocephalic medium, brachycephalic short and broad.",
     aka: "cephalic index",
     body: (
       <>
@@ -125,6 +128,7 @@ const GLOSSARY: GlossaryItem[] = [
   },
   {
     term: "Nasal breadth",
+    plain: "Nose width divided by nose height. Leptorrhine means narrow (under about 70), mesorrhine medium, platyrrhine wide (over about 85).",
     aka: "nasal index",
     body: (
       <>
@@ -136,6 +140,7 @@ const GLOSSARY: GlossaryItem[] = [
   },
   {
     term: "Facial breadth",
+    plain: "Face height against face width. Leptoprosop faces are long, mesoprosop medium, euryprosop broad.",
     aka: "facial index",
     body: (
       <>
@@ -146,6 +151,7 @@ const GLOSSARY: GlossaryItem[] = [
   },
   {
     term: "Jaw type",
+    plain: "Where the jaw sits, seen in profile: retrognathous sits back, orthognathous is straight, prognathous projects forward.",
     body: (
       <>
         Where the jaw sits, seen in profile: <em>retrognathous</em> sits back, <em>orthognathous</em> is straight,{" "}
@@ -155,6 +161,7 @@ const GLOSSARY: GlossaryItem[] = [
   },
   {
     term: "Body type",
+    plain: "Ectomorph is lean and linear, mesomorph muscular, endomorph rounder. Most people mix all three; pick the strongest.",
     aka: "somatotype",
     body: (
       <>
@@ -165,6 +172,7 @@ const GLOSSARY: GlossaryItem[] = [
   },
   {
     term: "Genotype",
+    plain: "The genetic code itself. Phindex never sees it; every vote here is about the phenotype.",
     body: <>The genetic code itself. Phindex never sees it; every vote here is about the phenotype.</>,
   },
 ];
@@ -181,6 +189,22 @@ const FAQ = () => {
       "@type": "Question",
       name: question,
       acceptedAnswer: { "@type": "Answer", text: answer },
+    })),
+  };
+
+  // Glossário como DefinedTermSet: são os termos que a votação usa, e é o que
+  // um mecanismo de resposta consegue citar sem reescrever.
+  const glossarySchema = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTermSet",
+    name: "Phindex measurement glossary",
+    url: "https://www.phenotypeindex.com/faq",
+    hasDefinedTerm: GLOSSARY.map((item) => ({
+      "@type": "DefinedTerm",
+      name: item.term,
+      ...(item.aka ? { alternateName: item.aka } : {}),
+      description: item.plain,
+      inDefinedTermSet: "https://www.phenotypeindex.com/faq",
     })),
   };
 
@@ -208,6 +232,7 @@ const FAQ = () => {
         <meta name="twitter:description" content="Answers to common questions about Phindex and phenotype classification." />
         <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
         <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
+        <script type="application/ld+json">{JSON.stringify(glossarySchema)}</script>
       </Helmet>
 
       <SC as="p" className="m-0 text-[16px] text-kt-teal">

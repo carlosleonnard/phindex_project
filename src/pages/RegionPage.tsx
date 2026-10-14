@@ -167,6 +167,23 @@ export default function RegionPage() {
   const regionUrl = `https://www.phenotypeindex.com/region/${regionKey}`;
   // Card 1200x630 gerado a partir do banner da região (public/og/).
   const regionImage = `https://www.phenotypeindex.com/og/region-${regionKey}.png`;
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: regionTitle,
+    url: regionUrl,
+    description: regionDescription,
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: filtered.length,
+      itemListElement: visible.map((profile, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: `https://www.phenotypeindex.com/user-profile/${profile.slug}`,
+        name: profile.name,
+      })),
+    },
+  };
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -196,6 +213,7 @@ export default function RegionPage() {
         <meta name="twitter:title" content={regionTitle} />
         <meta name="twitter:description" content={regionDescription} />
         <meta name="twitter:image" content={regionImage} />
+        <script type="application/ld+json">{JSON.stringify(collectionSchema)}</script>
         <script type="application/ld+json">{JSON.stringify(breadcrumbSchema)}</script>
       </Helmet>
 

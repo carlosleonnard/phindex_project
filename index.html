@@ -35,10 +35,11 @@
     <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" data-rh="true" />
     <meta name="twitter:image:alt" content="Phindex: discover your phenotype, classify your world. Six faces in the Phindex teal." />
     
-    <!-- Google Fonts - Vollkorn -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Vollkorn:ital,wght@0,400..900;1,400..900&family=Vollkorn+SC:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Vollkorn, servida pelo proprio site: o texto do heroi e o LCP da home e
+         esperava por uma origem de terceiros. Preload so do peso que a primeira
+         tela usa; o resto vem pelo CSS. -->
+    <link rel="preload" href="/fonts/vollkorn-normal-400-900-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/fonts/fonts.css">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -62,10 +63,14 @@
             "width": 512,
             "height": 512
           },
-          "description": "The only phenotype database for classifying and indexing physical traits of famous people and individuals.",
-          "sameAs": [
-            "https://www.phenotypeindex.com"
-          ]
+          "description": "A community project where people vote on how they read human faces: region, phenotype and ten physical traits.",
+          "foundingDate": "2026",
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "contact@phenotypeindex.com",
+            "contactType": "customer support",
+            "url": "https://www.phenotypeindex.com/contact"
+          }
         },
         {
           "@type": "WebSite",
@@ -73,7 +78,7 @@
           "name": "Phindex",
           "alternateName": "Phenotype Index",
           "url": "https://www.phenotypeindex.com",
-          "description": "The only phenotype database. Discover, classify, and index famous people and your friends by their unique traits.",
+          "description": "Compare and vote on human phenotypes from around the world.",
           "publisher": {
             "@id": "https://www.phenotypeindex.com/#organization"
           },
@@ -81,7 +86,7 @@
             "@type": "SearchAction",
             "target": {
               "@type": "EntryPoint",
-              "urlTemplate": "https://www.phenotypeindex.com/?q={search_term_string}"
+              "urlTemplate": "https://www.phenotypeindex.com/explore?q={search_term_string}"
             },
             "query-input": "required name=search_term_string"
           }

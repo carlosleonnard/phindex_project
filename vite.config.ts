@@ -48,6 +48,24 @@ export default defineConfig(({ mode }) => ({
   /**
    * CONFIGURAÇÃO DE RESOLUÇÃO DE MÓDULOS
    */
+  /**
+   * BUILD
+   *
+   * O React, o Radix e o Supabase mudam muito menos que o código do site.
+   * Separá-los faz com que um deploy novo não invalide o cache deles no
+   * navegador de quem já visitou.
+   */
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          data: ["@tanstack/react-query", "@supabase/supabase-js"],
+        },
+      },
+    },
+  },
+
   resolve: {
     alias: {
       // Alias "@" aponta para a pasta src, permitindo imports como "@/components/Button"

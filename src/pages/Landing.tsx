@@ -28,18 +28,6 @@ import { DECOR } from "@/components/kt/bands";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "Phindex - Phenotype Index",
-  url: "https://www.phenotypeindex.com",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://www.phenotypeindex.com/explore?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
-};
-
 const NAV_LINKS = [
   { label: "community", to: "/community" },
   { label: "explore", to: "/explore" },
@@ -87,7 +75,6 @@ const Landing = () => {
         <meta name="twitter:title" content="Phindex - Discover Your Phenotype. Classify Your World." />
         <meta name="twitter:description" content="Discover, compare and vote on human phenotypes from around the world." />
         <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
-        <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
       </Helmet>
 
       {/* ══ NAV ══════════════════════════════════════════════════════════ */}

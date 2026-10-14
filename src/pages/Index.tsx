@@ -30,18 +30,6 @@ import { useProfileStats } from "@/hooks/use-profile-stats";
 import { useAuth } from "@/hooks/use-auth";
 import { profileContinent, type Continent } from "@/constants/regions";
 
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: "Phindex - Phenotype Index",
-  url: "https://www.phenotypeindex.com",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://www.phenotypeindex.com/explore?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
-};
-
 const SORT_OPTIONS: { value: FeedSort; label: string }[] = [
   { value: "recent", label: "Recent" },
   { value: "popular", label: "Most voted" },
@@ -181,7 +169,6 @@ const Index = () => {
         <meta name="twitter:title" content="Phindex - Phenotype Index" />
         <meta name="twitter:description" content="Explore and classify human phenotypes from around the world." />
         <meta name="twitter:image" content="https://www.phenotypeindex.com/og-phindex-faces.png" />
-        <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
       </Helmet>
 
       <div className="flex flex-wrap items-start gap-10">
