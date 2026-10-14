@@ -162,7 +162,7 @@ export default function RegionPage() {
   // Barras na mesma escala, inclusive "other" — que costuma ser a maior fatia.
   const maxReadAs = Math.max(readAs.top[0]?.pct || 0, readAs.otherPct) || 1;
 
-  const regionTitle = `${continent} Phenotypes | Phindex - Phenotype Index`;
+  const regionTitle = `${continent} Phenotypes | Phindex`;
   const regionDescription = `Explore ${continent} phenotypes and physical traits. Discover phenotype classifications from ${continent}. Vote and compare physical characteristics.`;
   const regionUrl = `https://www.phenotypeindex.com/region/${regionKey}`;
   // Card 1200x630 gerado a partir do banner da região (public/og/).
