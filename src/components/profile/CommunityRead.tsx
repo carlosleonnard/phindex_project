@@ -1,9 +1,10 @@
 /**
  * A LEITURA DA COMUNIDADE (CommunityRead.tsx)
  *
- * O resumo de um perfil como um cromossomo de doze faixas:
+ * O resumo de um perfil como um cromossomo de treze faixas:
  *
- *   braço curto (p) — quem o rosto parece ser: região e fenótipo;
+ *   braço curto (p) — quem o rosto parece ser: região, fenótipo geral (o
+ *                     grupo) e fenótipo específico (o subtipo);
  *   braço longo (q) — o que o rosto mostra: os dez traços, na ordem do voto.
  *
  * O tom de cada faixa é o consenso daquela característica: assentado (60%+),
@@ -43,19 +44,22 @@ const Arm = ({ bands, className, style }: { bands: ReadBand[]; className?: strin
 
 export const CommunityRead = ({
   region,
-  phenotype,
+  general,
+  specific,
   traits,
   voters,
 }: {
   region: number | null;
-  phenotype: number | null;
+  general: number | null;
+  specific: number | null;
   /** Consenso de cada traço, na ordem de TRAITS. */
   traits: Array<number | null>;
   voters: number;
 }) => {
   const pBands: ReadBand[] = [
     { label: "region", agreement: region },
-    { label: "phenotype", agreement: phenotype },
+    { label: "general", agreement: general },
+    { label: "specific", agreement: specific },
   ];
   const qBands: ReadBand[] = TRAITS.map((trait, index) => ({ label: trait.short, agreement: traits[index] ?? null }));
   const all = [...pBands, ...qBands];
@@ -80,15 +84,15 @@ export const CommunityRead = ({
 
       <div
         role="img"
-        aria-label={`Read of this profile as a chromosome: region and phenotype on the short arm, ten physical traits on the long arm. ${settled} settled, ${leaning} leaning, ${split} split, ${empty} without votes.`}
+        aria-label={`Read of this profile as a chromosome: region, general phenotype and specific phenotype on the short arm, ten physical traits on the long arm. ${settled} settled, ${leaning} leaning, ${split} split, ${empty} without votes.`}
         className="mt-6"
       >
         <div className="flex h-[34px]">
-          <Arm bands={pBands} className="h-full flex-[0_0_19%]" />
+          <Arm bands={pBands} className="h-full flex-[0_0_24%]" />
           <Arm bands={qBands} className="h-full flex-1" />
         </div>
         <div aria-hidden="true" className="mt-2 flex text-[12px] italic leading-[1.2] text-kt-body">
-          <div className="flex flex-[0_0_19%]">
+          <div className="flex flex-[0_0_24%]">
             {pBands.map((band) => (
               <span key={band.label} className="flex-1 truncate text-center">
                 {band.label}
@@ -104,7 +108,7 @@ export const CommunityRead = ({
           </div>
         </div>
         <div aria-hidden="true" className="mt-1.5 flex font-sc text-[12px] tracking-[0.06em] text-kt-teal">
-          <span className="flex-[0_0_19%] border-t border-kt-b50 pt-1 text-center">p · who</span>
+          <span className="flex-[0_0_24%] border-t border-kt-b50 pt-1 text-center">p · who</span>
           <span className="ml-1.5 flex-1 border-t border-kt-b50 pt-1 text-center">q · what the face shows</span>
         </div>
       </div>

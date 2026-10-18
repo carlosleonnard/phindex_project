@@ -1,8 +1,9 @@
 /**
  * SEÇÕES DA LEITURA (ReadSections.tsx)
  *
- *   Classification — o braço curto em detalhe: a distribuição de região e de
- *                    fenótipo, com as segundas e terceiras escolhas.
+ *   Classification — o braço curto em detalhe: região, fenótipo geral (os
+ *                    votos somados no grupo) e fenótipo específico (só os que
+ *                    chegaram ao subtipo), com as segundas e terceiras escolhas.
  *   TraitTable     — o braço longo: uma faixa por traço, cada opção uma banda
  *                    na ordem da escala, o tom pela fatia de votos.
  *   BlindRead      — voto × palpite às cegas (o jogo), em três níveis.
@@ -12,6 +13,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { TRAITS, traitOptionLabel } from "@/constants/traits";
 import { phenotypeGroupOf } from "@/constants/taxonomy";
+import { phenotypeLevel } from "@/lib/phenotype-levels";
 import { continentOf, type Continent } from "@/constants/regions";
 import { useProfileGameStats, type GameDifficulty } from "@/hooks/use-profile-game-stats";
 import { RANK_SHADES, KT } from "@/components/kt/bands";
@@ -125,25 +127,36 @@ export const Classification = ({
 }: {
   geographic: Record<string, VoteShare[]>;
   phenotype: Record<string, VoteShare[]>;
-}) => (
-  <section aria-labelledby="class-title" className="mt-11">
-    <SectionHead id="class-title" title="Classification" arm="short arm · p" />
-    <div className="mt-[22px] grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-x-10 gap-y-7">
-      <DistributionBlock
-        title="region"
-        primary={geographic["Primary Geographic"] ?? []}
-        secondary={geographic["Secondary Geographic"]}
-        tertiary={geographic["Tertiary Geographic"]}
-      />
-      <DistributionBlock
-        title="phenotype"
-        primary={phenotype["Primary Phenotype"] ?? []}
-        secondary={phenotype["Secondary Phenotype"]}
-        tertiary={phenotype["Tertiary Phenotype"]}
-      />
-    </div>
-  </section>
-);
+}) => {
+  const general = phenotypeLevel(phenotype, "general");
+  const specific = phenotypeLevel(phenotype, "specific");
+
+  return (
+    <section aria-labelledby="class-title" className="mt-11">
+      <SectionHead id="class-title" title="Classification" arm="short arm · p" />
+      <div className="mt-[22px] grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-x-10 gap-y-7">
+        <DistributionBlock
+          title="region"
+          primary={geographic["Primary Geographic"] ?? []}
+          secondary={geographic["Secondary Geographic"]}
+          tertiary={geographic["Tertiary Geographic"]}
+        />
+        <DistributionBlock
+          title="general phenotype"
+          primary={general["Primary Phenotype"]}
+          secondary={general["Secondary Phenotype"]}
+          tertiary={general["Tertiary Phenotype"]}
+        />
+        <DistributionBlock
+          title="specific phenotype"
+          primary={specific["Primary Phenotype"]}
+          secondary={specific["Secondary Phenotype"]}
+          tertiary={specific["Tertiary Phenotype"]}
+        />
+      </div>
+    </section>
+  );
+};
 
 /** Fatias por opção (0–100) na ordem da escala, mais o líder. */
 export const traitSummary = (key: string, votes: PhysicalCharacteristicVotes["votes"]) => {

@@ -1,26 +1,38 @@
 /**
  * O VOTO, PASSO A PASSO (VoteModal.tsx)
  *
- * Doze perguntas, uma por vez, e um cromossomo no topo que se preenche faixa a
- * faixa: o braço curto são as duas obrigatórias (região e fenótipo), o braço
- * longo os dez traços, que se pode pular. Tocar numa faixa volta à pergunta.
+ * Treze perguntas, uma por vez, e um cromossomo no topo que se preenche faixa
+ * a faixa: o braço curto são as três obrigatórias (região, fenótipo geral e
+ * fenótipo específico), o braço longo os dez traços, que se pode pular. Tocar
+ * numa faixa volta à pergunta.
+ *
+ * PRIMÁRIO, SECUNDÁRIO, TERCIÁRIO. Um rosto pode mostrar traços de até três
+ * regiões e três fenótipos, então as perguntas do braço curto aceitam até três
+ * escolhas, em ordem de força: a primeira é a que aparece mais forte e é a
+ * única obrigatória; a segunda e a terceira são opcionais.
+ *
+ * GERAL E ESPECÍFICO. O fenótipo geral é o grupo (Nordid); o específico é um
+ * subtipo DENTRO do grupo escolhido na mesma posição — escolher Nordid mostra
+ * só os subtipos do Nordid. Grupos sem subtipos (Khoid, Hadza…) já são a
+ * resposta específica.
+ *
+ * O QUE SE GRAVA. Uma linha por posição em Primary/Secondary/Tertiary
+ * Phenotype, como antes: o subtipo quando escolhido, senão o grupo. O nível
+ * geral sai do subtipo pela taxonomia (cada subtipo pertence a um grupo só),
+ * então o banco não muda e os votos antigos continuam valendo.
  *
  * A leitura da comunidade fica escondida até o voto ser enviado — para não
  * puxar a resposta — e só então aparece a comparação: onde você concordou com
  * a maioria e onde leu diferente.
- *
- * Os valores gravados são os mesmos de antes (taxonomy.ts e traits.ts); os
- * rótulos de exibição usam palavras comuns e o termo técnico em itálico. As
- * segundas e terceiras escolhas de região e fenótipo continuam disponíveis,
- * como campos opcionais nas duas primeiras perguntas.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { GEOGRAPHIC_OPTIONS, PHENOTYPE_ENTRIES, PHENOTYPE_GROUPS, ALL_SUBREGIONS } from "@/constants/taxonomy";
+import { GEOGRAPHIC_OPTIONS, PHENOTYPE_GROUPS, phenotypeGroupOf, subgroupsOf } from "@/constants/taxonomy";
 import { CONTINENT_ORDER, continentOf, type Continent } from "@/constants/regions";
 import { TRAITS, traitOptionLabel } from "@/constants/traits";
+import { toGeneralShares, toSpecificShares } from "@/lib/phenotype-levels";
 import { CenButton } from "@/components/kt/Centromere";
 import { FacePhoto, REGION_HEX, RegionDot, SC } from "@/components/kt/Misc";
 import { KT } from "@/components/kt/bands";
@@ -35,7 +47,7 @@ interface VoteShareLike {
 interface VoteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Grava os votos; devolve false se o voto principal falhou. */
+  /** Grava os votos (chaves gravadas, não as internas); devolve false se o voto principal falhou. */
   onSubmit: (votes: Record<string, string>) => Promise<boolean | void> | boolean | void;
   /** Depois da comparação, ao fechar — a página recarrega a leitura. */
   onFinished?: () => void;
@@ -55,7 +67,7 @@ interface VoteModalProps {
   };
 }
 
-type StepKind = "region" | "phenotype" | "trait";
+type StepKind = "region" | "general" | "specific" | "trait";
 
 interface Step {
   kind: StepKind;
@@ -65,20 +77,41 @@ interface Step {
   help: string;
 }
 
+/** Posições, em ordem de força. */
+const RANKS = [0, 1, 2] as const;
+const RANK_LABEL = ["1st", "2nd", "3rd"];
+
+/** Gravadas no banco. */
+const REGION_KEYS = ["Primary Geographic", "Secondary Geographic", "Tertiary Geographic"];
+const PHENOTYPE_KEYS = ["Primary Phenotype", "Secondary Phenotype", "Tertiary Phenotype"];
+/** Só do modal: o banco recebe um nome por posição em PHENOTYPE_KEYS. */
+const GENERAL_KEYS = ["Primary General", "Secondary General", "Tertiary General"];
+const SPECIFIC_KEYS = ["Primary Specific", "Secondary Specific", "Tertiary Specific"];
+
+/** Quantas faixas o braço curto tem — as perguntas obrigatórias. */
+const SHORT_ARM = 3;
+
 const STEPS: Step[] = [
   {
     kind: "region",
     key: "Primary Geographic",
     title: "Region",
     short: "region",
-    help: "Where does this face most likely come from? Pick the closest sub-region.",
+    help: "Where does this face most likely come from? Pick the closest sub-region; if it mixes, add a second and third.",
   },
   {
-    kind: "phenotype",
-    key: "Primary Phenotype",
-    title: "Phenotype",
-    short: "phenotype",
-    help: "Pick the group this face reads as most strongly.",
+    kind: "general",
+    key: "Primary General",
+    title: "General phenotype",
+    short: "general",
+    help: "Which group does this face read as most strongly? If it shows traits of other groups, add them second and third.",
+  },
+  {
+    kind: "specific",
+    key: "Primary Specific",
+    title: "Specific phenotype",
+    short: "specific",
+    help: "Within each group you chose, which subtype fits best?",
   },
   ...TRAITS.map((trait) => ({
     kind: "trait" as const,
@@ -101,9 +134,49 @@ const BAND = {
   differs: KT.b50,
 };
 
+/** Votos gravados → chaves do modal: o nome de cada posição vira grupo + subtipo. */
+const fromStored = (stored: Record<string, string>): Record<string, string> => {
+  const out = Object.fromEntries(Object.entries(stored).filter(([, value]) => Boolean(value)));
+  PHENOTYPE_KEYS.forEach((key, rank) => {
+    const value = out[key];
+    delete out[key];
+    if (!value) return;
+    const group = phenotypeGroupOf(value);
+    out[GENERAL_KEYS[rank]] = group;
+    if (group.toLowerCase() !== value.toLowerCase()) out[SPECIFIC_KEYS[rank]] = value;
+  });
+  return out;
+};
+
+/** Chaves do modal → votos gravados: o subtipo quando há, senão o grupo. */
+const toStored = (votes: Record<string, string>): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(votes)) {
+    if (GENERAL_KEYS.includes(key) || SPECIFIC_KEYS.includes(key) || !value) continue;
+    out[key] = value;
+  }
+  GENERAL_KEYS.forEach((key, rank) => {
+    const group = votes[key];
+    if (group) out[PHENOTYPE_KEYS[rank]] = votes[SPECIFIC_KEYS[rank]] || group;
+  });
+  return out;
+};
+
+/** O subtipo de uma posição: o escolhido, ou o próprio grupo quando ele não tem subtipos. */
+const specificValue = (votes: Record<string, string>, rank: number): string | null => {
+  const group = votes[GENERAL_KEYS[rank]];
+  if (!group) return null;
+  if (subgroupsOf(group).length === 0) return group;
+  return votes[SPECIFIC_KEYS[rank]] ?? null;
+};
+
+const isAnswered = (item: Step, votes: Record<string, string>) =>
+  item.kind === "specific" ? specificValue(votes, 0) !== null : Boolean(votes[item.key]);
+
 const optionRow = (selected: boolean) =>
   cn(
     "mb-2 flex min-h-[54px] w-full items-center gap-3.5 rounded-full border-[1.5px] py-2 pl-4 pr-[18px] text-left font-[inherit] text-[17px] leading-[1.2] transition-colors",
+    "disabled:cursor-not-allowed disabled:opacity-45",
     selected ? "border-kt-ink bg-kt-ink text-kt-paper" : "border-kt-rule bg-white text-kt-ink hover:border-kt-b50"
   );
 
@@ -122,55 +195,64 @@ const ScaleGlyph = ({ index, count, selected }: { index: number; count: number; 
   );
 };
 
-const OptionalSelect = ({
-  id,
-  label,
-  value,
-  options,
-  onChange,
-  grouped,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-  grouped?: Array<{ group: string; items: string[] }>;
-}) => (
-  <div className="flex flex-col gap-1">
-    <label htmlFor={id} className="font-sc text-[13px] tracking-[0.06em] text-kt-body">
-      {label}
-    </label>
-    <select
-      id={id}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-11 w-full appearance-none rounded-full border border-kt-rule bg-white px-4 font-[inherit] text-[16px] text-kt-ink"
-    >
-      <option value="">none</option>
-      {grouped
-        ? grouped.map((group) => (
-            <optgroup key={group.group} label={group.group}>
-              {group.items.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </optgroup>
-          ))
-        : options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-    </select>
-  </div>
+const PhenotypeGlyph = ({ selected }: { selected: boolean }) => (
+  <span
+    aria-hidden="true"
+    className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
+    style={{
+      background: selected
+        ? `linear-gradient(90deg,${KT.ink} 0 30%,${KT.glow} 0 60%,${KT.ink} 0 100%)`
+        : `linear-gradient(90deg,${KT.sheet} 0 30%,${KT.b50} 0 60%,${KT.sheet} 0 100%)`,
+    }}
+  />
 );
 
-const PHENOTYPE_GROUPED = PHENOTYPE_GROUPS.map((group) => ({
-  group,
-  items: PHENOTYPE_ENTRIES.filter((entry) => entry.group === group).map((entry) => entry.name),
-}));
+/**
+ * As três posições de uma pergunta. A segunda só abre depois da primeira, a
+ * terceira depois da segunda — a mesma ordem de força do voto.
+ */
+const RankTabs = ({
+  label,
+  active,
+  onSelect,
+  valueOf,
+  captionOf,
+  disabledOf,
+}: {
+  label: string;
+  active: number;
+  onSelect: (rank: number) => void;
+  valueOf: (rank: number) => string | null;
+  captionOf: (rank: number) => string;
+  disabledOf: (rank: number) => boolean;
+}) => (
+  <div role="tablist" aria-label={label} className="grid grid-cols-3 gap-1.5">
+    {RANKS.map((rank) => {
+      const value = valueOf(rank);
+      const selected = active === rank;
+      return (
+        <button
+          key={rank}
+          type="button"
+          role="tab"
+          aria-selected={selected}
+          disabled={disabledOf(rank)}
+          onClick={() => onSelect(rank)}
+          className={cn(
+            "flex min-h-[54px] min-w-0 flex-col items-start justify-center gap-0.5 rounded-[14px] border-[1.5px] px-3 py-1.5 text-left font-[inherit] transition-colors",
+            "disabled:cursor-not-allowed disabled:opacity-40",
+            selected ? "border-kt-ink bg-white" : "border-kt-rule bg-kt-paper hover:border-kt-b50"
+          )}
+        >
+          <span className="w-full truncate font-sc text-[12px] tracking-[0.06em] text-kt-teal">{captionOf(rank)}</span>
+          <span className={cn("w-full truncate text-[15px] leading-[1.2]", value ? "text-kt-ink" : "italic text-kt-body")}>
+            {value ?? (rank === 0 ? "choose" : "optional")}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+);
 
 export const VoteModal = ({
   isOpen,
@@ -186,12 +268,16 @@ export const VoteModal = ({
   const [votes, setVotes] = useState<Record<string, string>>({});
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [step, setStep] = useState(0);
+  /** Qual posição (1ª, 2ª, 3ª) a pergunta atual está editando. */
+  const [rank, setRank] = useState(0);
   const [continent, setContinent] = useState<Continent>("Africa");
   const [query, setQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const advanceTimer = useRef<number>();
 
-  // Abre com os votos já gravados e, por cima, o rascunho local.
+  // Abre com os votos já gravados e, por cima, o rascunho local. Rascunhos de
+  // antes do voto em dois níveis ainda trazem "Primary Phenotype": fromStored
+  // traduz os dois formatos.
   useEffect(() => {
     if (!isOpen) return;
     let saved: Record<string, string> = {};
@@ -201,9 +287,7 @@ export const VoteModal = ({
     } catch {
       saved = {};
     }
-    const merged = Object.fromEntries(
-      Object.entries({ ...existingVotes, ...saved }).filter(([, value]) => Boolean(value))
-    );
+    const merged = { ...fromStored(existingVotes), ...fromStored(saved) };
     setVotes(merged);
     setStep(0);
     setContinent(continentOf(merged["Primary Geographic"]) ?? "Africa");
@@ -218,33 +302,66 @@ export const VoteModal = ({
     }
   }, [votes, storageKey]);
 
+  // Cada pergunta abre na 1ª posição, com a busca limpa.
+  useEffect(() => {
+    setRank(0);
+    setQuery("");
+  }, [step]);
+
   useEffect(() => () => window.clearTimeout(advanceTimer.current), []);
 
-  const answeredCount = STEPS.filter((item) => votes[item.key]).length;
-  const primariesDone = Boolean(votes["Primary Geographic"] && votes["Primary Phenotype"]);
+  const answeredCount = STEPS.filter((item) => isAnswered(item, votes)).length;
+  const primariesDone = STEPS.slice(0, SHORT_ARM).every((item) => isAnswered(item, votes));
+
+  const unskip = (key: string) =>
+    setSkipped((previous) => {
+      if (!previous.has(key)) return previous;
+      const next = new Set(previous);
+      next.delete(key);
+      return next;
+    });
 
   const setVote = (key: string, value: string) => {
     setVotes((previous) => {
       const next = { ...previous, [key]: value };
       if (!value) delete next[key];
-      // Trocar a escolha principal invalida as seguintes (mesma regra de antes).
-      if (key === "Primary Geographic") {
-        delete next["Secondary Geographic"];
-        delete next["Tertiary Geographic"];
-      } else if (key === "Primary Phenotype") {
-        delete next["Secondary Phenotype"];
-        delete next["Tertiary Phenotype"];
-      } else if (key === "Secondary Geographic" && !value) {
-        delete next["Tertiary Geographic"];
-      } else if (key === "Secondary Phenotype" && !value) {
-        delete next["Tertiary Phenotype"];
-      }
       return next;
     });
-    setSkipped((previous) => {
-      if (!previous.has(key)) return previous;
-      const next = new Set(previous);
-      next.delete(key);
+    unskip(key);
+  };
+
+  const chooseRegion = (position: number, value: string) => setVote(REGION_KEYS[position], value);
+
+  /** Trocar o grupo de uma posição apaga o subtipo dela: ele pertencia ao grupo anterior. */
+  const chooseGeneral = (position: number, group: string) =>
+    setVotes((previous) => {
+      if (previous[GENERAL_KEYS[position]] === group) return previous;
+      const next = { ...previous, [GENERAL_KEYS[position]]: group };
+      delete next[SPECIFIC_KEYS[position]];
+      return next;
+    });
+
+  const chooseSpecific = (position: number, subgroup: string) => setVote(SPECIFIC_KEYS[position], subgroup);
+
+  /**
+   * Tira a escolha de uma posição opcional. As de baixo sobem uma casa, para
+   * não sobrar uma 3ª sem 2ª; no fenótipo, o subtipo sobe junto com o grupo.
+   */
+  const removeRank = (kind: StepKind, position: number) => {
+    setVotes((previous) => {
+      const next = { ...previous };
+      if (kind === "specific") {
+        delete next[SPECIFIC_KEYS[position]];
+        return next;
+      }
+      const columns = kind === "region" ? [REGION_KEYS] : [GENERAL_KEYS, SPECIFIC_KEYS];
+      for (const keys of columns) {
+        for (let index = position; index < keys.length - 1; index++) {
+          if (next[keys[index + 1]]) next[keys[index]] = next[keys[index + 1]];
+          else delete next[keys[index]];
+        }
+        delete next[keys[keys.length - 1]];
+      }
       return next;
     });
   };
@@ -252,7 +369,7 @@ export const VoteModal = ({
   /** Próxima pergunta sem resposta, ou a revisão. */
   const nextOpen = (from: number, current: Record<string, string>) => {
     for (let index = from; index < STEPS.length; index++) {
-      if (!current[STEPS[index].key] && !skipped.has(STEPS[index].key)) return index;
+      if (!isAnswered(STEPS[index], current) && !skipped.has(STEPS[index].key)) return index;
     }
     return REVIEW;
   };
@@ -271,24 +388,37 @@ export const VoteModal = ({
     setStep((current) => nextOpen(current + 1, votes));
   };
 
-  /** Resposta da comunidade antes deste voto, por característica. */
-  const communityTop = (key: string): string | null => {
+  /** Resposta da comunidade antes deste voto, por pergunta. */
+  const communityTop = (item: Step): string | null => {
     if (!community) return null;
-    if (key === "Primary Geographic") return community.geographic[key]?.[0]?.classification ?? null;
-    if (key === "Primary Phenotype") return community.phenotype[key]?.[0]?.classification ?? null;
-    const list = community.physical.find((item) => item.name === key)?.votes ?? [];
+    if (item.kind === "region") return community.geographic["Primary Geographic"]?.[0]?.classification ?? null;
+    if (item.kind === "general")
+      return toGeneralShares(community.phenotype["Primary Phenotype"])[0]?.classification ?? null;
+    if (item.kind === "specific")
+      return toSpecificShares(community.phenotype["Primary Phenotype"])[0]?.classification ?? null;
+    const list = community.physical.find((entry) => entry.name === item.key)?.votes ?? [];
     const top = [...list].sort((a, b) => b.count - a.count)[0];
     return top?.option ?? null;
   };
 
+  /** As três posições de uma pergunta do braço curto, como texto. */
+  const rankValues = (item: Step): Array<string | null> => {
+    if (item.kind === "region") return REGION_KEYS.map((key) => votes[key] ?? null);
+    if (item.kind === "general") return GENERAL_KEYS.map((key) => votes[key] ?? null);
+    if (item.kind === "specific") return RANKS.map((position) => specificValue(votes, position));
+    return [votes[item.key] ?? null];
+  };
+
   const summary = STEPS.map((item) => {
-    const yours = votes[item.key];
-    const top = communityTop(item.key);
+    const values = rankValues(item);
+    const yours = values[0];
+    const top = communityTop(item);
     const label = (value: string) => (item.kind === "trait" ? traitOptionLabel(item.key, value) : value);
     return {
       key: item.key,
       title: item.title,
       yours: yours ? label(yours) : null,
+      also: values.slice(1).filter((value): value is string => Boolean(value)),
       community: top ? label(top) : null,
       match: Boolean(yours && top && yours === top),
       firstVote: Boolean(yours && !top),
@@ -306,7 +436,7 @@ export const VoteModal = ({
       return row.match ? BAND.match : BAND.differs;
     }
     if (index === step) return BAND.current;
-    if (votes[item.key]) return BAND.answered;
+    if (isAnswered(item, votes)) return BAND.answered;
     if (skipped.has(item.key)) return BAND.skipped;
     return BAND.pending;
   };
@@ -315,7 +445,7 @@ export const VoteModal = ({
     if (!primariesDone || submitting) return;
     setSubmitting(true);
     try {
-      const result = await onSubmit(votes);
+      const result = await onSubmit(toStored(votes));
       if (result === false) return;
       try {
         localStorage.removeItem(storageKey);
@@ -335,28 +465,45 @@ export const VoteModal = ({
 
   const current = step < STEPS.length ? STEPS[step] : null;
 
-  const phenotypeResults = useMemo(() => {
+  /** Grupos para a posição atual; a busca acha o grupo também pelo nome de um subtipo. */
+  const generalResults = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return PHENOTYPE_GROUPS.map((name) => ({ name, group: name, isGroup: true }));
-    return PHENOTYPE_ENTRIES.filter(
-      (entry) => entry.name.toLowerCase().includes(needle) || entry.group.toLowerCase().includes(needle)
-    ).slice(0, 80);
+    return PHENOTYPE_GROUPS.flatMap((group) => {
+      if (!needle || group.toLowerCase().includes(needle)) return [{ group, via: null as string | null }];
+      const via = subgroupsOf(group).find((name) => name.toLowerCase().includes(needle));
+      return via ? [{ group, via }] : [];
+    });
   }, [query]);
+
+  // Na região, a aba de uma posição já respondida mostra o continente dela.
+  const selectRank = (position: number) => {
+    setRank(position);
+    if (current?.kind === "region") {
+      const chosen = continentOf(votes[REGION_KEYS[position]]);
+      if (chosen) setContinent(chosen);
+    }
+  };
 
   const progressLeft =
     step === DONE
-      ? "All 12 bands · your read vs. the community"
+      ? `All ${STEPS.length} bands · your read vs. the community`
       : step === REVIEW
-        ? "Review · 12 bands"
-        : `Band ${step + 1} of 12 · ${step < 2 ? "short arm" : "long arm"}`;
+        ? `Review · ${STEPS.length} bands`
+        : `Band ${step + 1} of ${STEPS.length} · ${step < SHORT_ARM ? "short arm" : "long arm"}`;
+
+  /** Em que posição um valor já está, para não escolher o mesmo duas vezes. */
+  const takenAt = (keys: string[], value: string) => keys.findIndex((key, position) => position !== rank && votes[key] === value);
+
+  const activeGroup = votes[GENERAL_KEYS[rank]];
+  const activeSubgroups = activeGroup ? subgroupsOf(activeGroup) : [];
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
       <DialogContent className="flex h-[100dvh] max-w-[480px] flex-col gap-0 overflow-hidden border-kt-rule bg-kt-paper p-0 text-kt-ink sm:h-[min(860px,92vh)] [&>button]:hidden">
         <DialogTitle className="sr-only">Your read of {profileImages?.profileName ?? "this face"}</DialogTitle>
         <DialogDescription className="sr-only">
-          Answer region and phenotype, then up to ten physical traits. The community read stays hidden until you
-          submit.
+          Answer region, general phenotype and specific phenotype — up to three choices each, the first required —
+          then up to ten physical traits. The community read stays hidden until you submit.
         </DialogDescription>
 
         {/* Cabeçalho */}
@@ -385,16 +532,16 @@ export const VoteModal = ({
         {/* Cromossomo de progresso */}
         <div className="shrink-0 px-4 pb-3 pt-4">
           <div className="relative flex h-6">
-            {[STEPS.slice(0, 2), STEPS.slice(2)].map((arm, armIndex) => (
+            {[STEPS.slice(0, SHORT_ARM), STEPS.slice(SHORT_ARM)].map((arm, armIndex) => (
               <div
                 key={armIndex}
                 className={cn(
                   "box-border flex overflow-hidden rounded-full border-[1.5px] border-kt-ink",
-                  armIndex === 0 ? "flex-[0_0_18%]" : "flex-1"
+                  armIndex === 0 ? "flex-[0_0_24%]" : "flex-1"
                 )}
               >
                 {arm.map((item, offset) => {
-                  const index = armIndex === 0 ? offset : offset + 2;
+                  const index = armIndex === 0 ? offset : offset + SHORT_ARM;
                   return (
                     <button
                       key={item.key}
@@ -424,9 +571,11 @@ export const VoteModal = ({
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="shrink-0 px-4 pb-3 pt-1.5">
               <SC as="p" className="m-0 text-[14px] text-kt-teal">
-                {step < 2 ? `p${step + 1} · short arm · required` : `q${step - 1} · long arm · optional`}
+                {step < SHORT_ARM
+                  ? `p${step + 1} · short arm · 1st required`
+                  : `q${step - SHORT_ARM + 1} · long arm · optional`}
               </SC>
-              <h2 className="mb-0 mt-0.5 text-[32px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
+              <h2 className="mb-0 mt-0.5 text-[30px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
                 {current.title}
               </h2>
               <p className="mb-0 mt-1.5 text-[16px] italic leading-[1.4] text-kt-body">{current.help}</p>
@@ -436,6 +585,37 @@ export const VoteModal = ({
                 </p>
               )}
             </div>
+
+            {/* Posições: 1ª obrigatória, 2ª e 3ª opcionais */}
+            {current.kind !== "trait" && (
+              <div className="shrink-0 px-4 pb-2.5">
+                <RankTabs
+                  label={`${current.title} choices`}
+                  active={rank}
+                  onSelect={selectRank}
+                  valueOf={(position) => rankValues(current)[position]}
+                  captionOf={(position) =>
+                    current.kind === "specific" && votes[GENERAL_KEYS[position]]
+                      ? `${RANK_LABEL[position]} · ${votes[GENERAL_KEYS[position]]}`
+                      : `${RANK_LABEL[position]}${position === 0 ? " · required" : ""}`
+                  }
+                  disabledOf={(position) =>
+                    current.kind === "specific"
+                      ? !votes[GENERAL_KEYS[position]]
+                      : position > 0 && !rankValues(current)[position - 1]
+                  }
+                />
+                {rank > 0 && rankValues(current)[rank] && (
+                  <button
+                    type="button"
+                    onClick={() => removeRank(current.kind, rank)}
+                    className="mt-1.5 min-h-[32px] border-0 bg-transparent p-0 font-[inherit] text-[14px] text-kt-teal underline underline-offset-4"
+                  >
+                    remove {RANK_LABEL[rank]} choice
+                  </button>
+                )}
+              </div>
+            )}
 
             {current.kind === "region" && (
               <div
@@ -464,7 +644,7 @@ export const VoteModal = ({
               </div>
             )}
 
-            {current.kind === "phenotype" && (
+            {current.kind === "general" && (
               <div className="shrink-0 px-4 pb-2.5">
                 <label htmlFor="pheno-search" className="sr-only">
                   Search phenotype groups
@@ -480,7 +660,7 @@ export const VoteModal = ({
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search groups and subgroups"
+                    placeholder="Search a group, or one of its subtypes"
                     className="h-[46px] w-full rounded-full border border-kt-rule bg-white pl-[42px] pr-4 font-[inherit] text-[17px] text-kt-ink placeholder:text-kt-mute focus-visible:border-kt-teal focus-visible:outline-none"
                   />
                 </div>
@@ -489,53 +669,94 @@ export const VoteModal = ({
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 pt-1">
               {current.kind === "region" &&
-                GEOGRAPHIC_OPTIONS[continent].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={votes["Primary Geographic"] === option}
-                    onClick={() => setVote("Primary Geographic", option)}
-                    className={optionRow(votes["Primary Geographic"] === option)}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
-                      style={{ background: REGION_HEX[continent] }}
-                    />
-                    {option}
-                  </button>
-                ))}
+                GEOGRAPHIC_OPTIONS[continent].map((option) => {
+                  const selected = votes[REGION_KEYS[rank]] === option;
+                  const taken = takenAt(REGION_KEYS, option);
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={selected}
+                      disabled={taken >= 0}
+                      onClick={() => chooseRegion(rank, option)}
+                      className={optionRow(selected)}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
+                        style={{ background: REGION_HEX[continent] }}
+                      />
+                      <span className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
+                        <span>{option}</span>
+                        {taken >= 0 && <SC className="text-[12px]">{RANK_LABEL[taken]}</SC>}
+                      </span>
+                    </button>
+                  );
+                })}
 
-              {current.kind === "phenotype" &&
-                (phenotypeResults.length === 0 ? (
+              {current.kind === "general" &&
+                (generalResults.length === 0 ? (
                   <p className="mx-1 mt-2 text-[16px] text-kt-body">No group matches “{query}”. Try a shorter name.</p>
                 ) : (
-                  phenotypeResults.map((entry) => {
-                    const selected = votes["Primary Phenotype"] === entry.name;
+                  generalResults.map(({ group, via }) => {
+                    const selected = votes[GENERAL_KEYS[rank]] === group;
+                    const taken = takenAt(GENERAL_KEYS, group);
+                    const count = subgroupsOf(group).length;
                     return (
                       <button
-                        key={`${entry.group}-${entry.name}`}
+                        key={group}
                         type="button"
                         aria-pressed={selected}
-                        onClick={() => setVote("Primary Phenotype", entry.name)}
+                        disabled={taken >= 0}
+                        onClick={() => chooseGeneral(rank, group)}
                         className={optionRow(selected)}
                       >
-                        <span
-                          aria-hidden="true"
-                          className="block h-[11px] w-8 shrink-0 box-border rounded-full border border-current"
-                          style={{
-                            background: selected
-                              ? `linear-gradient(90deg,${KT.ink} 0 30%,${KT.glow} 0 60%,${KT.ink} 0 100%)`
-                              : `linear-gradient(90deg,${KT.sheet} 0 30%,${KT.b50} 0 60%,${KT.sheet} 0 100%)`,
-                          }}
-                        />
-                        <span className="flex min-w-0 flex-col gap-0.5">
-                          <span>{entry.name}</span>
-                          {!entry.isGroup && <span className="text-[14px] italic opacity-[.82]">{entry.group}</span>}
+                        <PhenotypeGlyph selected={selected} />
+                        <span className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span>{group}</span>
+                            <span className="text-[14px] italic opacity-[.82]">
+                              {via ? `includes ${via}` : count > 0 ? `${count} subtypes` : "no subtypes"}
+                            </span>
+                          </span>
+                          {taken >= 0 && <SC className="text-[12px]">{RANK_LABEL[taken]}</SC>}
                         </span>
                       </button>
                     );
                   })
+                ))}
+
+              {current.kind === "specific" &&
+                (!activeGroup ? (
+                  <p className="mx-1 mt-2 text-[16px] text-kt-body">
+                    Choose a general phenotype for this position first.
+                  </p>
+                ) : activeSubgroups.length === 0 ? (
+                  <p className="mx-1 mt-2 text-[16px] leading-[1.45] text-kt-body">
+                    <strong className="font-semibold text-kt-ink">{activeGroup}</strong> has no subtypes, so your
+                    general answer already covers this one.
+                  </p>
+                ) : (
+                  <>
+                    <SC as="p" className="mx-1 mb-2 mt-1 text-[13px] text-kt-body">
+                      subtypes within {activeGroup}
+                    </SC>
+                    {activeSubgroups.map((subgroup) => {
+                      const selected = votes[SPECIFIC_KEYS[rank]] === subgroup;
+                      return (
+                        <button
+                          key={subgroup}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => chooseSpecific(rank, subgroup)}
+                          className={optionRow(selected)}
+                        >
+                          <PhenotypeGlyph selected={selected} />
+                          <span>{subgroup}</span>
+                        </button>
+                      );
+                    })}
+                  </>
                 ))}
 
               {current.kind === "trait" &&
@@ -560,60 +781,6 @@ export const VoteModal = ({
                     );
                   });
                 })()}
-
-              {/* Escolhas secundária e terciária, opcionais */}
-              {current.kind === "region" && votes["Primary Geographic"] && (
-                <div className="mt-3 grid gap-3 border-t border-kt-rule pt-3">
-                  <OptionalSelect
-                    id="second-region"
-                    label="also reads as (optional)"
-                    value={votes["Secondary Geographic"] ?? ""}
-                    options={ALL_SUBREGIONS.filter((option) => option !== votes["Primary Geographic"])}
-                    onChange={(value) => setVote("Secondary Geographic", value)}
-                  />
-                  {votes["Secondary Geographic"] && (
-                    <OptionalSelect
-                      id="third-region"
-                      label="third choice (optional)"
-                      value={votes["Tertiary Geographic"] ?? ""}
-                      options={ALL_SUBREGIONS.filter(
-                        (option) => option !== votes["Primary Geographic"] && option !== votes["Secondary Geographic"]
-                      )}
-                      onChange={(value) => setVote("Tertiary Geographic", value)}
-                    />
-                  )}
-                </div>
-              )}
-              {current.kind === "phenotype" && votes["Primary Phenotype"] && (
-                <div className="mt-3 grid gap-3 border-t border-kt-rule pt-3">
-                  <OptionalSelect
-                    id="second-phenotype"
-                    label="also reads as (optional)"
-                    value={votes["Secondary Phenotype"] ?? ""}
-                    options={[]}
-                    grouped={PHENOTYPE_GROUPED.map((group) => ({
-                      group: group.group,
-                      items: group.items.filter((item) => item !== votes["Primary Phenotype"]),
-                    }))}
-                    onChange={(value) => setVote("Secondary Phenotype", value)}
-                  />
-                  {votes["Secondary Phenotype"] && (
-                    <OptionalSelect
-                      id="third-phenotype"
-                      label="third choice (optional)"
-                      value={votes["Tertiary Phenotype"] ?? ""}
-                      options={[]}
-                      grouped={PHENOTYPE_GROUPED.map((group) => ({
-                        group: group.group,
-                        items: group.items.filter(
-                          (item) => item !== votes["Primary Phenotype"] && item !== votes["Secondary Phenotype"]
-                        ),
-                      }))}
-                      onChange={(value) => setVote("Tertiary Phenotype", value)}
-                    />
-                  )}
-                </div>
-              )}
             </div>
 
             <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-kt-rule bg-kt-paper px-4 pb-[18px] pt-2.5">
@@ -637,7 +804,7 @@ export const VoteModal = ({
               ) : (
                 <CenButton
                   size="sm"
-                  disabled={!votes[current.key]}
+                  disabled={!isAnswered(current, votes)}
                   onClick={() => setStep((value) => nextOpen(value + 1, votes))}
                 >
                   next
@@ -673,7 +840,7 @@ export const VoteModal = ({
                 ) : primariesDone ? (
                   "Tap any band to change an answer. Skipped traits stay empty."
                 ) : (
-                  "Region and phenotype are required. Tap their bands to answer them."
+                  "The first choice of region, general phenotype and specific phenotype is required. Tap their bands to answer them."
                 )}
               </p>
               <ul className="m-0 mt-4 list-none p-0">
@@ -694,10 +861,13 @@ export const VoteModal = ({
                       className="min-w-0 border-0 bg-transparent p-0 text-left font-[inherit] disabled:cursor-default"
                     >
                       <span className="block text-[16px] leading-[1.25] text-kt-ink">{row.title}</span>
+                      {row.also.length > 0 && (
+                        <span className="block text-[13px] text-kt-body">then {row.also.join(", ")}</span>
+                      )}
                       {step === DONE && row.yours && (
                         <span className="block text-[13px] italic text-kt-body">
                           {row.firstVote
-                            ? "first vote on this trait"
+                            ? "first vote on this question"
                             : row.match
                               ? "matches the community"
                               : `community: ${row.community}`}

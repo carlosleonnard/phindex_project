@@ -351,3 +351,24 @@ const GROUP_BY_NAME = new Map(PHENOTYPE_ENTRIES.map((entry) => [entry.name.toLow
  * subgrupos, somam no grupo. Nomes fora da taxonomia voltam como estão.
  */
 export const phenotypeGroupOf = (name: string): string => GROUP_BY_NAME.get(name.toLowerCase()) ?? name;
+
+const SUBGROUPS_BY_GROUP = new Map(
+  Object.values(PHENOTYPE_TAXONOMY).flatMap((groups) =>
+    Object.entries(groups).map(([group, subgroups]) => [group, subgroups ?? []] as const)
+  )
+);
+
+/** Subtipos de um grupo principal, na ordem da taxonomia; vazio quando o grupo não tem. */
+export const subgroupsOf = (group: string): string[] => SUBGROUPS_BY_GROUP.get(group) ?? [];
+
+/**
+ * Se um voto responde o nível específico: nomeia um subtipo, ou um grupo que
+ * não tem subtipos (Khoid, Hadza…), em que o próprio grupo é a resposta mais
+ * fina. Um grupo COM subtipos responde só o nível geral — é o que os votos
+ * anteriores ao voto em dois níveis gravavam quando paravam no grupo.
+ */
+export const isSpecificPhenotype = (name: string): boolean => {
+  const group = phenotypeGroupOf(name);
+  if (group.toLowerCase() !== name.toLowerCase()) return true;
+  return subgroupsOf(group).length === 0;
+};

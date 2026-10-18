@@ -44,6 +44,7 @@ const Privacy = lazy(() => import("./pages/Privacy")); // O que é guardado e co
 const Terms = lazy(() => import("./pages/Terms")); // As regras para publicar e comentar
 const Leaderboard = lazy(() => import("./pages/Leaderboard")); // Ranking do jogo
 const GamePage = lazy(() => import("./pages/GamePage")); // Guess the phenotype
+const AttractionPage = lazy(() => import("./pages/AttractionPage")); // Escala de atração
 const MemberProfile = lazy(() => import("./pages/MemberProfile")); // Perfil público de membro
 const NotFound = lazy(() => import("./pages/NotFound")); // Página 404
 
@@ -135,6 +136,9 @@ const App = () => (
 
             {/* ROTA ESTÁTICA: Página do Origin Game */}
             <Route path="/game" element={<GamePage />} />
+
+            {/* ROTA ESTÁTICA: Escala de atração (noindex — ver AttractionPage) */}
+            <Route path="/attraction" element={<AttractionPage />} />
 
             {/* ROTA DINÂMICA: Perfil público de membro por userId */}
             <Route path="/member/:userId" element={<MemberProfile />} />
