@@ -15,7 +15,7 @@
 
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bookmark, Compass, Gamepad2, LogOut, Trophy, Users } from "lucide-react";
+import { Bookmark, Compass, Gamepad2, Heart, LogOut, Trophy, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { CONTINENT_ORDER, CONTINENT_META } from "@/constants/regions";
 import { CATEGORY_OPTIONS, CATEGORY_SLUG_MAP } from "@/constants/categories";
@@ -31,6 +31,7 @@ const PRIMARY_NAV = [
   { Icon: Users, name: "Community", path: "/community" },
   { Icon: Compass, name: "Explore", path: "/explore" },
   { Icon: Gamepad2, name: "Guess the phenotype", path: "/game", badge: "daily" },
+  { Icon: Heart, name: "Attractiveness scale", path: "/attraction" },
   { Icon: Trophy, name: "Leaderboard", path: "/leaderboard" },
   { Icon: Bookmark, name: "Saved", path: "/saved" },
 ];
