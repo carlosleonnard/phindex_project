@@ -330,18 +330,38 @@ export const VoteModal = ({
     unskip(key);
   };
 
-  const chooseRegion = (position: number, value: string) => setVote(REGION_KEYS[position], value);
+  /**
+   * Escolher numa posição passa para a seguinte (1ª → 2ª → 3ª), para a 2ª e a
+   * 3ª aparecerem sem ninguém precisar procurar a aba. Na 3ª, fica. A busca
+   * limpa, senão a aba nova abriria filtrada pela busca da anterior.
+   */
+  const advanceFrom = (position: number, nextOpen = true) => {
+    if (position >= RANKS.length - 1 || !nextOpen) return;
+    setRank(position + 1);
+    setQuery("");
+  };
+
+  const chooseRegion = (position: number, value: string) => {
+    setVote(REGION_KEYS[position], value);
+    advanceFrom(position);
+  };
 
   /** Trocar o grupo de uma posição apaga o subtipo dela: ele pertencia ao grupo anterior. */
-  const chooseGeneral = (position: number, group: string) =>
+  const chooseGeneral = (position: number, group: string) => {
     setVotes((previous) => {
       if (previous[GENERAL_KEYS[position]] === group) return previous;
       const next = { ...previous, [GENERAL_KEYS[position]]: group };
       delete next[SPECIFIC_KEYS[position]];
       return next;
     });
+    advanceFrom(position);
+  };
 
-  const chooseSpecific = (position: number, subgroup: string) => setVote(SPECIFIC_KEYS[position], subgroup);
+  /** No específico, só avança se a posição seguinte já tem um grupo escolhido. */
+  const chooseSpecific = (position: number, subgroup: string) => {
+    setVote(SPECIFIC_KEYS[position], subgroup);
+    advanceFrom(position, Boolean(votes[GENERAL_KEYS[position + 1]]));
+  };
 
   /**
    * Tira a escolha de uma posição opcional. As de baixo sobem uma casa, para
@@ -489,7 +509,7 @@ export const VoteModal = ({
       ? `All ${STEPS.length} bands · your read vs. the community`
       : step === REVIEW
         ? `Review · ${STEPS.length} bands`
-        : `Band ${step + 1} of ${STEPS.length} · ${step < SHORT_ARM ? "short arm" : "long arm"}`;
+        : `${STEPS[step].title} · ${step + 1} of ${STEPS.length}`;
 
   /** Em que posição um valor já está, para não escolher o mesmo duas vezes. */
   const takenAt = (keys: string[], value: string) => keys.findIndex((key, position) => position !== rank && votes[key] === value);
@@ -560,8 +580,17 @@ export const VoteModal = ({
               </div>
             ))}
           </div>
-          <div className="mt-2 flex justify-between gap-3 text-[14px] text-kt-body">
-            <span>{progressLeft}</span>
+          <div className="mt-2 flex items-baseline justify-between gap-3 text-[14px] text-kt-body">
+            <span>
+              {current ? (
+                <>
+                  <span className="text-[17px] font-medium text-kt-ink">{current.title}</span> · {step + 1} of{" "}
+                  {STEPS.length}
+                </>
+              ) : (
+                progressLeft
+              )}
+            </span>
             {step < REVIEW && <span>{answeredCount} answered</span>}
           </div>
         </div>
@@ -569,22 +598,12 @@ export const VoteModal = ({
         {/* Pergunta */}
         {current && (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 px-4 pb-3 pt-1.5">
-              <SC as="p" className="m-0 text-[14px] text-kt-teal">
-                {step < SHORT_ARM
-                  ? `p${step + 1} · short arm · 1st required`
-                  : `q${step - SHORT_ARM + 1} · long arm · optional`}
-              </SC>
-              <h2 className="mb-0 mt-0.5 text-[30px] font-medium leading-[1.05] tracking-[-0.015em] text-kt-ink">
-                {current.title}
-              </h2>
-              <p className="mb-0 mt-1.5 text-[16px] italic leading-[1.4] text-kt-body">{current.help}</p>
-              {step === 0 && (
-                <p className="mb-0 mt-2.5 rounded-[3px] border border-dashed border-kt-b50 px-3 py-2 text-[14px] leading-[1.4] text-kt-slate">
-                  The community read stays hidden until you finish, so it can’t sway your answers.
-                </p>
-              )}
-            </div>
+            {/* Sem cabeçalho visível: o nome da pergunta está na linha de
+                progresso, e o espaço vai para a lista. Com o rótulo, o título,
+                a ajuda e o aviso, a lista ficava curta e a barra de rolagem
+                pequena. Título e ajuda continuam para leitores de tela. */}
+            <h2 className="sr-only">{current.title}</h2>
+            <p className="sr-only">{current.help}</p>
 
             {/* Posições: 1ª obrigatória, 2ª e 3ª opcionais */}
             {current.kind !== "trait" && (
