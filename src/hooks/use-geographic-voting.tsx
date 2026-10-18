@@ -113,6 +113,35 @@ export const useGeographicVoting = (profileId: string) => {
     }
   };
 
+  /**
+   * Apaga uma escolha que a pessoa tirou no modal (uma 2ª ou 3ª região ou
+   * fenótipo). Sem isto a linha antiga ficava no banco e continuava contando.
+   * Depende da política de DELETE em `votes` (PENDING_MIGRATIONS.sql): sem
+   * ela o Supabase não devolve erro, só não apaga nada.
+   */
+  const removeGeographicVote = async (characteristicType: string) => {
+    if (!user) return false;
+    try {
+      const { error } = await supabase
+        .from('votes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('profile_id', profileId)
+        .eq('characteristic_type', characteristicType);
+
+      if (error) throw error;
+
+      const newVotes = { ...userGeographicVotes };
+      delete newVotes[characteristicType];
+      setUserGeographicVotes(newVotes);
+      localStorage.setItem(`pendingGeographicVotes_${profileId}`, JSON.stringify(newVotes));
+      return true;
+    } catch (error) {
+      console.error('Error removing vote:', error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchGeographicVotes();
   }, [profileId, user]);
@@ -121,6 +150,7 @@ export const useGeographicVoting = (profileId: string) => {
     userGeographicVotes,
     loading,
     castGeographicVote,
+    removeGeographicVote,
     refetchVotes: fetchGeographicVotes
   };
 };

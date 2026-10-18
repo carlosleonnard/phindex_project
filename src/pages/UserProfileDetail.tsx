@@ -35,6 +35,7 @@ import { LoginModal } from "@/components/LoginModal";
 import { EditUserProfileModal } from "@/components/EditUserProfileModal";
 import { CommunityRead } from "@/components/profile/CommunityRead";
 import { BlindRead, Classification, TraitTable } from "@/components/profile/ReadSections";
+import { toGeneralShares, toSpecificShares } from "@/lib/phenotype-levels";
 import { CenButton } from "@/components/kt/Centromere";
 import { FacePhoto, SC, timeAgo } from "@/components/kt/Misc";
 import { useUserProfiles } from "@/hooks/use-user-profiles";
@@ -107,7 +108,12 @@ export default function UserProfileDetail() {
     userVotes: physicalUserVotes,
     castVote: castPhysicalVote,
   } = usePhysicalVoting(profile?.id || "");
-  const { userGeographicVotes, castGeographicVote, refetchVotes: refetchGeographicVotes } = useGeographicVoting(
+  const {
+    userGeographicVotes,
+    castGeographicVote,
+    removeGeographicVote,
+    refetchVotes: refetchGeographicVotes,
+  } = useGeographicVoting(
     profile?.id || ""
   );
   const { geographicVotes, phenotypeVotes, refetchVoteCounts } = useGeographicVoteCounts(profile?.id || "");
@@ -142,7 +148,9 @@ export default function UserProfileDetail() {
     });
     return {
       region: top(geographicVotes["Primary Geographic"]),
-      phenotype: top(phenotypeVotes["Primary Phenotype"]),
+      // Os dois níveis saem das mesmas linhas: somadas por grupo, e só as que chegaram ao subtipo.
+      general: top(toGeneralShares(phenotypeVotes["Primary Phenotype"])),
+      specific: top(toSpecificShares(phenotypeVotes["Primary Phenotype"])),
       traits,
     };
   }, [geographicVotes, phenotypeVotes, physicalCharacteristics]);
@@ -416,7 +424,13 @@ export default function UserProfileDetail() {
           </div>
 
           <div data-voting-section>
-            <CommunityRead region={read.region} phenotype={read.phenotype} traits={read.traits} voters={totalVoteCount} />
+            <CommunityRead
+              region={read.region}
+              general={read.general}
+              specific={read.specific}
+              traits={read.traits}
+              voters={totalVoteCount}
+            />
             <Classification geographic={geographicVotes} phenotype={phenotypeVotes} />
             <TraitTable characteristics={physicalCharacteristics} />
             <BlindRead
@@ -466,6 +480,9 @@ export default function UserProfileDetail() {
               if (votes[characteristic]) {
                 const success = await castGeographicVote(characteristic, votes[characteristic]);
                 if (characteristic === "Primary Phenotype") mainVoteSuccess = success;
+              } else if (userGeographicVotes[characteristic]) {
+                // A 2ª ou 3ª escolha foi retirada no modal: a linha antiga sai do banco.
+                await removeGeographicVote(characteristic);
               }
             }
             for (const characteristic of PHYSICAL_KEYS) {
