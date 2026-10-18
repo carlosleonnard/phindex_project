@@ -3,11 +3,10 @@
 -- Cole este arquivo inteiro no SQL Editor do Supabase e execute uma vez.
 -- Todas as instruções são idempotentes: rodar de novo não causa erro.
 --
--- Conferido no banco em 18/10/2026: saved_profiles, game_guesses, as colunas
--- subcategory e a política de DELETE em votes JÁ EXISTEM — as seções delas
--- abaixo não mudam nada se rodarem de novo. Falta só uma coisa, e até ela rodar:
---   * a escala de atração funciona, mas nada é salvo e a comparação com a
---     amostra nunca aparece (attraction_ratings ausente)
+-- Conferido no banco em 18/10/2026: TUDO ABAIXO JÁ ESTÁ APLICADO —
+-- saved_profiles, game_guesses, as colunas subcategory, attraction_ratings
+-- (com as três views) e a política de DELETE em votes. Rodar de novo não muda
+-- nada. Novas migrations entram no fim deste arquivo e nesta lista.
 
 
 -- ============================================================
